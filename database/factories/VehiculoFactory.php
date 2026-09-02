@@ -29,7 +29,13 @@ class VehiculoFactory extends Factory
             'anio' => fake()->numberBetween(2005, (int) date('Y')),
             'kilometraje' => fake()->numberBetween(0, 200000),
             'vin' => mb_strtoupper(fake()->unique()->bothify('#################')),
+            'activo' => true,
         ];
+    }
+
+    public function inactivo(): static
+    {
+        return $this->state(['activo' => false]);
     }
 
     /**

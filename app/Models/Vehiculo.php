@@ -35,6 +35,7 @@ class Vehiculo extends Model
         'kilometraje',
         'vin',
         'foto_path',
+        'activo',
     ];
 
     /**
@@ -43,6 +44,18 @@ class Vehiculo extends Model
     protected $appends = [
         'foto_url',
     ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'activo' => 'boolean',
+            'anio' => 'integer',
+            'kilometraje' => 'integer',
+        ];
+    }
 
     /**
      * @return BelongsTo<Cliente, $this>

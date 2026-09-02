@@ -43,6 +43,7 @@ type VehiculoFormData = {
     vin: string;
     foto: File | null;
     clear_foto: boolean;
+    activo: boolean;
 };
 
 const emptyForm: VehiculoFormData = {
@@ -56,6 +57,7 @@ const emptyForm: VehiculoFormData = {
     vin: '',
     foto: null,
     clear_foto: false,
+    activo: true,
 };
 
 const buildInitialData = (vehiculo: Vehiculo | null): VehiculoFormData => ({
@@ -69,6 +71,7 @@ const buildInitialData = (vehiculo: Vehiculo | null): VehiculoFormData => ({
     vin: vehiculo?.vin ?? '',
     foto: null,
     clear_foto: false,
+    activo: vehiculo?.activo ?? true,
 });
 
 const isFormValid = (data: VehiculoFormData): boolean =>
@@ -116,6 +119,7 @@ export function VehiculoFormModal({
                 anio: raw.anio.trim() === '' ? null : raw.anio,
                 kilometraje: raw.kilometraje.trim() === '' ? null : raw.kilometraje,
                 vin: raw.vin.trim() || null,
+                activo: raw.activo ? '1' : '0',
             };
 
             if (raw.foto instanceof File) {
@@ -450,6 +454,24 @@ export function VehiculoFormModal({
                             placeholder="1HGCM82633A004352"
                             autoComplete="off"
                         />
+                    </FormField>
+
+                    <FormField
+                        id="vehiculo-activo"
+                        label="Vehículo activo"
+                        error={errors.activo}
+                        hint="Desmarca esta opción si el vehículo ya no debe considerarse vigente."
+                        className="sm:col-span-2"
+                    >
+                        <div className="flex items-center gap-2 pt-1">
+                            <Checkbox
+                                id="vehiculo-activo"
+                                checked={data.activo}
+                                onCheckedChange={(checked) =>
+                                    setData('activo', checked === true)
+                                }
+                            />
+                        </div>
                     </FormField>
                 </FormSection>
             </div>

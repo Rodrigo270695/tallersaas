@@ -21,6 +21,7 @@ export type Vehiculo = {
     vin: string | null;
     foto_path: string | null;
     foto_url: string | null;
+    activo: boolean;
     cliente: VehiculoClienteRef;
     marca: VehiculoEntidadRef;
     modelo: VehiculoEntidadRef;

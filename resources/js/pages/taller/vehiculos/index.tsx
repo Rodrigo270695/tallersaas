@@ -12,6 +12,7 @@ import {
     PageHeader,
 } from '@/components/data-page';
 import type { DataTableColumn } from '@/components/data-page';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
@@ -188,6 +189,23 @@ count += 1;
                         </span>
                     ) : (
                         <span className="text-xs text-muted-foreground">—</span>
+                    ),
+            },
+            {
+                key: 'activo',
+                header: 'Estado',
+                cell: (vehiculo) =>
+                    vehiculo.activo ? (
+                        <Badge
+                            variant="outline"
+                            className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400"
+                        >
+                            Activo
+                        </Badge>
+                    ) : (
+                        <Badge variant="outline" className="text-muted-foreground">
+                            Inactivo
+                        </Badge>
                     ),
             },
         ];

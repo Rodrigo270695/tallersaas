@@ -40,6 +40,7 @@ class VehiculoRequest extends FormRequest
             'vin' => ['nullable', 'string', 'max:30', 'regex:/^[A-Z0-9]+$/'],
             'foto' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'clear_foto' => ['nullable', 'boolean'],
+            'activo' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -83,6 +84,12 @@ class VehiculoRequest extends FormRequest
         if ($this->has('clear_foto')) {
             $this->merge([
                 'clear_foto' => filter_var($this->input('clear_foto'), FILTER_VALIDATE_BOOLEAN),
+            ]);
+        }
+
+        if ($this->has('activo')) {
+            $this->merge([
+                'activo' => filter_var($this->input('activo'), FILTER_VALIDATE_BOOLEAN),
             ]);
         }
     }
