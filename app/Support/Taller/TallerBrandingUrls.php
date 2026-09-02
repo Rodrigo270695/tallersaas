@@ -1,0 +1,113 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Support\Taller;
+
+use App\Models\TallerSetting;
+use App\Models\Tenant;
+use App\Tenancy\TenantManager;
+use Throwable;
+
+/**
+ * URLs de logo de taller con fallback al branding TallerSaaS (naranja).
+ */
+final class TallerBrandingUrls
+{
+    public static function default(): string
+    {
+        return asset('logo.png');
+    }
+
+    public static function fromTallerSetting(?TallerSetting $setting): string
+    {
+        $logoUrl = $setting?->logo_url;
+
+        if (! is_string($logoUrl) || $logoUrl === '') {
+            return self::default();
+        }
+
+        return self::withCacheBuster($logoUrl, $setting->updated_at?->timestamp);
+    }
+
+    public static function forTenant(TenantManager $manager, Tenant $tenant): string
+    {
+        return self::resolveForTenant($manager, $tenant)['logo_url'];
+    }
+
+    /**
+     * @return array{logo_url: string, has_custom_logo: bool}
+     */
+    public static function resolveForTenant(TenantManager $manager, Tenant $tenant): array
+    {
+        if (! is_string($tenant->slug) || $tenant->slug === '') {
+            return [
+                'logo_url' => self::default(),
+                'has_custom_logo' => false,
+            ];
+        }
+
+        try {
+            return $manager->runForSlug($tenant->slug, function (): array {
+                $setting = TallerSetting::query()->first();
+                $hasCustom = is_string($setting?->logo_path) && $setting->logo_path !== '';
+
+                return [
+                    'logo_url' => self::fromTallerSetting($setting),
+                    'has_custom_logo' => $hasCustom,
+                ];
+            });
+        } catch (Throwable) {
+            return [
+                'logo_url' => self::default(),
+                'has_custom_logo' => false,
+            ];
+        }
+    }
+
+    /**
+     * @return array{
+     *     logo_url: string,
+     *     updated_at: string|null,
+     *     color_primario: string|null,
+     *     color_secundario: string|null
+     * }
+     */
+    public static function sharedPayload(?TallerSetting $setting): array
+    {
+        $logoUrl = self::fromTallerSetting($setting);
+
+        return [
+            'logo_url' => $logoUrl,
+            'updated_at' => $setting?->updated_at?->toIso8601String(),
+            'color_primario' => self::sanitizeHexColor($setting?->color_primario),
+            'color_secundario' => self::sanitizeHexColor($setting?->color_secundario),
+        ];
+    }
+
+    private static function sanitizeHexColor(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $normalized = trim($value);
+
+        if (preg_match('/^#[0-9A-Fa-f]{6}$/', $normalized) !== 1) {
+            return null;
+        }
+
+        return strtoupper($normalized);
+    }
+
+    private static function withCacheBuster(string $logoUrl, ?int $version): string
+    {
+        if ($version === null) {
+            return $logoUrl;
+        }
+
+        $separator = str_contains($logoUrl, '?') ? '&' : '?';
+
+        return $logoUrl.$separator.'v='.$version;
+    }
+}

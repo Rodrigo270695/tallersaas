@@ -1,0 +1,144 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+class MovimientoInventario extends Model
+{
+    use HasUuids;
+
+    public const TIPO_ENTRADA = 'entrada';
+
+    public const TIPO_SALIDA = 'salida';
+
+    public const TIPO_MERMA = 'merma';
+
+    public const TIPO_AJUSTE = 'ajuste';
+
+    /** @var list<string> */
+    public const TIPOS = [
+        self::TIPO_ENTRADA,
+        self::TIPO_SALIDA,
+        self::TIPO_MERMA,
+        self::TIPO_AJUSTE,
+    ];
+
+    /** @var list<string> */
+    public const TIPOS_MANUALES = [
+        self::TIPO_ENTRADA,
+        self::TIPO_SALIDA,
+        self::TIPO_MERMA,
+    ];
+
+    protected $table = 'movimientos_inventario';
+
+    public $timestamps = false;
+
+    protected $fillable = [
+        'producto_id',
+        'sede_id',
+        'tipo',
+        'delta',
+        'stock_anterior',
+        'stock_despues',
+        'notas',
+        'venta_id',
+        'created_by_id',
+        'created_at',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'delta' => 'decimal:3',
+            'stock_anterior' => 'decimal:3',
+            'stock_despues' => 'decimal:3',
+            'created_at' => 'datetime',
+        ];
+    }
+
+    public function producto(): BelongsTo
+    {
+        return $this->belongsTo(Producto::class, 'producto_id');
+    }
+
+    public function sede(): BelongsTo
+    {
+        return $this->belongsTo(Sede::class, 'sede_id');
+    }
+
+    public function venta(): BelongsTo
+    {
+        return $this->belongsTo(Venta::class, 'venta_id');
+    }
+
+    public function creadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_id');
+    }
+
+    /**
+     * Aplica el movimiento sobre existencias_sede y persiste el kardex.
+     *
+     * @throws ValidationException
+     */
+    public static function aplicar(
+        string $productoId,
+        string $sedeId,
+        string $tipo,
+        string $delta,
+        ?string $notas,
+        ?string $userId,
+        ?string $ventaId = null,
+    ): self {
+        if (! in_array($tipo, self::TIPOS, true)) {
+            throw ValidationException::withMessages([
+                'tipo' => 'Tipo de movimiento inválido.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($productoId, $sedeId, $tipo, $delta, $notas, $userId, $ventaId): self {
+            $existencia = ExistenciaSede::query()
+                ->where('producto_id', $productoId)
+                ->where('sede_id', $sedeId)
+                ->lockForUpdate()
+                ->first();
+
+            $stockAnterior = round((float) (string) ($existencia?->cantidad ?? 0), 3);
+            $deltaNum = round((float) $delta, 3);
+            $stockDespues = round($stockAnterior + $deltaNum, 3);
+
+            if ($stockDespues < 0) {
+                throw ValidationException::withMessages([
+                    'cantidad' => 'El movimiento dejaría existencias negativas.',
+                ]);
+            }
+
+            ExistenciaSede::query()->updateOrCreate(
+                [
+                    'producto_id' => $productoId,
+                    'sede_id' => $sedeId,
+                ],
+                ['cantidad' => $stockDespues],
+            );
+
+            return self::query()->create([
+                'producto_id' => $productoId,
+                'sede_id' => $sedeId,
+                'tipo' => $tipo,
+                'delta' => $deltaNum,
+                'stock_anterior' => $stockAnterior,
+                'stock_despues' => $stockDespues,
+                'notas' => $notas,
+                'venta_id' => $ventaId,
+                'created_by_id' => $userId,
+                'created_at' => now(),
+            ]);
+        });
+    }
+}
