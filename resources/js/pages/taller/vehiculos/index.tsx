@@ -144,18 +144,14 @@ count += 1;
             {
                 key: 'marca',
                 header: 'Vehículo',
-                sortable: true,
                 cell: (vehiculo) => (
                     <div className="flex flex-col">
                         <span className="font-medium text-foreground">
                             {[vehiculo.marca?.nombre, vehiculo.modelo?.nombre].filter(Boolean).join(' ') || '—'}
                         </span>
-                        {vehiculo.color && (
-                            <span className="text-xs text-muted-foreground">
-                                {vehiculo.color}
-                                {vehiculo.anio ? ` · ${vehiculo.anio}` : ''}
-                            </span>
-                        )}
+                        {vehiculo.color ? (
+                            <span className="text-xs text-muted-foreground">{vehiculo.color}</span>
+                        ) : null}
                     </div>
                 ),
             },
@@ -167,6 +163,17 @@ count += 1;
                         <span className="text-sm">
                             {vehiculo.cliente.nombres} {vehiculo.cliente.apellidos}
                         </span>
+                    ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                    ),
+            },
+            {
+                key: 'anio',
+                header: 'Año',
+                sortable: true,
+                cell: (vehiculo) =>
+                    vehiculo.anio != null ? (
+                        <span className="text-sm tabular-nums">{vehiculo.anio}</span>
                     ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                     ),
