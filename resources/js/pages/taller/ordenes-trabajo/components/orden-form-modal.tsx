@@ -1,6 +1,7 @@
 import { useForm } from '@inertiajs/react';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useRef, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef  } from 'react';
+import type {FormEvent} from 'react';
 import { FormField, FormModal, FormSection } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -94,6 +95,7 @@ const catalogValue = (linea: LineaForm): string => {
     if (linea.servicio_id) {
         return `s:${linea.servicio_id}`;
     }
+
     if (linea.producto_id) {
         return `p:${linea.producto_id}`;
     }
@@ -115,6 +117,7 @@ const toDatetimeLocal = (iso: string | null): string => {
     }
 
     const date = new Date(iso);
+
     if (Number.isNaN(date.getTime())) {
         return '';
     }
@@ -206,9 +209,11 @@ export function OrdenFormModal({
             if (!confirmDiscard()) {
                 return;
             }
+
             reset();
             clearErrors();
         }
+
         onOpenChange(next);
     };
 

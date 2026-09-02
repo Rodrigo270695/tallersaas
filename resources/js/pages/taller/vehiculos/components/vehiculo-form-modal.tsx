@@ -1,19 +1,21 @@
 import { useForm } from '@inertiajs/react';
 import { Loader2 } from 'lucide-react';
-import { useEffect, useMemo, useRef  } from 'react';
-import type {FormEvent} from 'react';
-import { FormField, FormModal, FormSection } from '@/components/forms';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useEffect, useMemo, useRef } from 'react';
+import type { FormEvent } from 'react';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+    CreatableEntityCombobox,
+    FormField,
+    FormModal,
+    FormSection,
+    soloDigitosDocumento,
+} from '@/components/forms';
+import { Button } from '@/components/ui/button';
+import { Combobox } from '@/components/ui/combobox';
+import { Input } from '@/components/ui/input';
+import marcas from '@/routes/taller/marcas';
+import modelos from '@/routes/taller/modelos';
 import vehiculos from '@/routes/taller/vehiculos';
-import type { ClienteOption, Vehiculo } from '../types';
+import type { ClienteOption, MarcaOption, ModeloOption, Vehiculo } from '../types';
 
 export type VehiculoFormModalProps = {
     open: boolean;
@@ -22,13 +24,17 @@ export type VehiculoFormModalProps = {
     vehiculo: Vehiculo | null;
     /** Catálogo de clientes pre-cargado desde el index. */
     clientes: readonly ClienteOption[];
+    /** Catálogo de marcas del tenant (base + creadas por el taller). */
+    marcas: readonly MarcaOption[];
+    /** Catálogo de modelos del tenant, cada uno ligado a su marca. */
+    modelos: readonly ModeloOption[];
 };
 
 type VehiculoFormData = {
     cliente_id: string;
     placa: string;
-    marca: string;
-    modelo: string;
+    marca_id: string;
+    modelo_id: string;
     color: string;
     anio: string;
     kilometraje: string;
@@ -38,8 +44,8 @@ type VehiculoFormData = {
 const emptyForm: VehiculoFormData = {
     cliente_id: '',
     placa: '',
-    marca: '',
-    modelo: '',
+    marca_id: '',
+    modelo_id: '',
     color: '',
     anio: '',
     kilometraje: '',
@@ -49,8 +55,8 @@ const emptyForm: VehiculoFormData = {
 const buildInitialData = (vehiculo: Vehiculo | null): VehiculoFormData => ({
     cliente_id: vehiculo?.cliente_id ?? '',
     placa: vehiculo?.placa ?? '',
-    marca: vehiculo?.marca ?? '',
-    modelo: vehiculo?.modelo ?? '',
+    marca_id: vehiculo?.marca_id ?? '',
+    modelo_id: vehiculo?.modelo_id ?? '',
     color: vehiculo?.color ?? '',
     anio: vehiculo?.anio ? String(vehiculo.anio) : '',
     kilometraje: vehiculo?.kilometraje != null ? String(vehiculo.kilometraje) : '',
@@ -60,6 +66,14 @@ const buildInitialData = (vehiculo: Vehiculo | null): VehiculoFormData => ({
 const isFormValid = (data: VehiculoFormData): boolean =>
     data.cliente_id.trim().length > 0 && data.placa.trim().length > 0;
 
+/** Placa peruana: letras, números y guión, en mayúsculas. */
+const soloPlacaMayusculas = (value: string): string =>
+    value.replace(/[^a-zA-Z0-9-]/g, '').toUpperCase();
+
+/** VIN/chasis: solo letras y números (sin espacios ni guiones), en mayúsculas. */
+const soloVinMayusculas = (value: string): string =>
+    value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+
 /**
  * Modal de crear/editar vehículo.
  */
@@ -68,6 +82,8 @@ export function VehiculoFormModal({
     onOpenChange,
     vehiculo,
     clientes: clienteOptions,
+    marcas: marcaOptions,
+    modelos: modeloOptions,
 }: VehiculoFormModalProps) {
     const isEdit = vehiculo !== null;
 
@@ -117,6 +133,16 @@ export function VehiculoFormModal({
 
         onOpenChange(next);
     };
+
+    /** Cascada: al cambiar (o limpiar) la marca, el modelo elegido deja de ser válido. */
+    const handleMarcaChange = (value: string | null) => {
+        setData((prev) => ({ ...prev, marca_id: value ?? '', modelo_id: '' }));
+    };
+
+    const modelosDeLaMarca = useMemo(
+        () => modeloOptions.filter((modelo) => modelo.marca_id === data.marca_id),
+        [modeloOptions, data.marca_id],
+    );
 
     const onSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -192,62 +218,88 @@ export function VehiculoFormModal({
                         required
                         error={errors.cliente_id}
                     >
-                        <Select
-                            value={data.cliente_id}
-                            onValueChange={(value) => setData('cliente_id', value)}
-                        >
-                            <SelectTrigger id="vehiculo-cliente" className="w-full cursor-pointer">
-                                <SelectValue placeholder="Selecciona un cliente" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {clienteOptions.map((cliente) => (
-                                    <SelectItem
-                                        key={cliente.id}
-                                        value={cliente.id}
-                                        className="cursor-pointer"
-                                    >
-                                        {cliente.nombre}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            id="vehiculo-cliente"
+                            options={clienteOptions.map((cliente) => ({
+                                value: cliente.id,
+                                label: cliente.nombre,
+                            }))}
+                            value={data.cliente_id || null}
+                            onChange={(value) => setData('cliente_id', value ?? '')}
+                            placeholder="Selecciona un cliente"
+                            searchPlaceholder="Buscar cliente…"
+                            emptyMessage="No se encontró ningún cliente."
+                            clearable={false}
+                            aria-invalid={Boolean(errors.cliente_id)}
+                        />
                     </FormField>
                 </FormSection>
 
-                <FormSection index={1} title="Datos del vehículo" columns={2}>
+                <FormSection
+                    index={1}
+                    title="Marca y modelo"
+                    description="Selecciona la marca primero; si no existe, escríbela y quedará guardada para el taller. Luego elige o crea el modelo."
+                    columns={2}
+                >
+                    <FormField id="vehiculo-marca" label="Marca" error={errors.marca_id}>
+                        <CreatableEntityCombobox
+                            id="vehiculo-marca"
+                            options={marcaOptions}
+                            value={data.marca_id || null}
+                            onChange={handleMarcaChange}
+                            createUrl={marcas.store().url}
+                            optionsPropKey="marcas"
+                            placeholder="Busca o selecciona marca…"
+                            searchPlaceholder="Buscar marca…"
+                            emptyMessage="Sin resultados."
+                            createOptionLabel={(query) => `Usar «${query.toUpperCase()}»`}
+                            invalid={Boolean(errors.marca_id)}
+                        />
+                    </FormField>
+
+                    <FormField
+                        id="vehiculo-modelo"
+                        label="Modelo"
+                        error={errors.modelo_id}
+                        hint={!data.marca_id ? 'Primero selecciona una marca.' : undefined}
+                    >
+                        <CreatableEntityCombobox
+                            id="vehiculo-modelo"
+                            options={modelosDeLaMarca}
+                            value={data.modelo_id || null}
+                            onChange={(value) => setData('modelo_id', value ?? '')}
+                            createUrl={modelos.store().url}
+                            extraPayload={{ marca_id: data.marca_id }}
+                            optionsPropKey="modelos"
+                            disabled={!data.marca_id}
+                            placeholder={
+                                data.marca_id
+                                    ? 'Busca o selecciona modelo…'
+                                    : 'Primero selecciona una marca'
+                            }
+                            searchPlaceholder="Buscar modelo…"
+                            emptyMessage="Sin resultados."
+                            createOptionLabel={(query) => `Usar «${query.toUpperCase()}»`}
+                            invalid={Boolean(errors.modelo_id)}
+                        />
+                    </FormField>
+                </FormSection>
+
+                <FormSection index={2} title="Datos del vehículo" columns={2}>
                     <FormField
                         id="vehiculo-placa"
                         label="Placa"
                         required
                         error={errors.placa}
+                        hint="Solo letras, números y guión."
                     >
                         <Input
                             id="vehiculo-placa"
                             value={data.placa}
-                            onChange={(e) => setData('placa', e.target.value)}
+                            onChange={(e) => setData('placa', soloPlacaMayusculas(e.target.value))}
                             placeholder="ABC-123"
                             autoComplete="off"
-                            className="uppercase"
-                        />
-                    </FormField>
-
-                    <FormField id="vehiculo-marca" label="Marca" error={errors.marca}>
-                        <Input
-                            id="vehiculo-marca"
-                            value={data.marca}
-                            onChange={(e) => setData('marca', e.target.value)}
-                            placeholder="Toyota"
-                            autoComplete="off"
-                        />
-                    </FormField>
-
-                    <FormField id="vehiculo-modelo" label="Modelo" error={errors.modelo}>
-                        <Input
-                            id="vehiculo-modelo"
-                            value={data.modelo}
-                            onChange={(e) => setData('modelo', e.target.value)}
-                            placeholder="Hilux"
-                            autoComplete="off"
+                            maxLength={10}
                         />
                     </FormField>
 
@@ -264,11 +316,11 @@ export function VehiculoFormModal({
                     <FormField id="vehiculo-anio" label="Año" error={errors.anio}>
                         <Input
                             id="vehiculo-anio"
-                            type="number"
                             value={data.anio}
-                            onChange={(e) => setData('anio', e.target.value)}
+                            onChange={(e) => setData('anio', soloDigitosDocumento(e.target.value, 4))}
                             placeholder="2020"
                             inputMode="numeric"
+                            autoComplete="off"
                         />
                     </FormField>
 
@@ -279,11 +331,11 @@ export function VehiculoFormModal({
                     >
                         <Input
                             id="vehiculo-kilometraje"
-                            type="number"
                             value={data.kilometraje}
-                            onChange={(e) => setData('kilometraje', e.target.value)}
+                            onChange={(e) => setData('kilometraje', soloDigitosDocumento(e.target.value, 7))}
                             placeholder="45000"
                             inputMode="numeric"
+                            autoComplete="off"
                         />
                     </FormField>
 
@@ -292,14 +344,14 @@ export function VehiculoFormModal({
                         label="VIN"
                         error={errors.vin}
                         className="sm:col-span-2"
+                        hint="Número de identificación vehicular (chasis): letras y números, sin espacios."
                     >
                         <Input
                             id="vehiculo-vin"
                             value={data.vin}
-                            onChange={(e) => setData('vin', e.target.value)}
-                            placeholder="Número de identificación vehicular"
+                            onChange={(e) => setData('vin', soloVinMayusculas(e.target.value).slice(0, 30))}
+                            placeholder="1HGCM82633A004352"
                             autoComplete="off"
-                            className="uppercase"
                         />
                     </FormField>
                 </FormSection>

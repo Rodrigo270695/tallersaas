@@ -73,6 +73,7 @@ const estadoClass: Record<CitaEstado, string> = {
 
 const formatInicio = (iso: string): string => {
     const date = new Date(iso);
+
     if (Number.isNaN(date.getTime())) {
         return '—';
     }
@@ -140,18 +141,23 @@ export default function Index({
 
     const activeFiltersCount = useMemo(() => {
         let count = 0;
+
         if (filters.search) {
             count += 1;
         }
+
         if (filters.sort) {
             count += 1;
         }
+
         if (filters.per_page !== DEFAULT_PER_PAGE) {
             count += 1;
         }
+
         if (filters.estado !== DEFAULT_ESTADO) {
             count += 1;
         }
+
         if (filters.rango !== DEFAULT_RANGO) {
             count += 1;
         }

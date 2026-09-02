@@ -17,8 +17,8 @@ export type CitaClienteRef = {
 export type CitaVehiculoRef = {
     id: string;
     placa: string;
-    marca: string | null;
-    modelo: string | null;
+    marca: { id: string; nombre: string } | null;
+    modelo: { id: string; nombre: string } | null;
 } | null;
 
 export type CitaSedeRef = {

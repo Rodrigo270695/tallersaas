@@ -34,7 +34,12 @@ final class CitaWhatsAppNotifier
             return null;
         }
 
-        $cita->loadMissing(['cliente:id,nombres,apellidos,telefono', 'vehiculo:id,placa,marca,modelo']);
+        $cita->loadMissing([
+            'cliente:id,nombres,apellidos,telefono',
+            'vehiculo:id,placa,marca_id,modelo_id',
+            'vehiculo.marca:id,nombre',
+            'vehiculo.modelo:id,nombre',
+        ]);
 
         $chatId = WhatsAppChatId::fromPhone($cita->cliente?->telefono);
         if ($chatId === null) {
@@ -125,8 +130,8 @@ final class CitaWhatsAppNotifier
     {
         $placa = trim((string) ($cita->vehiculo?->placa ?? ''));
         $label = trim(implode(' ', array_filter([
-            $cita->vehiculo?->marca,
-            $cita->vehiculo?->modelo,
+            $cita->vehiculo?->marca?->nombre,
+            $cita->vehiculo?->modelo?->nombre,
             $placa !== '' ? $placa : null,
         ])));
 

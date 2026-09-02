@@ -16,7 +16,12 @@ final class OrdenListaWhatsAppMessage
 
     public function build(OrdenTrabajo $orden): string
     {
-        $orden->loadMissing(['cliente:id,nombres,apellidos', 'vehiculo:id,placa,marca,modelo']);
+        $orden->loadMissing([
+            'cliente:id,nombres,apellidos',
+            'vehiculo:id,placa,marca_id,modelo_id',
+            'vehiculo.marca:id,nombre',
+            'vehiculo.modelo:id,nombre',
+        ]);
 
         $settings = TallerSetting::current();
         $taller = trim((string) ($settings->nombre_comercial ?: $settings->razon_social ?: ''));
@@ -28,8 +33,8 @@ final class OrdenListaWhatsAppMessage
         $cliente = trim((string) ($orden->cliente?->nombres ?? 'hola'));
         $placa = trim((string) ($orden->vehiculo?->placa ?? ''));
         $vehiculo = trim(implode(' ', array_filter([
-            $orden->vehiculo?->marca,
-            $orden->vehiculo?->modelo,
+            $orden->vehiculo?->marca?->nombre,
+            $orden->vehiculo?->modelo?->nombre,
             $placa !== '' ? "placa {$placa}" : null,
         ])));
         if ($vehiculo === '') {

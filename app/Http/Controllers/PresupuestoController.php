@@ -60,7 +60,9 @@ class PresupuestoController extends Controller
         $query = Presupuesto::query()
             ->with([
                 'cliente:id,nombres,apellidos,telefono',
-                'vehiculo:id,placa,marca,modelo',
+                'vehiculo:id,placa,marca_id,modelo_id',
+                'vehiculo.marca:id,nombre',
+                'vehiculo.modelo:id,nombre',
                 'sede:id,nombre,codigo',
                 'ordenTrabajo:id,numero,estado',
                 'items',
@@ -125,12 +127,13 @@ class PresupuestoController extends Controller
                     'nombre' => $cliente->nombreCompleto(),
                 ]),
             'vehiculos' => Vehiculo::query()
+                ->with(['marca:id,nombre', 'modelo:id,nombre'])
                 ->orderBy('placa')
-                ->get(['id', 'cliente_id', 'placa', 'marca', 'modelo'])
+                ->get(['id', 'cliente_id', 'placa', 'marca_id', 'modelo_id'])
                 ->map(fn (Vehiculo $vehiculo) => [
                     'id' => $vehiculo->id,
                     'cliente_id' => $vehiculo->cliente_id,
-                    'label' => trim($vehiculo->placa.' '.$vehiculo->marca.' '.$vehiculo->modelo),
+                    'label' => trim($vehiculo->placa.' '.$vehiculo->marca?->nombre.' '.$vehiculo->modelo?->nombre),
                 ]),
             'ordenes' => OrdenTrabajo::query()
                 ->whereNotIn('estado', [OrdenTrabajo::ESTADO_ANULADA, OrdenTrabajo::ESTADO_ENTREGADA])

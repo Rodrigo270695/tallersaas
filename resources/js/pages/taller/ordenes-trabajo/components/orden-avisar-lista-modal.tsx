@@ -1,6 +1,7 @@
 import { useForm } from '@inertiajs/react';
 import { Loader2 } from 'lucide-react';
-import { useEffect, type FormEvent } from 'react';
+import { useEffect  } from 'react';
+import type {FormEvent} from 'react';
 import { FormField, FormModal, FormSection } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -26,7 +27,7 @@ export function buildOrdenListaMensaje(orden: OrdenTrabajo, tallerNombre: string
     const cliente = (orden.cliente?.nombres ?? 'hola').trim() || 'hola';
     const placa = (orden.vehiculo?.placa ?? '').trim();
     const vehiculo =
-        [orden.vehiculo?.marca, orden.vehiculo?.modelo, placa !== '' ? `placa ${placa}` : null]
+        [orden.vehiculo?.marca?.nombre, orden.vehiculo?.modelo?.nombre, placa !== '' ? `placa ${placa}` : null]
             .filter(Boolean)
             .join(' ')
             .trim() || 'tu vehículo';
@@ -79,6 +80,7 @@ export function OrdenAvisarListaModal({
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
+
         if (!orden) {
             return;
         }

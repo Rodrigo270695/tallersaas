@@ -10,6 +10,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FelDocumentController;
 use App\Http\Controllers\FelSerieController;
 use App\Http\Controllers\GeoController;
+use App\Http\Controllers\MarcaController;
+use App\Http\Controllers\ModeloController;
 use App\Http\Controllers\MovimientoInventarioController;
 use App\Http\Controllers\NotificationQueueController;
 use App\Http\Controllers\OrdenTrabajoController;
@@ -120,6 +122,15 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
         Route::middleware('permission:vehiculos.bulk-delete')
             ->delete('vehiculos-bulk', [VehiculoController::class, 'bulkDestroy'])
             ->name('vehiculos.bulk-destroy');
+
+        // Alta rápida de marca/modelo desde el combobox creable del
+        // formulario de vehículos (mismo permiso que crear/editar vehículo).
+        Route::middleware('permission:vehiculos.create|vehiculos.update')
+            ->post('marcas', [MarcaController::class, 'store'])
+            ->name('marcas.store');
+        Route::middleware('permission:vehiculos.create|vehiculos.update')
+            ->post('modelos', [ModeloController::class, 'store'])
+            ->name('modelos.store');
 
         Route::middleware('permission:categorias-servicios.view')
             ->get('categorias-servicios', [CategoriaServicioController::class, 'index'])

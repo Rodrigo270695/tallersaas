@@ -22,13 +22,22 @@ import { VehiculoBulkDeleteDialog } from './components/vehiculo-bulk-delete-dial
 import { VehiculoDeleteDialog } from './components/vehiculo-delete-dialog';
 import { VehiculoFormModal } from './components/vehiculo-form-modal';
 import { VehiculoRowActions } from './components/vehiculo-row-actions';
-import type { ClienteOption, Vehiculo, VehiculoFilters, VehiculoStats } from './types';
+import type {
+    ClienteOption,
+    MarcaOption,
+    ModeloOption,
+    Vehiculo,
+    VehiculoFilters,
+    VehiculoStats,
+} from './types';
 
 type VehiculosIndexProps = {
     vehiculos: Paginated<Vehiculo>;
     filters: VehiculoFilters;
     stats: VehiculoStats;
     clientes: ClienteOption[];
+    marcas: MarcaOption[];
+    modelos: ModeloOption[];
 };
 
 type ModalState =
@@ -48,6 +57,8 @@ export default function Index({
     filters,
     stats,
     clientes,
+    marcas,
+    modelos,
 }: VehiculosIndexProps) {
     const { can } = usePermission();
     const canCreate = can('vehiculos.create');
@@ -121,7 +132,7 @@ count += 1;
                 cell: (vehiculo) => (
                     <div className="flex flex-col">
                         <span className="font-medium text-foreground">
-                            {[vehiculo.marca, vehiculo.modelo].filter(Boolean).join(' ') || '—'}
+                            {[vehiculo.marca?.nombre, vehiculo.modelo?.nombre].filter(Boolean).join(' ') || '—'}
                         </span>
                         {vehiculo.color && (
                             <span className="text-xs text-muted-foreground">
@@ -280,6 +291,8 @@ closeModal();
                 }}
                 vehiculo={modal.type === 'edit' ? modal.vehiculo : null}
                 clientes={clientes}
+                marcas={marcas}
+                modelos={modelos}
             />
 
             <VehiculoDeleteDialog

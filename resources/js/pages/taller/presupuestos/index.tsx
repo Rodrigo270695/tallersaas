@@ -112,12 +112,15 @@ export default function Index({
 
     const activeFiltersCount = useMemo(() => {
         let count = 0;
+
         if (filters.search) {
             count += 1;
         }
+
         if (filters.estado !== DEFAULT_ESTADO) {
             count += 1;
         }
+
         if (filters.sort) {
             count += 1;
         }

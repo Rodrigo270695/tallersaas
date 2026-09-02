@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Models\Cliente;
+use App\Models\Marca;
+use App\Models\Modelo;
 use App\Models\Vehiculo;
 use App\Tenancy\Facades\Tenant as TenantContext;
 use Illuminate\Support\Facades\DB;
@@ -44,9 +46,14 @@ it('lista los vehículos del tenant junto al catálogo de clientes', function ()
 
 it('crea un vehículo asociado a un cliente existente', function (): void {
     $clienteId = null;
+    $marcaId = null;
+    $modeloId = null;
 
-    TenantContext::runForSlug($this->testTenantSlug, function () use (&$clienteId): void {
+    TenantContext::runForSlug($this->testTenantSlug, function () use (&$clienteId, &$marcaId, &$modeloId): void {
         $clienteId = Cliente::factory()->create()->id;
+        $marca = Marca::factory()->create(['nombre' => 'Toyota']);
+        $marcaId = $marca->id;
+        $modeloId = Modelo::factory()->create(['marca_id' => $marcaId, 'nombre' => 'Hilux'])->id;
     });
 
     $this->actingAs($this->testTenantAdmin);
@@ -54,8 +61,8 @@ it('crea un vehículo asociado a un cliente existente', function (): void {
     $response = $this->post('http://'.$this->testTenantHost.'/taller/vehiculos', [
         'cliente_id' => $clienteId,
         'placa' => 'ABC-123',
-        'marca' => 'Toyota',
-        'modelo' => 'Hilux',
+        'marca_id' => $marcaId,
+        'modelo_id' => $modeloId,
         'color' => 'Blanco',
         'anio' => 2020,
         'kilometraje' => 45000,
@@ -65,9 +72,72 @@ it('crea un vehículo asociado a un cliente existente', function (): void {
     $response->assertSessionHasNoErrors();
     $response->assertRedirect();
 
-    TenantContext::runForSlug($this->testTenantSlug, function () use ($clienteId): void {
-        expect(Vehiculo::query()->where('placa', 'ABC-123')->where('cliente_id', $clienteId)->exists())->toBeTrue();
+    TenantContext::runForSlug($this->testTenantSlug, function () use ($clienteId, $marcaId, $modeloId): void {
+        $vehiculo = Vehiculo::query()->where('placa', 'ABC-123')->where('cliente_id', $clienteId)->first();
+
+        expect($vehiculo)->not->toBeNull();
+        expect($vehiculo->marca_id)->toBe($marcaId);
+        expect($vehiculo->modelo_id)->toBe($modeloId);
     });
+});
+
+it('rechaza un modelo que no pertenece a la marca seleccionada', function (): void {
+    $clienteId = null;
+    $marcaId = null;
+    $modeloIdOtraMarca = null;
+
+    TenantContext::runForSlug($this->testTenantSlug, function () use (&$clienteId, &$marcaId, &$modeloIdOtraMarca): void {
+        $clienteId = Cliente::factory()->create()->id;
+        $marcaId = Marca::factory()->create(['nombre' => 'Toyota'])->id;
+        $otraMarcaId = Marca::factory()->create(['nombre' => 'Nissan'])->id;
+        $modeloIdOtraMarca = Modelo::factory()->create(['marca_id' => $otraMarcaId, 'nombre' => 'Sentra'])->id;
+    });
+
+    $this->actingAs($this->testTenantAdmin);
+
+    $response = $this->post('http://'.$this->testTenantHost.'/taller/vehiculos', [
+        'cliente_id' => $clienteId,
+        'placa' => 'ABC-124',
+        'marca_id' => $marcaId,
+        'modelo_id' => $modeloIdOtraMarca,
+    ]);
+
+    $response->assertSessionHasErrors(['modelo_id']);
+});
+
+it('rechaza una placa con caracteres inválidos', function (): void {
+    $clienteId = null;
+
+    TenantContext::runForSlug($this->testTenantSlug, function () use (&$clienteId): void {
+        $clienteId = Cliente::factory()->create()->id;
+    });
+
+    $this->actingAs($this->testTenantAdmin);
+
+    $response = $this->post('http://'.$this->testTenantHost.'/taller/vehiculos', [
+        'cliente_id' => $clienteId,
+        'placa' => 'ABC 123 #',
+    ]);
+
+    $response->assertSessionHasErrors(['placa']);
+});
+
+it('rechaza un VIN con espacios o símbolos', function (): void {
+    $clienteId = null;
+
+    TenantContext::runForSlug($this->testTenantSlug, function () use (&$clienteId): void {
+        $clienteId = Cliente::factory()->create()->id;
+    });
+
+    $this->actingAs($this->testTenantAdmin);
+
+    $response = $this->post('http://'.$this->testTenantHost.'/taller/vehiculos', [
+        'cliente_id' => $clienteId,
+        'placa' => 'ABC-125',
+        'vin' => '1HGCM-826 33A#00',
+    ]);
+
+    $response->assertSessionHasErrors(['vin']);
 });
 
 it('valida que la placa y el cliente sean requeridos', function (): void {

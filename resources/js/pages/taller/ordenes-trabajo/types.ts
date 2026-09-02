@@ -17,8 +17,8 @@ export type OrdenClienteRef = {
 export type OrdenVehiculoRef = {
     id: string;
     placa: string;
-    marca: string | null;
-    modelo: string | null;
+    marca: { id: string; nombre: string } | null;
+    modelo: { id: string; nombre: string } | null;
 } | null;
 
 export type OrdenSedeRef = {

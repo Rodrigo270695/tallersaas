@@ -4,24 +4,44 @@ export type VehiculoClienteRef = {
     apellidos: string | null;
 } | null;
 
+export type VehiculoEntidadRef = {
+    id: string;
+    nombre: string;
+} | null;
+
 export type Vehiculo = {
     id: string;
     cliente_id: string;
     placa: string;
-    marca: string | null;
-    modelo: string | null;
+    marca_id: string | null;
+    modelo_id: string | null;
     color: string | null;
     anio: number | null;
     kilometraje: number | null;
     vin: string | null;
     cliente: VehiculoClienteRef;
+    marca: VehiculoEntidadRef;
+    modelo: VehiculoEntidadRef;
     created_at: string;
     updated_at: string;
 };
 
-/** Opción liviana de cliente para el select del modal. */
+/** Opción liviana de cliente para el combobox del modal. */
 export type ClienteOption = {
     id: string;
+    nombre: string;
+};
+
+/** Opción liviana de marca para el combobox creable del modal. */
+export type MarcaOption = {
+    id: string;
+    nombre: string;
+};
+
+/** Opción liviana de modelo (con su marca) para el combobox en cascada. */
+export type ModeloOption = {
+    id: string;
+    marca_id: string;
     nombre: string;
 };
 

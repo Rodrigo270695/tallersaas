@@ -63,7 +63,9 @@ class CitaController extends Controller
         $query = Cita::query()
             ->with([
                 'cliente:id,nombres,apellidos',
-                'vehiculo:id,placa,marca,modelo',
+                'vehiculo:id,placa,marca_id,modelo_id',
+                'vehiculo.marca:id,nombre',
+                'vehiculo.modelo:id,nombre',
                 'sede:id,nombre,codigo',
                 'asignadoA:id,name',
                 'ordenTrabajo:id,numero,estado',
@@ -139,12 +141,13 @@ class CitaController extends Controller
                     'nombre' => $cliente->nombreCompleto(),
                 ]),
             'vehiculos' => Vehiculo::query()
+                ->with(['marca:id,nombre', 'modelo:id,nombre'])
                 ->orderBy('placa')
-                ->get(['id', 'cliente_id', 'placa', 'marca', 'modelo'])
+                ->get(['id', 'cliente_id', 'placa', 'marca_id', 'modelo_id'])
                 ->map(fn (Vehiculo $vehiculo) => [
                     'id' => $vehiculo->id,
                     'cliente_id' => $vehiculo->cliente_id,
-                    'label' => trim($vehiculo->placa.' '.$vehiculo->marca.' '.$vehiculo->modelo),
+                    'label' => trim($vehiculo->placa.' '.$vehiculo->marca?->nombre.' '.$vehiculo->modelo?->nombre),
                 ]),
             'mecanicos' => User::query()
                 ->where('tenant_id', $tenantId)

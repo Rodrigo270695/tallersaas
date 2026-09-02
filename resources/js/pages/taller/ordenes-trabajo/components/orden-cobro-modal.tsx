@@ -1,6 +1,7 @@
 import { Link, useForm } from '@inertiajs/react';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, type FormEvent } from 'react';
+import { useEffect, useMemo  } from 'react';
+import type {FormEvent} from 'react';
 import { FormField, FormModal, FormSection } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -155,6 +156,7 @@ export function OrdenCobroModal({
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
+
         if (!orden) {
             return;
         }

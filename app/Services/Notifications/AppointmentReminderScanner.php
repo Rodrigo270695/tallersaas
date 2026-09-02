@@ -69,7 +69,12 @@ final class AppointmentReminderScanner
         $to = $target->copy()->addMinutes(30);
 
         $citas = Cita::query()
-            ->with(['cliente:id,nombres,apellidos,telefono', 'vehiculo:id,placa,marca,modelo'])
+            ->with([
+                'cliente:id,nombres,apellidos,telefono',
+                'vehiculo:id,placa,marca_id,modelo_id',
+                'vehiculo.marca:id,nombre',
+                'vehiculo.modelo:id,nombre',
+            ])
             ->whereIn('estado', [Cita::ESTADO_PROGRAMADA, Cita::ESTADO_CONFIRMADA])
             ->whereBetween('inicia_at', [$from, $to])
             ->get();
@@ -113,8 +118,8 @@ final class AppointmentReminderScanner
     {
         $placa = trim((string) ($cita->vehiculo?->placa ?? ''));
         $label = trim(implode(' ', array_filter([
-            $cita->vehiculo?->marca,
-            $cita->vehiculo?->modelo,
+            $cita->vehiculo?->marca?->nombre,
+            $cita->vehiculo?->modelo?->nombre,
             $placa !== '' ? $placa : null,
         ])));
 

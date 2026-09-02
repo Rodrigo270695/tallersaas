@@ -12,6 +12,7 @@ use App\Support\Subscriptions\SubscriptionCiclo;
 use App\Support\Tenancy\TenantSubdomainUrl;
 use App\Tenancy\TenantSchemaMigrator;
 use Database\Seeders\TenantRolesSeeder;
+use Database\Seeders\VehiculoMarcaModeloSeeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -244,6 +245,8 @@ class TenantProvisioner
         } finally {
             DB::statement('SET search_path TO public');
         }
+
+        (new VehiculoMarcaModeloSeeder)->seedForSchema($schema);
 
         (new TenantRolesSeeder)->seedForTenant((string) $tenant->id);
 

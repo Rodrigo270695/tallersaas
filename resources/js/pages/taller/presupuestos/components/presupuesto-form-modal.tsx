@@ -1,6 +1,7 @@
 import { useForm } from '@inertiajs/react';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useRef, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef  } from 'react';
+import type {FormEvent} from 'react';
 import { FormField, FormModal, FormSection } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,6 +58,7 @@ const emptyLinea = (): LineaForm => ({
 const defaultValidoHasta = (): string => {
     const date = new Date();
     date.setDate(date.getDate() + 7);
+
     return date.toISOString().slice(0, 10);
 };
 
@@ -73,6 +75,7 @@ const catalogValue = (linea: LineaForm): string => {
     if (linea.servicio_id) {
         return `s:${linea.servicio_id}`;
     }
+
     if (linea.producto_id) {
         return `p:${linea.producto_id}`;
     }
@@ -155,6 +158,7 @@ export function PresupuestoFormModal({
 
         const orden = ordenes.find((item) => item.id === ordenId);
         setData('orden_trabajo_id', ordenId);
+
         if (orden) {
             setData('sede_id', orden.sede_id);
             setData('cliente_id', orden.cliente_id);

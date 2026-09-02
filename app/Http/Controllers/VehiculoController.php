@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\VehiculoRequest;
 use App\Models\Cliente;
+use App\Models\Marca;
+use App\Models\Modelo;
 use App\Models\Vehiculo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,7 +16,7 @@ class VehiculoController extends Controller
 {
     private const PER_PAGE_OPTIONS = [10, 15, 20, 25, 50, 100];
 
-    private const SORTABLE_COLUMNS = ['placa', 'marca', 'modelo', 'anio', 'created_at'];
+    private const SORTABLE_COLUMNS = ['placa', 'anio', 'created_at'];
 
     public function index(Request $request): Response
     {
@@ -29,7 +31,11 @@ class VehiculoController extends Controller
         $sortValid = in_array($sort, self::SORTABLE_COLUMNS, true);
         $directionValid = in_array($direction, ['asc', 'desc'], true);
 
-        $query = Vehiculo::query()->with('cliente:id,nombres,apellidos');
+        $query = Vehiculo::query()->with([
+            'cliente:id,nombres,apellidos',
+            'marca:id,nombre',
+            'modelo:id,nombre',
+        ]);
 
         if ($sortValid) {
             $query->orderBy($sort, $directionValid ? $direction : 'asc');
@@ -41,9 +47,13 @@ class VehiculoController extends Controller
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('placa', 'ILIKE', "%{$search}%")
-                    ->orWhere('marca', 'ILIKE', "%{$search}%")
-                    ->orWhere('modelo', 'ILIKE', "%{$search}%")
                     ->orWhere('vin', 'ILIKE', "%{$search}%")
+                    ->orWhereHas('marca', function ($m) use ($search) {
+                        $m->where('nombre', 'ILIKE', "%{$search}%");
+                    })
+                    ->orWhereHas('modelo', function ($m) use ($search) {
+                        $m->where('nombre', 'ILIKE', "%{$search}%");
+                    })
                     ->orWhereHas('cliente', function ($c) use ($search) {
                         $c->where('nombres', 'ILIKE', "%{$search}%")
                             ->orWhere('apellidos', 'ILIKE', "%{$search}%");
@@ -73,6 +83,13 @@ class VehiculoController extends Controller
                     'id' => $cliente->id,
                     'nombre' => $cliente->nombreCompleto(),
                 ]),
+            // Catálogos marca/modelo del combobox en cascada (propios del tenant).
+            'marcas' => Marca::query()
+                ->orderBy('nombre')
+                ->get(['id', 'nombre']),
+            'modelos' => Modelo::query()
+                ->orderBy('nombre')
+                ->get(['id', 'marca_id', 'nombre']),
         ]);
     }
 

@@ -1,6 +1,7 @@
 import { useForm } from '@inertiajs/react';
 import { Loader2 } from 'lucide-react';
-import { useEffect, type FormEvent } from 'react';
+import { useEffect  } from 'react';
+import type {FormEvent} from 'react';
 import { FormField, FormModal, FormSection } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -23,7 +24,7 @@ export function buildPresupuestoMensaje(presupuesto: Presupuesto, tallerNombre: 
     const cliente = (presupuesto.cliente?.nombres ?? 'hola').trim() || 'hola';
     const placa = (presupuesto.vehiculo?.placa ?? '').trim();
     const vehiculo =
-        [presupuesto.vehiculo?.marca, presupuesto.vehiculo?.modelo, placa !== '' ? `placa ${placa}` : null]
+        [presupuesto.vehiculo?.marca?.nombre, presupuesto.vehiculo?.modelo?.nombre, placa !== '' ? `placa ${placa}` : null]
             .filter(Boolean)
             .join(' ')
             .trim() || 'tu vehículo';
@@ -82,6 +83,7 @@ export function PresupuestoEnviarModal({
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
+
         if (!presupuesto) {
             return;
         }

@@ -17,7 +17,12 @@ final class PresupuestoWhatsAppMessage
 
     public function build(Presupuesto $presupuesto, ?string $linkOverride = null): string
     {
-        $presupuesto->loadMissing(['cliente:id,nombres,apellidos', 'vehiculo:id,placa,marca,modelo']);
+        $presupuesto->loadMissing([
+            'cliente:id,nombres,apellidos',
+            'vehiculo:id,placa,marca_id,modelo_id',
+            'vehiculo.marca:id,nombre',
+            'vehiculo.modelo:id,nombre',
+        ]);
 
         $taller = $this->tallerDisplayName();
         $cliente = trim((string) ($presupuesto->cliente?->nombres ?? 'cliente')) ?: 'cliente';
@@ -55,8 +60,8 @@ final class PresupuestoWhatsAppMessage
     {
         $placa = trim((string) ($presupuesto->vehiculo?->placa ?? ''));
         $label = trim(implode(' ', array_filter([
-            $presupuesto->vehiculo?->marca,
-            $presupuesto->vehiculo?->modelo,
+            $presupuesto->vehiculo?->marca?->nombre,
+            $presupuesto->vehiculo?->modelo?->nombre,
             $placa !== '' ? "placa {$placa}" : null,
         ])));
 

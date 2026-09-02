@@ -27,8 +27,8 @@ class Vehiculo extends Model
     protected $fillable = [
         'cliente_id',
         'placa',
-        'marca',
-        'modelo',
+        'marca_id',
+        'modelo_id',
         'color',
         'anio',
         'kilometraje',
@@ -41,5 +41,21 @@ class Vehiculo extends Model
     public function cliente(): BelongsTo
     {
         return $this->belongsTo(Cliente::class);
+    }
+
+    /**
+     * @return BelongsTo<Marca, $this>
+     */
+    public function marca(): BelongsTo
+    {
+        return $this->belongsTo(Marca::class);
+    }
+
+    /**
+     * @return BelongsTo<Modelo, $this>
+     */
+    public function modelo(): BelongsTo
+    {
+        return $this->belongsTo(Modelo::class);
     }
 }

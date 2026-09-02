@@ -1,4 +1,9 @@
 export {
+    CreatableEntityCombobox,
+    type CreatableEntityComboboxProps,
+    type EntityOption,
+} from './creatable-entity-combobox';
+export {
     DocumentNumberLookupField,
     soloDigitosDocumento,
     type DocumentNumberLookupFieldProps,

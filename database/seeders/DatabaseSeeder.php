@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             PermissionsSeeder::class,
             PlansAndFeaturesSeeder::class,
             TenantRolesSeeder::class,
+            VehiculoMarcaModeloSeeder::class,
             SuperadminSeeder::class,
         ]);
     }
