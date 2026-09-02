@@ -83,6 +83,12 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
     ->prefix('taller')
     ->name('taller.')
     ->group(function () {
+        Route::middleware(['permission:clientes.create|clientes.update', 'throttle:20,1'])
+            ->get('clientes/consulta-dni', [ClienteController::class, 'consultaDni'])
+            ->name('clientes.consulta-dni');
+        Route::middleware(['permission:clientes.create|clientes.update', 'throttle:20,1'])
+            ->get('clientes/consulta-ruc', [ClienteController::class, 'consultaRuc'])
+            ->name('clientes.consulta-ruc');
         Route::middleware('permission:clientes.view')
             ->get('clientes', [ClienteController::class, 'index'])
             ->name('clientes.index');

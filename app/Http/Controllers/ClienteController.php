@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\RespondsToApiPeruConsulta;
 use App\Http\Requests\ClienteRequest;
 use App\Models\Cliente;
+use App\Services\Integrations\ApiPeruDniService;
+use App\Services\Integrations\ApiPeruRucService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -11,6 +15,8 @@ use Inertia\Response;
 
 class ClienteController extends Controller
 {
+    use RespondsToApiPeruConsulta;
+
     /**
      * Tamaños de página permitidos en el selector del paginador.
      */
@@ -68,6 +74,40 @@ class ClienteController extends Controller
                 'coincidencias' => $clientes->total(),
             ],
         ]);
+    }
+
+    /**
+     * Consulta DNI en ApiPerú (con respaldo APISUNAT) desde el servidor.
+     */
+    public function consultaDni(Request $request, ApiPeruDniService $apiPeru): JsonResponse
+    {
+        $dni = preg_replace('/\D+/', '', (string) $request->query('dni', ''));
+
+        $validated = validator(
+            ['dni' => $dni],
+            ['dni' => ['required', 'string', 'regex:/^[0-9]{8}$/']],
+        )->validate();
+
+        return $this->consultaApiPeruResponse(
+            fn () => $apiPeru->consultar($validated['dni']),
+        );
+    }
+
+    /**
+     * Consulta RUC en ApiPerú (con respaldo APISUNAT) desde el servidor.
+     */
+    public function consultaRuc(Request $request, ApiPeruRucService $apiPeru): JsonResponse
+    {
+        $ruc = preg_replace('/\D+/', '', (string) $request->query('ruc', ''));
+
+        $validated = validator(
+            ['ruc' => $ruc],
+            ['ruc' => ['required', 'string', 'regex:/^[0-9]{11}$/']],
+        )->validate();
+
+        return $this->consultaApiPeruResponse(
+            fn () => $apiPeru->consultar($validated['ruc']),
+        );
     }
 
     public function store(ClienteRequest $request): RedirectResponse

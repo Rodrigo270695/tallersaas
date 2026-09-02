@@ -72,6 +72,101 @@ it('valida los campos requeridos al crear un cliente', function (): void {
     $response->assertSessionHasErrors(['nombres']);
 });
 
+it('rechaza un DNI que no tiene exactamente 8 dígitos', function (): void {
+    $this->actingAs($this->testTenantAdmin);
+
+    $response = $this->post('http://'.$this->testTenantHost.'/taller/clientes', [
+        'nombres' => 'Cliente Prueba',
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '123456',
+    ]);
+
+    $response->assertSessionHasErrors(['numero_documento']);
+});
+
+it('rechaza un RUC que no tiene exactamente 11 dígitos', function (): void {
+    $this->actingAs($this->testTenantAdmin);
+
+    $response = $this->post('http://'.$this->testTenantHost.'/taller/clientes', [
+        'nombres' => 'Empresa Prueba S.A.C.',
+        'tipo_documento' => 'RUC',
+        'numero_documento' => '2010007097',
+    ]);
+
+    $response->assertSessionHasErrors(['numero_documento']);
+});
+
+it('acepta un carné de extranjería sin exigir una cantidad exacta de dígitos', function (): void {
+    $this->actingAs($this->testTenantAdmin);
+
+    $response = $this->post('http://'.$this->testTenantHost.'/taller/clientes', [
+        'nombres' => 'Cliente Extranjero',
+        'tipo_documento' => 'CE',
+        'numero_documento' => 'CE1234',
+    ]);
+
+    $response->assertSessionHasNoErrors();
+});
+
+it('crea un cliente inactivo cuando se envía activo en false', function (): void {
+    $this->actingAs($this->testTenantAdmin);
+
+    $response = $this->post('http://'.$this->testTenantHost.'/taller/clientes', [
+        'nombres' => 'Cliente Inactivo',
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '11223344',
+        'activo' => false,
+    ]);
+
+    $response->assertSessionHasNoErrors();
+
+    TenantContext::runForSlug($this->testTenantSlug, function (): void {
+        $cliente = Cliente::query()->where('numero_documento', '11223344')->first();
+        expect($cliente->activo)->toBeFalse();
+    });
+});
+
+it('un cliente nuevo queda activo por defecto', function (): void {
+    $this->actingAs($this->testTenantAdmin);
+
+    $response = $this->post('http://'.$this->testTenantHost.'/taller/clientes', [
+        'nombres' => 'Cliente Por Defecto',
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '55667788',
+    ]);
+
+    $response->assertSessionHasNoErrors();
+
+    TenantContext::runForSlug($this->testTenantSlug, function (): void {
+        $cliente = Cliente::query()->where('numero_documento', '55667788')->first();
+        expect($cliente->activo)->toBeTrue();
+    });
+});
+
+it('permite desactivar un cliente existente al editarlo', function (): void {
+    $clienteId = null;
+
+    TenantContext::runForSlug($this->testTenantSlug, function () use (&$clienteId): void {
+        $cliente = Cliente::factory()->create(['activo' => true]);
+        $clienteId = $cliente->id;
+    });
+
+    $this->actingAs($this->testTenantAdmin);
+
+    $response = $this->put('http://'.$this->testTenantHost.'/taller/clientes/'.$clienteId, [
+        'nombres' => 'Cliente Editado',
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '99887766',
+        'activo' => false,
+    ]);
+
+    $response->assertSessionHasNoErrors();
+
+    TenantContext::runForSlug($this->testTenantSlug, function () use ($clienteId): void {
+        expect(Cliente::query()->find($clienteId)->activo)->toBeFalse();
+    });
+});
+
 it('actualiza un cliente existente', function (): void {
     $clienteId = null;
 

@@ -35,4 +35,34 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | API Perú (consulta DNI/RUC vía apiperu.dev)
+    |--------------------------------------------------------------------------
+    |
+    | Fuente PRIMARIA para autocompletar clientes. Credenciales solo en
+    | servidor: el panel del tenant llama a un endpoint Laravel que a su
+    | vez consulta la API (nunca expongas el token al navegador).
+    |
+    */
+    'apiperu' => [
+        'base_url' => env('APIPERU_BASE_URL', 'https://apiperu.dev/api'),
+        'token' => env('APIPERU_TOKEN'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | APISUNAT (APIs de apoyo — respaldo de apiperu.dev)
+    |--------------------------------------------------------------------------
+    |
+    | Se usa SOLO si apiperu.dev falla (cuota agotada, timeout, 5xx). Si no
+    | se define APISUNAT_LOOKUP_TOKEN, se intenta el token APISUNAT del
+    | taller actual (el mismo usado para facturación electrónica).
+    |
+    */
+    'apisunat_lookup' => [
+        'base_url' => env('APISUNAT_LOOKUP_BASE_URL', 'https://dev.apisunat.pe/api/v1'),
+        'token' => env('APISUNAT_LOOKUP_TOKEN'),
+    ],
+
 ];

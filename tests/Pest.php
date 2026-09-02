@@ -19,6 +19,7 @@ pest()->extend(TestCase::class)
     ->in('Feature');
 
 pest()->extend(TestCase::class)->in('Unit/OpenWa');
+pest()->extend(TestCase::class)->in('Unit/Integrations');
 
 /*
 |--------------------------------------------------------------------------

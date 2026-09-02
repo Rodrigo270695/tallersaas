@@ -25,6 +25,12 @@ class ClienteFactory extends Factory
             'telefono' => fake()->numerify('9########'),
             'email' => fake()->unique()->safeEmail(),
             'direccion' => fake()->address(),
+            'activo' => true,
         ];
+    }
+
+    public function inactivo(): static
+    {
+        return $this->state(['activo' => false]);
     }
 }

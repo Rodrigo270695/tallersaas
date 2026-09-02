@@ -1,0 +1,100 @@
+<?php
+
+namespace App\Services\Integrations;
+
+use App\Services\Integrations\Concerns\FallsBackToApisunatLookup;
+use Illuminate\Support\Facades\Cache;
+use RuntimeException;
+
+/**
+ * Cliente para consulta de RUC vía {@link https://apiperu.dev apiperu.dev}
+ * (fuente PRIMARIA). Si apiperu falla por cuota o indisponibilidad, usa
+ * APISUNAT como respaldo.
+ *
+ * Documentación: POST `{base_url}/ruc` con header `Authorization: Bearer {token}`
+ * y cuerpo JSON `{"ruc":"20100070970"}` (11 dígitos).
+ */
+final class ApiPeruRucService
+{
+    use FallsBackToApisunatLookup;
+
+    public function __construct(
+        private readonly ApisunatLookupService $apisunatLookup,
+    ) {}
+
+    /**
+     * @return array{
+     *     ruc: string,
+     *     razon_social: string,
+     *     direccion: string|null,
+     *     estado_sunat: string|null,
+     *     condicion_sunat: string|null,
+     * }
+     */
+    public function consultar(string $ruc): array
+    {
+        $ruc = preg_replace('/\D+/', '', $ruc) ?? '';
+
+        if (strlen($ruc) !== 11) {
+            throw new RuntimeException('El RUC debe tener 11 dígitos.');
+        }
+
+        $cacheKey = "clientes:documento:ruc:{$ruc}";
+
+        return Cache::remember($cacheKey, now()->addDays(30), function () use ($ruc): array {
+            return $this->consultarConFallbackApisunat(
+                fn (): array => $this->fetchFromApiPeru($ruc),
+                fn (): array => $this->apisunatLookup->consultarRuc($ruc),
+            );
+        });
+    }
+
+    /**
+     * @return array{
+     *     ruc: string,
+     *     razon_social: string,
+     *     direccion: string|null,
+     *     estado_sunat: string|null,
+     *     condicion_sunat: string|null,
+     * }
+     */
+    private function fetchFromApiPeru(string $ruc): array
+    {
+        $response = ApiPeruHttp::client()->post('/ruc', ['ruc' => $ruc]);
+
+        ApiPeruHttp::assertSuccessful($response);
+
+        $json = $response->json();
+        if (! is_array($json) || ! ($json['success'] ?? false)) {
+            $msg = is_string($json['message'] ?? null) ? $json['message'] : 'No se encontraron datos para el RUC indicado.';
+            throw new RuntimeException($msg);
+        }
+
+        $data = $json['data'] ?? null;
+        if (! is_array($data)) {
+            throw new RuntimeException('Respuesta de API RUC inválida (sin data).');
+        }
+
+        $razon = (string) ($data['nombre_o_razon_social'] ?? '');
+        if ($razon === '') {
+            throw new RuntimeException('La API no devolvió razón social para este RUC.');
+        }
+
+        $direccion = $data['direccion_completa'] ?? $data['direccion'] ?? null;
+        $direccion = is_string($direccion) && $direccion !== '' ? $direccion : null;
+
+        $estado = $data['estado'] ?? null;
+        $estado = is_string($estado) && $estado !== '' ? mb_substr($estado, 0, 32) : null;
+
+        $condicion = $data['condicion'] ?? null;
+        $condicion = is_string($condicion) && $condicion !== '' ? mb_substr($condicion, 0, 32) : null;
+
+        return [
+            'ruc' => $ruc,
+            'razon_social' => mb_substr($razon, 0, 255),
+            'direccion' => $direccion,
+            'estado_sunat' => $estado,
+            'condicion_sunat' => $condicion,
+        ];
+    }
+}

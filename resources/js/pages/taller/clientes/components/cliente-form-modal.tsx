@@ -1,17 +1,19 @@
 import { useForm } from '@inertiajs/react';
 import { Loader2 } from 'lucide-react';
-import { useEffect, useMemo, useRef  } from 'react';
-import type {FormEvent} from 'react';
-import { FormField, FormModal, FormSection } from '@/components/forms';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+    DocumentNumberLookupField,
+    DocumentTypeSelect,
+    FormField,
+    FormModal,
+    FormSection,
+    soloDigitosDocumento,
+} from '@/components/forms';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { toastManager } from '@/lib/toast';
 import clientes from '@/routes/taller/clientes';
 import type { Cliente, ClienteTipoDocumento } from '../types';
 
@@ -23,33 +25,36 @@ export type ClienteFormModalProps = {
 };
 
 type ClienteFormData = {
-    nombres: string;
-    apellidos: string;
     tipo_documento: ClienteTipoDocumento;
     numero_documento: string;
+    nombres: string;
+    apellidos: string;
     telefono: string;
     email: string;
     direccion: string;
+    activo: boolean;
 };
 
 const emptyForm: ClienteFormData = {
-    nombres: '',
-    apellidos: '',
     tipo_documento: 'DNI',
     numero_documento: '',
+    nombres: '',
+    apellidos: '',
     telefono: '',
     email: '',
     direccion: '',
+    activo: true,
 };
 
 const buildInitialData = (cliente: Cliente | null): ClienteFormData => ({
-    nombres: cliente?.nombres ?? '',
-    apellidos: cliente?.apellidos ?? '',
     tipo_documento: cliente?.tipo_documento ?? 'DNI',
     numero_documento: cliente?.numero_documento ?? '',
+    nombres: cliente?.nombres ?? '',
+    apellidos: cliente?.apellidos ?? '',
     telefono: cliente?.telefono ?? '',
     email: cliente?.email ?? '',
     direccion: cliente?.direccion ?? '',
+    activo: cliente?.activo ?? true,
 });
 
 const isFormValid = (data: ClienteFormData): boolean =>
@@ -62,8 +67,39 @@ const DOCUMENT_TYPES: { value: ClienteTipoDocumento; label: string }[] = [
     { value: 'PAS', label: 'Pasaporte' },
 ];
 
+/** Longitud exacta de dígitos según el tipo de documento (null = libre). */
+function digitosRequeridos(tipo: ClienteTipoDocumento): number | undefined {
+    if (tipo === 'DNI') {
+        return 8;
+    }
+
+    if (tipo === 'RUC') {
+        return 11;
+    }
+
+    return undefined;
+}
+
+type ConsultaResponse = {
+    success?: boolean;
+    message?: string;
+    code?: string;
+    data?: {
+        dni?: string;
+        ruc?: string;
+        nombres?: string;
+        apellidos?: string;
+        razon_social?: string;
+        direccion?: string | null;
+    };
+};
+
 /**
  * Modal de crear/editar cliente.
+ *
+ * El documento (tipo + número) va primero: al completar un DNI (8 dígitos)
+ * o RUC (11 dígitos) se consulta automáticamente ApiPerú (con respaldo
+ * APISUNAT) para autocompletar nombres/razón social.
  */
 export function ClienteFormModal({
     open,
@@ -77,6 +113,28 @@ export function ClienteFormModal({
 
     const canSubmit = isFormValid(data) && !processing;
     const initialSnapshotRef = useRef<ClienteFormData>(emptyForm);
+    const lastConsultaKeyRef = useRef<string | null>(null);
+    const [consultando, setConsultando] = useState(false);
+
+    const docMaxLen = digitosRequeridos(data.tipo_documento);
+    const isConsultable = docMaxLen !== undefined;
+    const docLen = soloDigitosDocumento(data.numero_documento).length;
+    const docCompleto = isConsultable && docLen === docMaxLen;
+    const isRuc = data.tipo_documento === 'RUC';
+
+    const consultaKeyFor = (
+        tipo: ClienteTipoDocumento,
+        numero: string,
+        maxLen: number | undefined,
+    ): string | null => {
+        if (maxLen === undefined) {
+            return null;
+        }
+
+        const digits = soloDigitosDocumento(numero, maxLen);
+
+        return digits.length === maxLen ? `${tipo}:${digits}` : null;
+    };
 
     useEffect(() => {
         if (open) {
@@ -86,6 +144,13 @@ export function ClienteFormModal({
                 setData(key, initial[key]);
             });
             clearErrors();
+
+            // Evita auto-consulta al abrir un registro ya completo (edición).
+            lastConsultaKeyRef.current = consultaKeyFor(
+                initial.tipo_documento,
+                initial.numero_documento,
+                digitosRequeridos(initial.tipo_documento),
+            );
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, cliente?.id]);
@@ -118,6 +183,99 @@ export function ClienteFormModal({
 
         onOpenChange(next);
     };
+
+    const handleTipoDocumentoChange = (value: string) => {
+        const tipo = value as ClienteTipoDocumento;
+        const max = digitosRequeridos(tipo);
+        const numero = max !== undefined
+            ? soloDigitosDocumento(data.numero_documento, max)
+            : data.numero_documento;
+
+        lastConsultaKeyRef.current = null;
+        setData({ ...data, tipo_documento: tipo, numero_documento: numero });
+    };
+
+    const onConsultarDocumento = async (forcedNumero?: string) => {
+        const numero = soloDigitosDocumento(forcedNumero ?? data.numero_documento, docMaxLen);
+
+        if (!isConsultable || docMaxLen === undefined || numero.length !== docMaxLen) {
+            return;
+        }
+
+        const key = `${data.tipo_documento}:${numero}`;
+        lastConsultaKeyRef.current = key;
+        setConsultando(true);
+
+        try {
+            const url = isRuc
+                ? `${clientes.consultaRuc.url()}?ruc=${encodeURIComponent(numero)}`
+                : `${clientes.consultaDni.url()}?dni=${encodeURIComponent(numero)}`;
+
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            });
+
+            const body = (await res.json()) as ConsultaResponse;
+
+            if (!res.ok || !body.success || !body.data) {
+                const title =
+                    res.status === 429 || body.code === 'rate_limit'
+                        ? 'Demasiadas consultas, intenta de nuevo en un momento.'
+                        : (body.message ?? 'No se pudo consultar el documento.');
+                toastManager.error({ title });
+
+                return;
+            }
+
+            const d = body.data;
+
+            if (isRuc) {
+                setData((prev) => ({
+                    ...prev,
+                    numero_documento: d.ruc ?? numero,
+                    nombres: typeof d.razon_social === 'string' ? d.razon_social : prev.nombres,
+                    apellidos: '',
+                    direccion:
+                        prev.direccion.trim() !== ''
+                            ? prev.direccion
+                            : typeof d.direccion === 'string' && d.direccion !== ''
+                              ? d.direccion
+                              : prev.direccion,
+                }));
+            } else {
+                setData((prev) => ({
+                    ...prev,
+                    numero_documento: d.dni ?? numero,
+                    nombres: typeof d.nombres === 'string' ? d.nombres : prev.nombres,
+                    apellidos: typeof d.apellidos === 'string' ? d.apellidos : prev.apellidos,
+                }));
+            }
+        } catch {
+            toastManager.error({ title: 'No se pudo consultar el documento.' });
+        } finally {
+            setConsultando(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!open || !isConsultable || !docCompleto || consultando || processing) {
+            return;
+        }
+
+        const key = consultaKeyFor(data.tipo_documento, data.numero_documento, docMaxLen);
+
+        if (!key || lastConsultaKeyRef.current === key) {
+            return;
+        }
+
+        void onConsultarDocumento(soloDigitosDocumento(data.numero_documento, docMaxLen));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, data.numero_documento, data.tipo_documento, docCompleto, consultando, processing]);
 
     const onSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -184,44 +342,8 @@ export function ClienteFormModal({
             <div className="flex flex-col gap-5">
                 <FormSection
                     index={0}
-                    title="Datos personales"
-                    description="Nombre completo del cliente."
-                    columns={2}
-                >
-                    <FormField
-                        id="cliente-nombres"
-                        label="Nombres"
-                        required
-                        error={errors.nombres}
-                    >
-                        <Input
-                            id="cliente-nombres"
-                            value={data.nombres}
-                            onChange={(e) => setData('nombres', e.target.value)}
-                            placeholder="Juan Carlos"
-                            autoComplete="off"
-                            autoFocus
-                        />
-                    </FormField>
-
-                    <FormField
-                        id="cliente-apellidos"
-                        label="Apellidos"
-                        error={errors.apellidos}
-                    >
-                        <Input
-                            id="cliente-apellidos"
-                            value={data.apellidos}
-                            onChange={(e) => setData('apellidos', e.target.value)}
-                            placeholder="Pérez García"
-                            autoComplete="off"
-                        />
-                    </FormField>
-                </FormSection>
-
-                <FormSection
-                    index={1}
                     title="Documento de identidad"
+                    description="Al completar el DNI o RUC se consultan automáticamente los datos."
                     columns={2}
                 >
                     <FormField
@@ -230,44 +352,78 @@ export function ClienteFormModal({
                         required
                         error={errors.tipo_documento}
                     >
-                        <Select
+                        <DocumentTypeSelect
+                            id="cliente-tipo-documento"
                             value={data.tipo_documento}
-                            onValueChange={(value) =>
-                                setData('tipo_documento', value as ClienteTipoDocumento)
-                            }
-                        >
-                            <SelectTrigger id="cliente-tipo-documento" className="w-full cursor-pointer">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {DOCUMENT_TYPES.map((option) => (
-                                    <SelectItem
-                                        key={option.value}
-                                        value={option.value}
-                                        className="cursor-pointer"
-                                    >
-                                        {option.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            onValueChange={handleTipoDocumentoChange}
+                            options={DOCUMENT_TYPES}
+                            invalid={Boolean(errors.tipo_documento)}
+                        />
                     </FormField>
 
                     <FormField
                         id="cliente-numero-documento"
                         label="Número de documento"
+                        required={isConsultable}
                         error={errors.numero_documento}
+                        hint={
+                            isConsultable
+                                ? undefined
+                                : 'Puede incluir letras y números.'
+                        }
                     >
-                        <Input
+                        <DocumentNumberLookupField
                             id="cliente-numero-documento"
                             value={data.numero_documento}
-                            onChange={(e) =>
-                                setData('numero_documento', e.target.value)
-                            }
-                            placeholder="12345678"
-                            autoComplete="off"
+                            onChange={(next) => setData('numero_documento', next)}
+                            maxLength={docMaxLen}
+                            consulting={consultando}
+                            disabled={processing}
+                            invalid={Boolean(errors.numero_documento)}
+                            onConsult={() => void onConsultarDocumento()}
+                            consultAriaLabel={isRuc ? 'Consultar RUC en SUNAT' : 'Consultar DNI en RENIEC'}
+                            placeholder={isRuc ? '20123456789' : isConsultable ? '12345678' : 'Documento'}
                         />
                     </FormField>
+                </FormSection>
+
+                <FormSection
+                    index={1}
+                    title="Datos personales"
+                    description={isRuc ? 'Razón social del cliente.' : 'Nombre completo del cliente.'}
+                    columns={2}
+                >
+                    <FormField
+                        id="cliente-nombres"
+                        label={isRuc ? 'Razón social' : 'Nombres'}
+                        required
+                        error={errors.nombres}
+                    >
+                        <Input
+                            id="cliente-nombres"
+                            value={data.nombres}
+                            onChange={(e) => setData('nombres', e.target.value)}
+                            placeholder={isRuc ? 'Distribuidora ABC S.A.C.' : 'Juan Carlos'}
+                            autoComplete="off"
+                            autoFocus
+                        />
+                    </FormField>
+
+                    {!isRuc && (
+                        <FormField
+                            id="cliente-apellidos"
+                            label="Apellidos"
+                            error={errors.apellidos}
+                        >
+                            <Input
+                                id="cliente-apellidos"
+                                value={data.apellidos}
+                                onChange={(e) => setData('apellidos', e.target.value)}
+                                placeholder="Pérez García"
+                                autoComplete="off"
+                            />
+                        </FormField>
+                    )}
                 </FormSection>
 
                 <FormSection index={2} title="Contacto" columns={2}>
@@ -313,6 +469,21 @@ export function ClienteFormModal({
                             placeholder="Av. Los Talleres 123"
                             autoComplete="street-address"
                         />
+                    </FormField>
+
+                    <FormField
+                        id="cliente-activo"
+                        label="Cliente activo"
+                        error={errors.activo}
+                        hint="Desmarca esta opción si el cliente ya no debe considerarse vigente."
+                    >
+                        <div className="flex items-center gap-2 pt-1">
+                            <Checkbox
+                                id="cliente-activo"
+                                checked={data.activo}
+                                onCheckedChange={(checked) => setData('activo', checked === true)}
+                            />
+                        </div>
                     </FormField>
                 </FormSection>
             </div>

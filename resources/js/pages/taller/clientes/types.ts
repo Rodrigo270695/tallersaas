@@ -9,6 +9,7 @@ export type Cliente = {
     telefono: string | null;
     email: string | null;
     direccion: string | null;
+    activo: boolean;
     vehiculos_count?: number;
     created_at: string;
     updated_at: string;
