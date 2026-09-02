@@ -7,8 +7,11 @@ use App\Models\Cliente;
 use App\Models\Marca;
 use App\Models\Modelo;
 use App\Models\Vehiculo;
+use App\Tenancy\TenantManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -75,7 +78,6 @@ class VehiculoController extends Controller
                 'total' => Vehiculo::count(),
                 'coincidencias' => $vehiculos->total(),
             ],
-            // Catálogo liviano para el select del modal de crear/editar.
             'clientes' => Cliente::query()
                 ->orderBy('nombres')
                 ->get(['id', 'nombres', 'apellidos'])
@@ -83,7 +85,6 @@ class VehiculoController extends Controller
                     'id' => $cliente->id,
                     'nombre' => $cliente->nombreCompleto(),
                 ]),
-            // Catálogos marca/modelo del combobox en cascada (propios del tenant).
             'marcas' => Marca::query()
                 ->orderBy('nombre')
                 ->get(['id', 'nombre']),
@@ -93,18 +94,22 @@ class VehiculoController extends Controller
         ]);
     }
 
-    public function store(VehiculoRequest $request): RedirectResponse
+    public function store(VehiculoRequest $request, TenantManager $tenants): RedirectResponse
     {
-        Vehiculo::create($request->validated());
+        $data = collect($request->validated())->except(['foto', 'clear_foto'])->all();
+        $vehiculo = Vehiculo::create($data);
+        $this->applyFoto($vehiculo, $request, $tenants);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Vehículo creado correctamente.']);
 
         return back();
     }
 
-    public function update(VehiculoRequest $request, Vehiculo $vehiculo): RedirectResponse
+    public function update(VehiculoRequest $request, Vehiculo $vehiculo, TenantManager $tenants): RedirectResponse
     {
-        $vehiculo->update($request->validated());
+        $data = collect($request->validated())->except(['foto', 'clear_foto'])->all();
+        $vehiculo->update($data);
+        $this->applyFoto($vehiculo, $request, $tenants);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Vehículo actualizado correctamente.']);
 
@@ -113,6 +118,7 @@ class VehiculoController extends Controller
 
     public function destroy(Vehiculo $vehiculo): RedirectResponse
     {
+        $this->deleteFotoFile($vehiculo);
         $vehiculo->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Vehículo eliminado correctamente.']);
@@ -127,7 +133,14 @@ class VehiculoController extends Controller
             'ids.*' => ['uuid'],
         ]);
 
-        $count = Vehiculo::query()->whereIn('id', $data['ids'])->delete();
+        $vehiculos = Vehiculo::query()->whereIn('id', $data['ids'])->get();
+
+        foreach ($vehiculos as $vehiculo) {
+            $this->deleteFotoFile($vehiculo);
+            $vehiculo->delete();
+        }
+
+        $count = $vehiculos->count();
 
         Inertia::flash('toast', [
             'type' => 'success',
@@ -137,5 +150,52 @@ class VehiculoController extends Controller
         ]);
 
         return back();
+    }
+
+    private function applyFoto(Vehiculo $vehiculo, VehiculoRequest $request, TenantManager $tenants): void
+    {
+        $disk = Storage::disk('public');
+
+        if (($request->validated('clear_foto') ?? false) === true) {
+            $this->deleteFotoFile($vehiculo);
+            $vehiculo->foto_path = null;
+            $vehiculo->save();
+
+            return;
+        }
+
+        if (! $request->hasFile('foto')) {
+            return;
+        }
+
+        $slug = $tenants->slug() ?? 'shared';
+        $previous = $vehiculo->foto_path;
+        $file = $request->file('foto');
+        $extension = strtolower($file->getClientOriginalExtension() ?: $file->guessExtension() ?: 'jpg');
+        $filename = Str::uuid()->toString().'.'.$extension;
+        $dir = "tenants/{$slug}/vehiculos";
+
+        $disk->putFileAs($dir, $file, $filename, 'public');
+
+        $path = "{$dir}/{$filename}";
+        $vehiculo->foto_path = $path;
+        $vehiculo->save();
+
+        if ($previous && $previous !== $path && $disk->exists($previous)) {
+            $disk->delete($previous);
+        }
+    }
+
+    private function deleteFotoFile(Vehiculo $vehiculo): void
+    {
+        if (! $vehiculo->foto_path) {
+            return;
+        }
+
+        $disk = Storage::disk('public');
+
+        if ($disk->exists($vehiculo->foto_path)) {
+            $disk->delete($vehiculo->foto_path);
+        }
     }
 }

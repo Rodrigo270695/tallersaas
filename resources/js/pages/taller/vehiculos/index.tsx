@@ -21,6 +21,7 @@ import type { Paginated } from '@/types';
 import { VehiculoBulkDeleteDialog } from './components/vehiculo-bulk-delete-dialog';
 import { VehiculoDeleteDialog } from './components/vehiculo-delete-dialog';
 import { VehiculoFormModal } from './components/vehiculo-form-modal';
+import { VehiculoFotoCell } from './components/vehiculo-foto-cell';
 import { VehiculoRowActions } from './components/vehiculo-row-actions';
 import type {
     ClienteOption,
@@ -71,7 +72,7 @@ export default function Index({
         useDataTablePage({
             routeUrl: vehiculos.index().url,
             initialFilters: filters,
-            only: ['vehiculos', 'filters', 'stats', 'clientes'],
+            only: ['vehiculos', 'filters', 'stats', 'clientes', 'marcas', 'modelos'],
             errorMessage: 'No se pudo cargar la lista de vehículos.',
             storageKey: 'tallersaas.vehiculos.prefs',
             defaults: { per_page: DEFAULT_PER_PAGE, sort: null, direction: null },
@@ -115,6 +116,21 @@ count += 1;
 
     const columns = useMemo<DataTableColumn<Vehiculo>[]>(() => {
         const base: DataTableColumn<Vehiculo>[] = [
+            {
+                key: 'foto',
+                header: 'Foto',
+                cell: (vehiculo) => (
+                    <VehiculoFotoCell
+                        fotoUrl={vehiculo.foto_url}
+                        etiqueta={
+                            [vehiculo.placa, vehiculo.marca?.nombre, vehiculo.modelo?.nombre]
+                                .filter(Boolean)
+                                .join(' · ') || vehiculo.placa
+                        }
+                    />
+                ),
+                className: 'w-14',
+            },
             {
                 key: 'placa',
                 header: 'Placa',

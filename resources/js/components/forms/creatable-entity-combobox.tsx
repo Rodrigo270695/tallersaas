@@ -1,7 +1,6 @@
 import { router } from '@inertiajs/react';
-import { useState } from 'react';
-import { Combobox  } from '@/components/ui/combobox';
-import type {ComboboxOption} from '@/components/ui/combobox';
+import { useEffect, useMemo, useState } from 'react';
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 
 /**
  * Entidad simple con `id` + `nombre`, tal como se guardan los catálogos
@@ -65,8 +64,33 @@ export function CreatableEntityCombobox({
     className,
 }: CreatableEntityComboboxProps) {
     const [creating, setCreating] = useState(false);
+    /** Entidades creadas en esta sesión del combobox (para no mostrar UUID). */
+    const [createdLocal, setCreatedLocal] = useState<EntityOption[]>([]);
 
-    const comboboxOptions: ComboboxOption[] = options.map((option) => ({
+    useEffect(() => {
+        setCreatedLocal((prev) => {
+            if (prev.length === 0) {
+                return prev;
+            }
+
+            const ids = new Set(options.map((option) => option.id));
+
+            return prev.filter((option) => !ids.has(option.id));
+        });
+    }, [options]);
+
+    const mergedOptions = useMemo(() => {
+        if (createdLocal.length === 0) {
+            return options;
+        }
+
+        const ids = new Set(options.map((option) => option.id));
+        const extras = createdLocal.filter((option) => !ids.has(option.id));
+
+        return extras.length === 0 ? options : [...options, ...extras];
+    }, [options, createdLocal]);
+
+    const comboboxOptions: ComboboxOption[] = mergedOptions.map((option) => ({
         value: option.id,
         label: option.nombre,
     }));
@@ -78,7 +102,7 @@ export function CreatableEntityCombobox({
             return;
         }
 
-        const antes = new Set(options.map((option) => option.id));
+        const antes = new Set(mergedOptions.map((option) => option.id));
         setCreating(true);
 
         router.post(
@@ -89,12 +113,23 @@ export function CreatableEntityCombobox({
                 preserveState: true,
                 only: [optionsPropKey],
                 onSuccess: (page) => {
-                    const next = (page.props[optionsPropKey] as EntityOption[] | undefined) ?? options;
+                    const next =
+                        (page.props[optionsPropKey] as EntityOption[] | undefined) ??
+                        mergedOptions;
                     const nueva = next.find((option) => !antes.has(option.id));
 
-                    if (nueva) {
-                        onChange(nueva.id);
+                    if (!nueva) {
+                        return;
                     }
+
+                    // Asegurar label inmediato aunque el padre aún no haya
+                    // re-filtrado las opciones (cascada marca → modelo).
+                    setCreatedLocal((prev) =>
+                        prev.some((option) => option.id === nueva.id)
+                            ? prev
+                            : [...prev, { id: nueva.id, nombre: nueva.nombre }],
+                    );
+                    onChange(nueva.id);
                 },
                 onFinish: () => setCreating(false),
             },
@@ -115,7 +150,9 @@ export function CreatableEntityCombobox({
             clearable={clearable}
             creatable={false}
             onCreateOption={handleCreateOption}
-            createOptionLabel={createOptionLabel ?? ((query) => `Usar «${query.toUpperCase()}»`)}
+            createOptionLabel={
+                createOptionLabel ?? ((query) => `Usar «${query.toUpperCase()}»`)
+            }
             className={className}
             aria-invalid={invalid}
         />

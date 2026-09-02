@@ -135,7 +135,11 @@ export function Combobox({
                     <span className="truncate">
                         {selected
                             ? selected.label
-                            : value?.trim()
+                            : // Solo mostrar el value crudo en modo creatable
+                              // diferido (texto libre). Con IDs (UUID) nunca
+                              // mostramos el value: evita el bug de ver el
+                              // UUID mientras llegan las opciones.
+                              creatable && !onCreateOption && value?.trim()
                               ? value
                               : placeholder}
                     </span>

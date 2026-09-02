@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\VehiculoFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -33,6 +34,14 @@ class Vehiculo extends Model
         'anio',
         'kilometraje',
         'vin',
+        'foto_path',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    protected $appends = [
+        'foto_url',
     ];
 
     /**
@@ -57,5 +66,17 @@ class Vehiculo extends Model
     public function modelo(): BelongsTo
     {
         return $this->belongsTo(Modelo::class);
+    }
+
+    /**
+     * URL pública de la foto (via symlink `public/storage`).
+     */
+    protected function fotoUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): ?string => $this->foto_path
+                ? asset('storage/'.ltrim($this->foto_path, '/'))
+                : null,
+        );
     }
 }

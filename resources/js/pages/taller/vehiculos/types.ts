@@ -19,6 +19,8 @@ export type Vehiculo = {
     anio: number | null;
     kilometraje: number | null;
     vin: string | null;
+    foto_path: string | null;
+    foto_url: string | null;
     cliente: VehiculoClienteRef;
     marca: VehiculoEntidadRef;
     modelo: VehiculoEntidadRef;

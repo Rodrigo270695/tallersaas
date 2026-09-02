@@ -9,7 +9,9 @@ import {
     FormSection,
     soloDigitosDocumento,
 } from '@/components/forms';
+import { ImageCaptureField } from '@/components/media/image-capture-field';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import marcas from '@/routes/taller/marcas';
@@ -39,6 +41,8 @@ type VehiculoFormData = {
     anio: string;
     kilometraje: string;
     vin: string;
+    foto: File | null;
+    clear_foto: boolean;
 };
 
 const emptyForm: VehiculoFormData = {
@@ -50,6 +54,8 @@ const emptyForm: VehiculoFormData = {
     anio: '',
     kilometraje: '',
     vin: '',
+    foto: null,
+    clear_foto: false,
 };
 
 const buildInitialData = (vehiculo: Vehiculo | null): VehiculoFormData => ({
@@ -61,6 +67,8 @@ const buildInitialData = (vehiculo: Vehiculo | null): VehiculoFormData => ({
     anio: vehiculo?.anio ? String(vehiculo.anio) : '',
     kilometraje: vehiculo?.kilometraje != null ? String(vehiculo.kilometraje) : '',
     vin: vehiculo?.vin ?? '',
+    foto: null,
+    clear_foto: false,
 });
 
 const isFormValid = (data: VehiculoFormData): boolean =>
@@ -108,9 +116,13 @@ export function VehiculoFormModal({
     const isDirty = useMemo(() => {
         const initial = initialSnapshotRef.current;
 
-        return (Object.keys(initial) as Array<keyof VehiculoFormData>).some(
-            (key) => initial[key] !== data[key],
-        );
+        return (Object.keys(initial) as Array<keyof VehiculoFormData>).some((key) => {
+            if (key === 'foto') {
+                return data.foto instanceof File || data.clear_foto !== initial.clear_foto;
+            }
+
+            return initial[key] !== data[key];
+        });
     }, [data]);
 
     const confirmDiscard = (): boolean => {
@@ -152,9 +164,13 @@ export function VehiculoFormModal({
             onOpenChange(false);
         };
 
+        const hasNewFoto = data.foto instanceof File;
+        const forceFormData = isEdit || hasNewFoto || data.clear_foto;
+
         if (isEdit && vehiculo) {
             put(vehiculos.update(vehiculo.id).url, {
                 preserveScroll: true,
+                forceFormData,
                 onSuccess,
             });
 
@@ -163,6 +179,7 @@ export function VehiculoFormModal({
 
         post(vehiculos.store().url, {
             preserveScroll: true,
+            forceFormData: hasNewFoto,
             onSuccess,
         });
     };
@@ -235,12 +252,7 @@ export function VehiculoFormModal({
                     </FormField>
                 </FormSection>
 
-                <FormSection
-                    index={1}
-                    title="Marca y modelo"
-                    description="Selecciona la marca primero; si no existe, escríbela y quedará guardada para el taller. Luego elige o crea el modelo."
-                    columns={2}
-                >
+                <FormSection index={1} title="Marca y modelo" columns={2}>
                     <FormField id="vehiculo-marca" label="Marca" error={errors.marca_id}>
                         <CreatableEntityCombobox
                             id="vehiculo-marca"
@@ -257,12 +269,7 @@ export function VehiculoFormModal({
                         />
                     </FormField>
 
-                    <FormField
-                        id="vehiculo-modelo"
-                        label="Modelo"
-                        error={errors.modelo_id}
-                        hint={!data.marca_id ? 'Primero selecciona una marca.' : undefined}
-                    >
+                    <FormField id="vehiculo-modelo" label="Modelo" error={errors.modelo_id}>
                         <CreatableEntityCombobox
                             id="vehiculo-modelo"
                             options={modelosDeLaMarca}
@@ -275,7 +282,7 @@ export function VehiculoFormModal({
                             placeholder={
                                 data.marca_id
                                     ? 'Busca o selecciona modelo…'
-                                    : 'Primero selecciona una marca'
+                                    : 'Selecciona una marca'
                             }
                             searchPlaceholder="Buscar modelo…"
                             emptyMessage="Sin resultados."
@@ -287,6 +294,49 @@ export function VehiculoFormModal({
 
                 <FormSection index={2} title="Datos del vehículo" columns={2}>
                     <FormField
+                        id="vehiculo-foto"
+                        label="Foto del vehículo"
+                        error={errors.foto}
+                        className="sm:col-span-2"
+                    >
+                        <ImageCaptureField
+                            id="vehiculo-foto"
+                            value={data.foto instanceof File ? data.foto : null}
+                            existingUrl={vehiculo?.foto_url ?? null}
+                            clearExisting={data.clear_foto}
+                            disabled={processing}
+                            onChange={(file) => {
+                                setData('foto', file);
+                                if (file) {
+                                    setData('clear_foto', false);
+                                }
+                            }}
+                        />
+                        {isEdit && Boolean(vehiculo?.foto_url) ? (
+                            <div className="mt-3 flex items-center gap-3">
+                                <Checkbox
+                                    id="vehiculo-clear-foto"
+                                    checked={data.clear_foto}
+                                    disabled={data.foto instanceof File}
+                                    onCheckedChange={(checked) => {
+                                        const on = checked === true;
+                                        setData('clear_foto', on);
+                                        if (on) {
+                                            setData('foto', null);
+                                        }
+                                    }}
+                                />
+                                <label
+                                    htmlFor="vehiculo-clear-foto"
+                                    className="cursor-pointer text-sm text-muted-foreground"
+                                >
+                                    Quitar foto actual
+                                </label>
+                            </div>
+                        ) : null}
+                    </FormField>
+
+                    <FormField
                         id="vehiculo-placa"
                         label="Placa"
                         required
@@ -296,7 +346,9 @@ export function VehiculoFormModal({
                         <Input
                             id="vehiculo-placa"
                             value={data.placa}
-                            onChange={(e) => setData('placa', soloPlacaMayusculas(e.target.value))}
+                            onChange={(e) =>
+                                setData('placa', soloPlacaMayusculas(e.target.value))
+                            }
                             placeholder="ABC-123"
                             autoComplete="off"
                             maxLength={10}
@@ -317,7 +369,9 @@ export function VehiculoFormModal({
                         <Input
                             id="vehiculo-anio"
                             value={data.anio}
-                            onChange={(e) => setData('anio', soloDigitosDocumento(e.target.value, 4))}
+                            onChange={(e) =>
+                                setData('anio', soloDigitosDocumento(e.target.value, 4))
+                            }
                             placeholder="2020"
                             inputMode="numeric"
                             autoComplete="off"
@@ -332,7 +386,12 @@ export function VehiculoFormModal({
                         <Input
                             id="vehiculo-kilometraje"
                             value={data.kilometraje}
-                            onChange={(e) => setData('kilometraje', soloDigitosDocumento(e.target.value, 7))}
+                            onChange={(e) =>
+                                setData(
+                                    'kilometraje',
+                                    soloDigitosDocumento(e.target.value, 7),
+                                )
+                            }
                             placeholder="45000"
                             inputMode="numeric"
                             autoComplete="off"
@@ -349,7 +408,12 @@ export function VehiculoFormModal({
                         <Input
                             id="vehiculo-vin"
                             value={data.vin}
-                            onChange={(e) => setData('vin', soloVinMayusculas(e.target.value).slice(0, 30))}
+                            onChange={(e) =>
+                                setData(
+                                    'vin',
+                                    soloVinMayusculas(e.target.value).slice(0, 30),
+                                )
+                            }
                             placeholder="1HGCM82633A004352"
                             autoComplete="off"
                         />

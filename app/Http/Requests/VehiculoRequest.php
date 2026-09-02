@@ -38,6 +38,8 @@ class VehiculoRequest extends FormRequest
             'anio' => ['nullable', 'integer', 'min:1950', 'max:'.(date('Y') + 1)],
             'kilometraje' => ['nullable', 'integer', 'min:0', 'max:9999999'],
             'vin' => ['nullable', 'string', 'max:30', 'regex:/^[A-Z0-9]+$/'],
+            'foto' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'clear_foto' => ['nullable', 'boolean'],
         ];
     }
 
@@ -71,6 +73,18 @@ class VehiculoRequest extends FormRequest
         if ($this->filled('vin')) {
             $this->merge(['vin' => mb_strtoupper((string) $this->input('vin'))]);
         }
+
+        foreach (['marca_id', 'modelo_id', 'anio', 'kilometraje', 'vin', 'color'] as $field) {
+            if ($this->input($field) === '' || $this->input($field) === null) {
+                $this->merge([$field => null]);
+            }
+        }
+
+        if ($this->has('clear_foto')) {
+            $this->merge([
+                'clear_foto' => filter_var($this->input('clear_foto'), FILTER_VALIDATE_BOOLEAN),
+            ]);
+        }
     }
 
     public function attributes(): array
@@ -84,6 +98,7 @@ class VehiculoRequest extends FormRequest
             'anio' => 'año',
             'kilometraje' => 'kilometraje',
             'vin' => 'VIN',
+            'foto' => 'foto',
         ];
     }
 
@@ -92,6 +107,7 @@ class VehiculoRequest extends FormRequest
         return [
             'placa.regex' => 'La placa solo puede contener letras, números y guiones.',
             'vin.regex' => 'El VIN solo puede contener letras y números (sin espacios ni símbolos).',
+            'foto.max' => 'La foto no puede superar los 2 MB.',
         ];
     }
 }
