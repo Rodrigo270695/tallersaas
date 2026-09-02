@@ -95,11 +95,45 @@ export function VehiculoFormModal({
 }: VehiculoFormModalProps) {
     const isEdit = vehiculo !== null;
 
-    const { data, setData, post, put, processing, errors, reset, clearErrors } =
+    const { data, setData, post, processing, errors, reset, clearErrors, transform } =
         useForm<VehiculoFormData>(emptyForm);
 
     const canSubmit = isFormValid(data) && !processing;
     const initialSnapshotRef = useRef<VehiculoFormData>(emptyForm);
+    const isEditRef = useRef(isEdit);
+    isEditRef.current = isEdit;
+
+    // PHP no parsea bien multipart/form-data con PUT: en edición enviamos
+    // POST + `_method=put` (igual que mascotas en VetSaaS).
+    useEffect(() => {
+        transform((raw) => {
+            const next: Record<string, unknown> = {
+                cliente_id: raw.cliente_id,
+                placa: raw.placa,
+                marca_id: raw.marca_id || null,
+                modelo_id: raw.modelo_id || null,
+                color: raw.color.trim() || null,
+                anio: raw.anio.trim() === '' ? null : raw.anio,
+                kilometraje: raw.kilometraje.trim() === '' ? null : raw.kilometraje,
+                vin: raw.vin.trim() || null,
+            };
+
+            if (raw.foto instanceof File) {
+                next.foto = raw.foto;
+            }
+
+            if (raw.clear_foto === true) {
+                next.clear_foto = true;
+            }
+
+            if (isEditRef.current) {
+                next._method = 'put';
+            }
+
+            return next;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         if (open) {
@@ -165,12 +199,11 @@ export function VehiculoFormModal({
         };
 
         const hasNewFoto = data.foto instanceof File;
-        const forceFormData = isEdit || hasNewFoto || data.clear_foto;
 
         if (isEdit && vehiculo) {
-            put(vehiculos.update(vehiculo.id).url, {
+            post(vehiculos.update(vehiculo.id).url, {
                 preserveScroll: true,
-                forceFormData,
+                forceFormData: true,
                 onSuccess,
             });
 
