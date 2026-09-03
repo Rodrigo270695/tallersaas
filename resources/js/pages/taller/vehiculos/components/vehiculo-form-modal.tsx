@@ -62,6 +62,14 @@ const emptyForm: VehiculoFormData = {
     activo: true,
 };
 
+const TIPO_OPTIONS = [
+    { value: 'auto', label: 'Auto' },
+    { value: 'moto', label: 'Moto' },
+    { value: 'mototaxi', label: 'Mototaxi' },
+    { value: 'camioneta', label: 'Camioneta / pickup' },
+    { value: 'otro', label: 'Otro' },
+] as const;
+
 const buildInitialData = (vehiculo: Vehiculo | null): VehiculoFormData => ({
     cliente_id: vehiculo?.cliente_id ?? '',
     placa: vehiculo?.placa ?? '',
@@ -403,18 +411,17 @@ export function VehiculoFormModal({
                         error={errors.tipo}
                         hint="Auto, moto, mototaxi, etc."
                     >
-                        <select
+                        <Combobox
                             id="vehiculo-tipo"
-                            value={data.tipo}
-                            onChange={(e) => setData('tipo', e.target.value)}
-                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                        >
-                            <option value="auto">Auto</option>
-                            <option value="moto">Moto</option>
-                            <option value="mototaxi">Mototaxi</option>
-                            <option value="camioneta">Camioneta / pickup</option>
-                            <option value="otro">Otro</option>
-                        </select>
+                            options={[...TIPO_OPTIONS]}
+                            value={data.tipo || null}
+                            onChange={(value) => setData('tipo', value ?? 'auto')}
+                            placeholder="Seleccionar tipo"
+                            searchPlaceholder="Buscar tipo…"
+                            emptyMessage="Sin coincidencias."
+                            clearable={false}
+                            aria-invalid={Boolean(errors.tipo)}
+                        />
                     </FormField>
 
                     <FormField id="vehiculo-color" label="Color" error={errors.color}>

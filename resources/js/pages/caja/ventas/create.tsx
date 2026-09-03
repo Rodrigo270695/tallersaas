@@ -13,6 +13,7 @@ import {
     ArrowLeftRight,
     Wrench,
     Package,
+    UserPlus,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { expandServicioConKit } from '@/lib/servicio-kit';
 import { cn } from '@/lib/utils';
+import { ClienteFormModal } from '@/pages/taller/clientes/components/cliente-form-modal';
 import ventas from '@/routes/caja/ventas';
 
 type IgvConfig = {
@@ -156,6 +158,12 @@ function Create({
 
     const [catalogTab, setCatalogTab] = useState<'productos' | 'servicios'>('productos');
     const [searchQuery, setSearchQuery] = useState('');
+    const [nuevoClienteOpen, setNuevoClienteOpen] = useState(false);
+    const [clientesLocales, setClientesLocales] = useState(clientes);
+
+    useEffect(() => {
+        setClientesLocales(clientes);
+    }, [clientes]);
 
     useEffect(() => {
         if (!emite_comprobantes_sunat && data.tipo_comprobante_sunat !== '0') {
@@ -164,8 +172,8 @@ function Create({
     }, [emite_comprobantes_sunat, data.tipo_comprobante_sunat, setData]);
 
     const clienteOptions = useMemo(
-        () => clientes.map((c) => ({ value: c.id, label: c.nombre })),
-        [clientes],
+        () => clientesLocales.map((c) => ({ value: c.id, label: c.nombre })),
+        [clientesLocales],
     );
 
     const vehiculosFiltrados = useMemo(
@@ -265,7 +273,12 @@ function Create({
         (linea) => linea.concepto.trim() !== '' && Number(linea.precio_unitario) >= 0,
     );
 
-    const canSubmit = Boolean(mi_sesion_abierta) && !processing && tieneLineasValidas;
+    const canSubmit =
+        Boolean(mi_sesion_abierta) &&
+        !processing &&
+        Boolean(data.cliente_id) &&
+        tieneLineasValidas &&
+        totales.total >= 0.01;
 
     const setLinea = (index: number, patch: Partial<LineaForm>) => {
         setData(
@@ -353,7 +366,7 @@ function Create({
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
 
-        if (!mi_sesion_abierta || !tieneLineasValidas) {
+        if (!mi_sesion_abierta || !data.cliente_id || !tieneLineasValidas || totales.total < 0.01) {
             return;
         }
 
@@ -365,7 +378,7 @@ function Create({
                 ? Number(formData.tipo_comprobante_sunat)
                 : 0,
             orden_trabajo_id: formData.orden_trabajo_id || null,
-            cliente_id: formData.cliente_id || null,
+            cliente_id: formData.cliente_id,
             vehiculo_id: formData.vehiculo_id || null,
             pagos: formData.pagos.map((pago, index) =>
                 index === 0
@@ -442,18 +455,44 @@ function Create({
                             </h2>
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="venta-cliente">Cliente</Label>
+                                    <div className="flex h-6 items-center justify-between gap-2">
+                                        <Label htmlFor="venta-cliente">
+                                            Cliente
+                                            <span
+                                                aria-hidden="true"
+                                                className="ml-0.5 text-destructive"
+                                            >
+                                                *
+                                            </span>
+                                        </Label>
+                                        {!bloqueadoPorOrden && (
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 gap-1 px-2 text-[11px] text-brand-700"
+                                                disabled={!mi_sesion_abierta}
+                                                onClick={() => setNuevoClienteOpen(true)}
+                                            >
+                                                <UserPlus className="size-3" aria-hidden />
+                                                Nuevo cliente
+                                            </Button>
+                                        )}
+                                    </div>
                                     <Combobox
                                         id="venta-cliente"
                                         options={clienteOptions}
                                         value={data.cliente_id || null}
                                         onChange={(value) => {
-                                            setData('cliente_id', value ?? '');
-                                            if (!bloqueadoPorOrden) {
-                                                setData('vehiculo_id', '');
-                                            }
+                                            setData((prev) => ({
+                                                ...prev,
+                                                cliente_id: value ?? '',
+                                                vehiculo_id: bloqueadoPorOrden
+                                                    ? prev.vehiculo_id
+                                                    : '',
+                                            }));
                                         }}
-                                        placeholder="Sin cliente"
+                                        placeholder="Seleccionar cliente"
                                         searchPlaceholder="Buscar cliente…"
                                         emptyMessage="Sin coincidencias."
                                         clearable={!bloqueadoPorOrden}
@@ -465,19 +504,28 @@ function Create({
                                         </p>
                                     )}
                                     {errors.cliente_id && (
-                                        <p className="text-sm text-destructive">{errors.cliente_id}</p>
+                                        <p className="text-sm text-destructive">
+                                            {errors.cliente_id}
+                                        </p>
                                     )}
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="venta-vehiculo">Vehículo</Label>
+                                    <Label htmlFor="venta-vehiculo">
+                                        Vehículo{' '}
+                                        <span className="font-normal text-muted-foreground">
+                                            (opcional)
+                                        </span>
+                                    </Label>
                                     <Combobox
                                         id="venta-vehiculo"
                                         options={vehiculoOptions}
                                         value={data.vehiculo_id || null}
                                         onChange={(value) => setData('vehiculo_id', value ?? '')}
                                         placeholder={
-                                            data.cliente_id ? 'Sin vehículo' : 'Primero el cliente'
+                                            data.cliente_id
+                                                ? 'Sin vehículo'
+                                                : 'Primero el cliente'
                                         }
                                         searchPlaceholder="Placa o modelo…"
                                         emptyMessage={
@@ -494,7 +542,9 @@ function Create({
                                         </p>
                                     )}
                                     {errors.vehiculo_id && (
-                                        <p className="text-sm text-destructive">{errors.vehiculo_id}</p>
+                                        <p className="text-sm text-destructive">
+                                            {errors.vehiculo_id}
+                                        </p>
                                     )}
                                 </div>
                             </div>
@@ -504,6 +554,9 @@ function Create({
                         <section className="rounded-xl border border-border/60 bg-white p-4 shadow-sm sm:p-5">
                             <h2 className="mb-3 text-sm font-semibold text-foreground">
                                 Tipo de comprobante
+                                <span aria-hidden="true" className="ml-0.5 text-destructive">
+                                    *
+                                </span>
                             </h2>
                             <ToggleGroup
                                 type="single"
@@ -692,7 +745,12 @@ function Create({
 
                         {/* Carrito */}
                         <section className="rounded-xl border border-border/60 bg-white p-4 shadow-sm sm:p-5">
-                            <h2 className="mb-4 text-sm font-semibold text-foreground">Carrito</h2>
+                            <h2 className="mb-4 text-sm font-semibold text-foreground">
+                                Carrito
+                                <span aria-hidden="true" className="ml-0.5 text-destructive">
+                                    *
+                                </span>
+                            </h2>
 
                             {data.lineas.length === 0 ? (
                                 <div className="rounded-lg border border-dashed border-border/70 px-4 py-10 text-center">
@@ -818,7 +876,15 @@ function Create({
 
                             <div className="space-y-4">
                                 <div>
-                                    <Label className="mb-2 block">Método de pago</Label>
+                                    <Label className="mb-2 block">
+                                        Método de pago
+                                        <span
+                                            aria-hidden="true"
+                                            className="ml-0.5 text-destructive"
+                                        >
+                                            *
+                                        </span>
+                                    </Label>
                                     <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-3">
                                         {METODOS_PAGO.map((metodo) => {
                                             const Icon = metodo.icon;
@@ -943,6 +1009,27 @@ function Create({
                     </aside>
                 </form>
             </div>
+
+            <ClienteFormModal
+                open={nuevoClienteOpen}
+                onOpenChange={setNuevoClienteOpen}
+                cliente={null}
+                jsonStoreUrl="/caja/ventas/clientes-rapido"
+                onCreated={(cliente) => {
+                    setClientesLocales((prev) => {
+                        if (prev.some((c) => c.id === cliente.id)) {
+                            return prev;
+                        }
+
+                        return [...prev, { id: cliente.id, nombre: cliente.nombre }];
+                    });
+                    setData((prev) => ({
+                        ...prev,
+                        cliente_id: cliente.id,
+                        vehiculo_id: '',
+                    }));
+                }}
+            />
         </>
     );
 }

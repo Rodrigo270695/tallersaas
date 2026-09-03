@@ -18,7 +18,7 @@ class StoreVentaDirectaRequest extends FormRequest
         return [
             'caja_sesion_id' => ['nullable', 'uuid', 'exists:caja_sesiones,id'],
             'orden_trabajo_id' => ['nullable', 'uuid', 'exists:ordenes_trabajo,id'],
-            'cliente_id' => ['nullable', 'uuid', 'exists:clientes,id'],
+            'cliente_id' => ['required', 'uuid', 'exists:clientes,id'],
             'vehiculo_id' => [
                 'nullable',
                 'uuid',

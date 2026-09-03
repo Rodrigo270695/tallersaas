@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ClienteRequest;
 use App\Http\Requests\StoreVentaDirectaRequest;
 use App\Models\CajaSesion;
 use App\Models\Cliente;
@@ -17,6 +18,7 @@ use App\Services\Venta\VentaCheckoutFromOrdenService;
 use App\Services\Venta\VentaTicketViewService;
 use App\Support\Caja\TicketAnchoMm;
 use App\Support\Fel\ApisunatCredentialResolver;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -326,6 +328,23 @@ class VentaController extends Controller
             'venta' => $venta,
             'imprimir' => 1,
         ]);
+    }
+
+    /**
+     * Alta rápida de cliente desde el POS, sin salir de la venta.
+     */
+    public function storeClienteRapido(ClienteRequest $request): JsonResponse
+    {
+        abort_unless($request->user()?->can('ventas.create'), 403);
+
+        $cliente = Cliente::query()->create($request->validated());
+
+        return response()->json([
+            'cliente' => [
+                'id' => $cliente->id,
+                'nombre' => $cliente->nombreCompleto(),
+            ],
+        ], 201);
     }
 
     public function show(Request $request, Venta $venta): Response

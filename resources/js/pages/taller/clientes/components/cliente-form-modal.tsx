@@ -17,11 +17,19 @@ import { toastManager } from '@/lib/toast';
 import clientes from '@/routes/taller/clientes';
 import type { Cliente, ClienteTipoDocumento } from '../types';
 
+export type ClienteCreatedPayload = {
+    id: string;
+    nombre: string;
+};
+
 export type ClienteFormModalProps = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     /** Cliente a editar; si es `null` el modal se abre en modo crear. */
     cliente: Cliente | null;
+    /** Si se define, crea vía JSON (caja) y llama onCreated en lugar de redirigir. */
+    jsonStoreUrl?: string;
+    onCreated?: (payload: ClienteCreatedPayload) => void;
 };
 
 type ClienteFormData = {
@@ -105,16 +113,19 @@ export function ClienteFormModal({
     open,
     onOpenChange,
     cliente,
+    jsonStoreUrl,
+    onCreated,
 }: ClienteFormModalProps) {
     const isEdit = cliente !== null;
 
-    const { data, setData, post, put, processing, errors, reset, clearErrors } =
+    const { data, setData, post, put, processing, errors, reset, clearErrors, setError } =
         useForm<ClienteFormData>(emptyForm);
 
     const canSubmit = isFormValid(data) && !processing;
     const initialSnapshotRef = useRef<ClienteFormData>(emptyForm);
     const lastConsultaKeyRef = useRef<string | null>(null);
     const [consultando, setConsultando] = useState(false);
+    const [jsonSubmitting, setJsonSubmitting] = useState(false);
 
     const docMaxLen = digitosRequeridos(data.tipo_documento);
     const isConsultable = docMaxLen !== undefined;
@@ -277,7 +288,7 @@ export function ClienteFormModal({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, data.numero_documento, data.tipo_documento, docCompleto, consultando, processing]);
 
-    const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const onSuccess = () => {
             reset();
@@ -290,6 +301,61 @@ export function ClienteFormModal({
                 preserveScroll: true,
                 onSuccess,
             });
+
+            return;
+        }
+
+        if (jsonStoreUrl && onCreated) {
+            setJsonSubmitting(true);
+            clearErrors();
+
+            try {
+                const token =
+                    document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ??
+                    '';
+                const res = await fetch(jsonStoreUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(data),
+                });
+                const body = (await res.json()) as {
+                    cliente?: ClienteCreatedPayload;
+                    message?: string;
+                    errors?: Record<string, string[]>;
+                };
+
+                if (res.status === 422 && body.errors) {
+                    Object.entries(body.errors).forEach(([key, messages]) => {
+                        const msg = messages[0];
+                        if (msg) {
+                            setError(key as keyof ClienteFormData, msg);
+                        }
+                    });
+
+                    return;
+                }
+
+                if (!res.ok || !body.cliente) {
+                    toastManager.error({
+                        title: body.message ?? 'No se pudo crear el cliente.',
+                    });
+
+                    return;
+                }
+
+                onCreated(body.cliente);
+                onSuccess();
+            } catch {
+                toastManager.error({ title: 'No se pudo crear el cliente.' });
+            } finally {
+                setJsonSubmitting(false);
+            }
 
             return;
         }
@@ -318,17 +384,17 @@ export function ClienteFormModal({
                         type="button"
                         variant="outline"
                         onClick={() => handleClose(false)}
-                        disabled={processing}
+                        disabled={processing || jsonSubmitting}
                         className="cursor-pointer"
                     >
                         Cancelar
                     </Button>
                     <Button
                         type="submit"
-                        disabled={!canSubmit}
+                        disabled={!canSubmit || jsonSubmitting}
                         className="cursor-pointer gap-2 disabled:cursor-not-allowed"
                     >
-                        {processing && (
+                        {(processing || jsonSubmitting) && (
                             <Loader2
                                 className="size-4 animate-spin"
                                 aria-hidden="true"

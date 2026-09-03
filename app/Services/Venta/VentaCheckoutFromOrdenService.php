@@ -187,9 +187,9 @@ final class VentaCheckoutFromOrdenService
                 ? $payload['vehiculo_id']
                 : null;
 
-            if ($vehiculoId !== null && $clienteId === null) {
+            if ($clienteId === null) {
                 throw ValidationException::withMessages([
-                    'cliente_id' => 'Selecciona el cliente del vehículo.',
+                    'cliente_id' => 'Selecciona un cliente para registrar la venta.',
                 ]);
             }
 
