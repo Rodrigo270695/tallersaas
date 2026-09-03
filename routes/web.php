@@ -6,6 +6,7 @@ use App\Http\Controllers\CategoriaInventarioController;
 use App\Http\Controllers\CategoriaServicioController;
 use App\Http\Controllers\CitaController;
 use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\CompraInventarioController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FelDocumentController;
 use App\Http\Controllers\FelSerieController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PresupuestoController;
 use App\Http\Controllers\PresupuestoPublicController;
 use App\Http\Controllers\ProductoInventarioController;
+use App\Http\Controllers\ProveedorInventarioController;
 use App\Http\Controllers\ReporteFinancieroController;
 use App\Http\Controllers\ReporteOrdenesController;
 use App\Http\Controllers\RoleController;
@@ -366,6 +368,32 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
         Route::middleware('permission:movimientos-stock.create')
             ->post('movimientos', [MovimientoInventarioController::class, 'store'])
             ->name('movimientos.store');
+
+        Route::middleware('permission:proveedores.view')
+            ->get('proveedores', [ProveedorInventarioController::class, 'index'])
+            ->name('proveedores.index');
+        Route::middleware(['permission:proveedores.create|proveedores.update', 'throttle:20,1'])
+            ->get('proveedores/consulta-ruc', [ProveedorInventarioController::class, 'consultaRuc'])
+            ->name('proveedores.consulta-ruc');
+        Route::middleware('permission:proveedores.create')
+            ->post('proveedores', [ProveedorInventarioController::class, 'store'])
+            ->name('proveedores.store');
+        Route::middleware('permission:proveedores.update')
+            ->match(['put', 'patch'], 'proveedores/{proveedor}', [ProveedorInventarioController::class, 'update'])
+            ->name('proveedores.update');
+        Route::middleware('permission:proveedores.delete')
+            ->delete('proveedores/{proveedor}', [ProveedorInventarioController::class, 'destroy'])
+            ->name('proveedores.destroy');
+
+        Route::middleware('permission:compras.view')
+            ->get('compras', [CompraInventarioController::class, 'index'])
+            ->name('compras.index');
+        Route::middleware('permission:compras.create')
+            ->post('compras', [CompraInventarioController::class, 'store'])
+            ->name('compras.store');
+        Route::middleware('permission:compras.delete')
+            ->delete('compras/{compra}', [CompraInventarioController::class, 'destroy'])
+            ->name('compras.destroy');
     });
 
 // Catálogo geográfico (departamento → provincia → distrito).

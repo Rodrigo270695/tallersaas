@@ -15,6 +15,7 @@ final class InventarioStockService
         string $cantidad,
         ?string $notas,
         ?string $userId,
+        ?string $compraId = null,
     ): MovimientoInventario {
         $qty = abs(round((float) $cantidad, 3));
 
@@ -25,6 +26,8 @@ final class InventarioStockService
             (string) $qty,
             $notas,
             $userId,
+            null,
+            $compraId,
         );
     }
 

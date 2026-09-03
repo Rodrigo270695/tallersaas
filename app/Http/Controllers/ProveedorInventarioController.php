@@ -1,0 +1,138 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Controllers\Concerns\RespondsToApiPeruConsulta;
+use App\Http\Requests\ProveedorInventarioRequest;
+use App\Models\Proveedor;
+use App\Services\Integrations\ApiPeruRucService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class ProveedorInventarioController extends Controller
+{
+    use RespondsToApiPeruConsulta;
+
+    private const PER_PAGE_OPTIONS = [10, 15, 20, 25, 50, 100];
+
+    private const SORTABLE_COLUMNS = ['ruc', 'razon_social', 'activo', 'created_at'];
+
+    public function index(Request $request): Response
+    {
+        $search = trim((string) $request->string('search', ''));
+        $perPageRequested = (int) $request->integer('per_page', 10);
+        $perPage = in_array($perPageRequested, self::PER_PAGE_OPTIONS, true) ? $perPageRequested : 10;
+
+        $sort = (string) $request->string('sort', '');
+        $direction = strtolower((string) $request->string('direction', 'asc'));
+        $sortValid = in_array($sort, self::SORTABLE_COLUMNS, true);
+        $directionValid = in_array($direction, ['asc', 'desc'], true);
+
+        $estado = (string) $request->string('estado', 'todas');
+        if (! in_array($estado, ['todas', 'activa', 'inactiva'], true)) {
+            $estado = 'todas';
+        }
+
+        $query = Proveedor::query();
+
+        if ($sortValid) {
+            $query->orderBy($sort, $directionValid ? $direction : 'asc');
+            $query->orderByDesc('created_at');
+        } else {
+            $query->orderBy('razon_social');
+        }
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search): void {
+                $q->where('ruc', 'ILIKE', "%{$search}%")
+                    ->orWhere('razon_social', 'ILIKE', "%{$search}%")
+                    ->orWhere('email', 'ILIKE', "%{$search}%")
+                    ->orWhere('telefono', 'ILIKE', "%{$search}%")
+                    ->orWhere('notas', 'ILIKE', "%{$search}%");
+            });
+        }
+
+        if ($estado === 'activa') {
+            $query->where('activo', true);
+        } elseif ($estado === 'inactiva') {
+            $query->where('activo', false);
+        }
+
+        $proveedores = $query->paginate($perPage)->withQueryString();
+
+        return Inertia::render('inventario/proveedores/index', [
+            'proveedores' => $proveedores,
+            'filters' => [
+                'search' => $search,
+                'per_page' => $perPage,
+                'sort' => $sortValid ? $sort : null,
+                'direction' => $sortValid && $directionValid ? $direction : null,
+                'estado' => $estado,
+            ],
+            'stats' => [
+                'total' => Proveedor::count(),
+                'activos' => Proveedor::where('activo', true)->count(),
+                'inactivos' => Proveedor::where('activo', false)->count(),
+                'coincidencias' => $proveedores->total(),
+            ],
+        ]);
+    }
+
+    /**
+     * Consulta RUC en SUNAT (apiperu.dev, con respaldo APISUNAT) desde el servidor.
+     */
+    public function consultaRuc(Request $request, ApiPeruRucService $apiPeru): JsonResponse
+    {
+        $ruc = preg_replace('/\D+/', '', (string) $request->query('ruc', ''));
+
+        $validated = validator(
+            ['ruc' => $ruc],
+            ['ruc' => ['required', 'string', 'regex:/^[0-9]{11}$/']],
+        )->validate();
+
+        return $this->consultaApiPeruResponse(
+            fn () => $apiPeru->consultar($validated['ruc']),
+        );
+    }
+
+    public function store(ProveedorInventarioRequest $request): RedirectResponse
+    {
+        $userId = Auth::id();
+
+        Proveedor::create([
+            ...$request->validated(),
+            'created_by_id' => $userId,
+            'updated_by_id' => $userId,
+        ]);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Proveedor creado correctamente.']);
+
+        return back();
+    }
+
+    public function update(ProveedorInventarioRequest $request, Proveedor $proveedor): RedirectResponse
+    {
+        $proveedor->update([
+            ...$request->validated(),
+            'updated_by_id' => Auth::id(),
+        ]);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Proveedor actualizado correctamente.']);
+
+        return back();
+    }
+
+    public function destroy(Proveedor $proveedor): RedirectResponse
+    {
+        $proveedor->update(['updated_by_id' => Auth::id()]);
+        $proveedor->delete();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Proveedor eliminado correctamente.']);
+
+        return back();
+    }
+}

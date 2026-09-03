@@ -22,7 +22,9 @@ import {
     ScrollText,
     Settings2,
     ShieldCheck,
+    ShoppingCart,
     Tags,
+    Truck,
     UserCog,
     Users,
     Wallet,
@@ -52,8 +54,10 @@ import ordenesReporte from '@/routes/reportes/ordenes';
 import general from '@/routes/configuracion/general';
 import sedes from '@/routes/configuracion/sedes';
 import categoriasInventario from '@/routes/inventario/categorias';
+import comprasInventario from '@/routes/inventario/compras';
 import movimientosInventario from '@/routes/inventario/movimientos';
 import productosInventario from '@/routes/inventario/productos';
+import proveedoresInventario from '@/routes/inventario/proveedores';
 import stockInventario from '@/routes/inventario/stock';
 import planes from '@/routes/plataforma/planes';
 import suscripciones from '@/routes/plataforma/suscripciones';
@@ -145,6 +149,18 @@ function useNavConfig(): { singles: NavItem[]; groups: NavGroup[] } {
                             href: productosInventario.index(),
                             icon: Package,
                             permission: 'productos.view',
+                        },
+                        {
+                            title: 'Proveedores',
+                            href: proveedoresInventario.index(),
+                            icon: Truck,
+                            permission: 'proveedores.view',
+                        },
+                        {
+                            title: 'Compras',
+                            href: comprasInventario.index(),
+                            icon: ShoppingCart,
+                            permission: 'compras.view',
                         },
                         {
                             title: 'Stock',

@@ -48,6 +48,7 @@ class MovimientoInventario extends Model
         'stock_despues',
         'notas',
         'venta_id',
+        'compra_id',
         'created_by_id',
         'created_at',
     ];
@@ -77,6 +78,11 @@ class MovimientoInventario extends Model
         return $this->belongsTo(Venta::class, 'venta_id');
     }
 
+    public function compra(): BelongsTo
+    {
+        return $this->belongsTo(Compra::class, 'compra_id');
+    }
+
     public function creadoPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_id');
@@ -95,6 +101,7 @@ class MovimientoInventario extends Model
         ?string $notas,
         ?string $userId,
         ?string $ventaId = null,
+        ?string $compraId = null,
     ): self {
         if (! in_array($tipo, self::TIPOS, true)) {
             throw ValidationException::withMessages([
@@ -102,7 +109,7 @@ class MovimientoInventario extends Model
             ]);
         }
 
-        return DB::transaction(function () use ($productoId, $sedeId, $tipo, $delta, $notas, $userId, $ventaId): self {
+        return DB::transaction(function () use ($productoId, $sedeId, $tipo, $delta, $notas, $userId, $ventaId, $compraId): self {
             $existencia = ExistenciaSede::query()
                 ->where('producto_id', $productoId)
                 ->where('sede_id', $sedeId)
@@ -136,6 +143,7 @@ class MovimientoInventario extends Model
                 'stock_despues' => $stockDespues,
                 'notas' => $notas,
                 'venta_id' => $ventaId,
+                'compra_id' => $compraId,
                 'created_by_id' => $userId,
                 'created_at' => now(),
             ]);
