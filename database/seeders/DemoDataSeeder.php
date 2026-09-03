@@ -64,11 +64,11 @@ final class DemoDataSeeder extends Seeder
         }
 
         $schemaName = (string) $tenant->schema_name;
-        DB::statement('SET search_path TO "'.$schemaName.'", public');
 
         try {
-            $this->truncateOperationalTables();
+            self::wipeOperationalTables($schemaName);
             $this->command?->info('  → Tablas operativas limpiadas.');
+            DB::statement('SET search_path TO "'.$schemaName.'", public');
 
             $clientes = $this->seedClientes();
             $this->command?->info('  → '.count($clientes).' clientes insertados.');
@@ -91,8 +91,13 @@ final class DemoDataSeeder extends Seeder
         }
     }
 
-    private function truncateOperationalTables(): void
+    /**
+     * Vacía tablas del schema tenant que referencian sedes (RESTRICT)
+     * para poder borrar/recrear la sede demo sin violar FKs.
+     */
+    public static function wipeOperationalTables(string $schemaName): void
     {
+        $safe = str_replace('"', '', $schemaName);
         $tables = [
             'orden_trabajo_fotos',
             'servicio_kit_items',
@@ -124,12 +129,26 @@ final class DemoDataSeeder extends Seeder
             'clientes',
         ];
 
-        foreach ($tables as $table) {
-            if (! $this->tableExists($table)) {
-                continue;
-            }
+        DB::statement('SET search_path TO "'.$safe.'", public');
 
-            DB::statement('TRUNCATE TABLE "'.$table.'" CASCADE');
+        try {
+            foreach ($tables as $table) {
+                $exists = (bool) DB::selectOne(
+                    'select exists (
+                        select 1 from information_schema.tables
+                        where table_schema = ? and table_name = ?
+                    ) as ok',
+                    [$safe, $table],
+                )?->ok;
+
+                if (! $exists) {
+                    continue;
+                }
+
+                DB::statement('TRUNCATE TABLE "'.$safe.'"."'.$table.'" CASCADE');
+            }
+        } finally {
+            DB::statement('SET search_path TO public');
         }
     }
 

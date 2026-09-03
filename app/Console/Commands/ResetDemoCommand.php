@@ -87,6 +87,12 @@ final class ResetDemoCommand extends Command
 
         $this->resyncRbac($tenant);
         $this->restoreDemoAdmin($tenant);
+
+        // Vaciar tablas tenant que apuntan a sedes (ON DELETE RESTRICT)
+        // antes de borrar sedes que no sean CHI-01.
+        $this->line('  → Limpiando datos operativos del schema demo…');
+        DemoDataSeeder::wipeOperationalTables($schema);
+
         $this->ensureDemoSede($tenant);
 
         $this->line('  → Recargando datos operativos del demo…');
