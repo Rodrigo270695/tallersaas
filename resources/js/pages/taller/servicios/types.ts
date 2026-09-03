@@ -1,3 +1,17 @@
+export type ServicioKitItem = {
+    id?: string;
+    producto_id: string;
+    cantidad: string | number;
+    orden?: number;
+    producto?: {
+        id: string;
+        nombre: string;
+        sku: string | null;
+        unidad: string;
+        precio_venta: string | number | null;
+    } | null;
+};
+
 export type Servicio = {
     id: string;
     categoria_id: string | null;
@@ -7,9 +21,19 @@ export type Servicio = {
     duracion_minutos: number | null;
     activo: boolean;
     categoria?: { id: string; nombre: string } | null;
+    kit_items?: ServicioKitItem[];
+    kit_items_count?: number;
 };
 
 export type CategoriaOption = { id: string; nombre: string };
+
+export type ProductoOption = {
+    id: string;
+    nombre: string;
+    sku: string | null;
+    unidad: string;
+    precio_venta: string | number | null;
+};
 
 export type ServicioFilters = {
     search: string;

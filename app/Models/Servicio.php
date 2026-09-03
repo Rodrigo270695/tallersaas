@@ -52,6 +52,14 @@ class Servicio extends Model
         return $this->hasMany(OrdenTrabajoLinea::class, 'servicio_id');
     }
 
+    /**
+     * @return HasMany<ServicioKitItem, $this>
+     */
+    public function kitItems(): HasMany
+    {
+        return $this->hasMany(ServicioKitItem::class, 'servicio_id')->orderBy('orden');
+    }
+
     public function creadoPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_id');

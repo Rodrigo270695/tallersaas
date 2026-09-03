@@ -13,6 +13,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { expandServicioConKit, spliceLinesAtIndex } from '@/lib/servicio-kit';
 import presupuestos from '@/routes/taller/presupuestos';
 import type {
     ClienteOption,
@@ -183,15 +184,30 @@ export function PresupuestoFormModal({
         if (value.startsWith('s:')) {
             const id = value.slice(2);
             const servicio = servicios.find((item) => item.id === id);
-            setLinea(index, {
-                servicio_id: id,
-                producto_id: '',
-                descripcion: servicio?.nombre ?? data.lineas[index]?.descripcion ?? '',
-                precio_unitario:
-                    servicio?.precio != null
-                        ? String(servicio.precio)
-                        : (data.lineas[index]?.precio_unitario ?? ''),
+            const expanded = expandServicioConKit({
+                servicioId: id,
+                servicioNombre: servicio?.nombre ?? data.lineas[index]?.descripcion ?? '',
+                servicioPrecio: servicio?.precio,
+                kit: servicio?.kit,
+                cantidadServicio: data.lineas[index]?.cantidad ?? '1',
+                buildServicioLine: ({ servicio_id, producto_id, cantidad, precio_unitario, label }) => ({
+                    servicio_id,
+                    producto_id,
+                    descripcion: label,
+                    cantidad,
+                    precio_unitario:
+                        precio_unitario || data.lineas[index]?.precio_unitario || '',
+                }),
+                buildProductoLine: ({ servicio_id, producto_id, cantidad, precio_unitario, label }) => ({
+                    servicio_id,
+                    producto_id,
+                    descripcion: label,
+                    cantidad,
+                    precio_unitario,
+                }),
             });
+
+            setData('lineas', spliceLinesAtIndex(data.lineas, index, expanded));
 
             return;
         }

@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ServicioRequest;
 use App\Models\CategoriaServicio;
+use App\Models\Producto;
 use App\Models\Servicio;
+use App\Services\Taller\ServicioKitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -40,7 +42,14 @@ class ServicioController extends Controller
             ? $categoriaFiltro
             : '';
 
-        $query = Servicio::query()->with(['categoria:id,nombre']);
+        $query = Servicio::query()
+            ->with([
+                'categoria:id,nombre',
+                'kitItems' => fn ($q) => $q->orderBy('orden')->with([
+                    'producto:id,nombre,sku,unidad,precio_venta',
+                ]),
+            ])
+            ->withCount('kitItems');
 
         if ($sortValid) {
             $query->orderBy($sort, $directionValid ? $direction : 'asc');
@@ -89,35 +98,48 @@ class ServicioController extends Controller
                 ->orderBy('orden')
                 ->orderBy('nombre')
                 ->get(['id', 'nombre']),
+            'producto_options' => Producto::query()
+                ->where('activo', true)
+                ->orderBy('nombre')
+                ->limit(400)
+                ->get(['id', 'nombre', 'sku', 'unidad', 'precio_venta']),
         ]);
     }
 
-    public function store(ServicioRequest $request): RedirectResponse
+    public function store(ServicioRequest $request, ServicioKitService $kit): RedirectResponse
     {
         $data = $request->validated();
+        $kitPayload = $data['kit'] ?? [];
+        unset($data['kit']);
         $userId = Auth::id();
 
-        Servicio::create([
+        $servicio = Servicio::create([
             ...$data,
             'slug' => Servicio::uniqueSlugFrom($data['nombre']),
             'created_by_id' => $userId,
             'updated_by_id' => $userId,
         ]);
 
+        $kit->sync($servicio, $kitPayload);
+
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Servicio creado correctamente.']);
 
         return back();
     }
 
-    public function update(ServicioRequest $request, Servicio $servicio): RedirectResponse
+    public function update(ServicioRequest $request, Servicio $servicio, ServicioKitService $kit): RedirectResponse
     {
         $data = $request->validated();
+        $kitPayload = $data['kit'] ?? [];
+        unset($data['kit']);
 
         $servicio->update([
             ...$data,
             'slug' => Servicio::uniqueSlugFrom($data['nombre'], (string) $servicio->id),
             'updated_by_id' => Auth::id(),
         ]);
+
+        $kit->sync($servicio, $kitPayload);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Servicio actualizado correctamente.']);
 

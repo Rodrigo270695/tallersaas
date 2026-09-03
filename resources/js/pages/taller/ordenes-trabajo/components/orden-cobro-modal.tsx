@@ -13,6 +13,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { expandServicioConKit, spliceLinesAtIndex } from '@/lib/servicio-kit';
 import ordenesTrabajo from '@/routes/taller/ordenes-trabajo';
 import type {
     MiSesionAbierta,
@@ -259,15 +260,48 @@ export function OrdenCobroModal({
                                             if (value.startsWith('s:')) {
                                                 const id = value.slice(2);
                                                 const servicio = servicios.find((item) => item.id === id);
-                                                setLinea(index, {
-                                                    servicio_id: id,
-                                                    producto_id: '',
-                                                    concepto: servicio?.nombre ?? linea.concepto,
-                                                    precio_unitario:
-                                                        servicio?.precio != null
-                                                            ? String(servicio.precio)
-                                                            : linea.precio_unitario,
+                                                const expanded = expandServicioConKit({
+                                                    servicioId: id,
+                                                    servicioNombre:
+                                                        servicio?.nombre ?? linea.concepto,
+                                                    servicioPrecio: servicio?.precio,
+                                                    kit: servicio?.kit,
+                                                    cantidadServicio: linea.cantidad || '1',
+                                                    buildServicioLine: ({
+                                                        servicio_id,
+                                                        producto_id,
+                                                        cantidad,
+                                                        precio_unitario,
+                                                        label,
+                                                    }) => ({
+                                                        servicio_id,
+                                                        producto_id,
+                                                        concepto: label,
+                                                        cantidad,
+                                                        precio_unitario:
+                                                            precio_unitario ||
+                                                            linea.precio_unitario ||
+                                                            '',
+                                                    }),
+                                                    buildProductoLine: ({
+                                                        servicio_id,
+                                                        producto_id,
+                                                        cantidad,
+                                                        precio_unitario,
+                                                        label,
+                                                    }) => ({
+                                                        servicio_id,
+                                                        producto_id,
+                                                        concepto: label,
+                                                        cantidad,
+                                                        precio_unitario,
+                                                    }),
                                                 });
+
+                                                setData(
+                                                    'lineas',
+                                                    spliceLinesAtIndex(data.lineas, index, expanded),
+                                                );
 
                                                 return;
                                             }

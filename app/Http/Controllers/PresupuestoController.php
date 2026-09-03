@@ -10,13 +10,13 @@ use App\Models\OrdenTrabajo;
 use App\Models\Presupuesto;
 use App\Models\Producto;
 use App\Models\Sede;
-use App\Models\Servicio;
 use App\Models\TallerSetting;
 use App\Models\Vehiculo;
 use App\Services\Taller\AplicarPresupuestoAOrdenService;
 use App\Services\Taller\CrearPresupuestoDesdeOrdenService;
 use App\Services\Taller\EnviarPresupuestoService;
 use App\Services\Taller\PresupuestoLineasService;
+use App\Services\Taller\ServicioKitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -154,11 +154,7 @@ class PresupuestoController extends Controller
                 ->orderBy('nombre')
                 ->limit(400)
                 ->get(['id', 'nombre', 'sku', 'precio_venta', 'unidad']),
-            'servicios' => Servicio::query()
-                ->where('activo', true)
-                ->orderBy('nombre')
-                ->limit(400)
-                ->get(['id', 'nombre', 'precio', 'duracion_minutos']),
+            'servicios' => app(ServicioKitService::class)->catalogoActivos(),
         ]);
     }
 

@@ -12,20 +12,14 @@ import {
 } from '@/components/data-page';
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
 import { Button } from '@/components/ui/button';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
 import servicios from '@/routes/taller/servicios';
 import type { Paginated } from '@/types';
 import { ServicioDeleteDialog } from './components/servicio-delete-dialog';
 import { ServicioFormModal } from './components/servicio-form-modal';
-import type { CategoriaOption, Servicio, ServicioFilters, ServicioStats } from './types';
+import { ServicioRowActions } from './components/servicio-row-actions';
+import type { CategoriaOption, ProductoOption, Servicio, ServicioFilters, ServicioStats } from './types';
 
 type ModalState =
     | { type: 'idle' }
@@ -48,11 +42,13 @@ export default function Index({
     filters,
     stats,
     categoria_options: categorias,
+    producto_options: productos = [],
 }: {
     servicios: Paginated<Servicio>;
     filters: ServicioFilters;
     stats: ServicioStats;
     categoria_options: readonly CategoriaOption[];
+    producto_options?: readonly ProductoOption[];
 }) {
     const { can } = usePermission();
     const canCreate = can('servicios.create');
@@ -66,7 +62,7 @@ export default function Index({
         }>({
             routeUrl: servicios.index().url,
             initialFilters: filters,
-            only: ['servicios', 'filters', 'stats'],
+            only: ['servicios', 'filters', 'stats', 'producto_options'],
             errorMessage: 'No se pudo cargar los servicios.',
             storageKey: 'tallersaas.servicios.prefs',
             defaults: { per_page: 10, sort: null, direction: null },
@@ -74,6 +70,16 @@ export default function Index({
 
     const [modal, setModal] = useState<ModalState>({ type: 'idle' });
     const closeModal = useCallback(() => setModal({ type: 'idle' }), []);
+    const openEdit = useCallback(
+        (servicio: Servicio) => setModal({ type: 'edit', servicio }),
+        [],
+    );
+    const openDelete = useCallback(
+        (servicio: Servicio) => setModal({ type: 'delete', servicio }),
+        [],
+    );
+
+    const showRowActions = canUpdate || canDelete;
 
     const columns = useMemo<DataTableColumn<Servicio>[]>(() => {
         const base: DataTableColumn<Servicio>[] = [
@@ -95,6 +101,23 @@ export default function Index({
                 header: 'Precio',
                 sortable: true,
                 cell: (row) => <span className="tabular-nums text-sm">{money(row.precio)}</span>,
+            },
+            {
+                key: 'kit',
+                header: 'Kit',
+                cell: (row) => {
+                    const count = row.kit_items_count ?? row.kit_items?.length ?? 0;
+
+                    if (count <= 0) {
+                        return <span className="text-sm text-muted-foreground">—</span>;
+                    }
+
+                    return (
+                        <span className="inline-flex items-center rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-800 ring-1 ring-brand-200/70 dark:bg-brand-950/40 dark:text-brand-200 dark:ring-brand-800/50">
+                            {count} {count === 1 ? 'repuesto' : 'repuestos'}
+                        </span>
+                    );
+                },
             },
             {
                 key: 'duracion_minutos',
@@ -124,48 +147,45 @@ export default function Index({
             },
         ];
 
-        if (canUpdate || canDelete) {
+        if (showRowActions) {
             base.push({
                 key: 'acciones',
                 header: <span className="md:sr-only">Acciones</span>,
                 align: 'right',
                 cell: (row) => (
-                    <div className="flex justify-end gap-1">
-                        {canUpdate && (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="cursor-pointer"
-                                onClick={() => setModal({ type: 'edit', servicio: row })}
-                            >
-                                Editar
-                            </Button>
-                        )}
-                        {canDelete && (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="cursor-pointer text-destructive"
-                                onClick={() => setModal({ type: 'delete', servicio: row })}
-                            >
-                                Eliminar
-                            </Button>
-                        )}
+                    <div className="flex justify-end">
+                        <ServicioRowActions
+                            servicio={row}
+                            onEdit={openEdit}
+                            onDelete={openDelete}
+                            canUpdate={canUpdate}
+                            canDelete={canDelete}
+                        />
                     </div>
                 ),
+                className: 'w-12',
             });
         }
 
         return base;
-    }, [canUpdate, canDelete]);
+    }, [showRowActions, canUpdate, canDelete, openEdit, openDelete]);
 
-    const estadoOptions: FilterChip[] = [
+    const estadoOptions: FilterChip<ServicioFilters['estado']>[] = [
         { value: 'todas', label: 'Todos' },
         { value: 'activa', label: 'Activos' },
         { value: 'inactiva', label: 'Inactivos' },
     ];
+
+    const categoriaOptions = useMemo<FilterChip<string>[]>(
+        () => [
+            { value: ALL_CATEGORIAS, label: 'Todas las categorías' },
+            ...categorias.map((cat) => ({
+                value: cat.id,
+                label: cat.nombre,
+            })),
+        ],
+        [categorias],
+    );
 
     const activeFiltersCount =
         (filters.estado !== 'todas' ? 1 : 0) + (filters.categoria_id ? 1 : 0);
@@ -232,28 +252,17 @@ export default function Index({
                                 options={estadoOptions}
                             />
                             {categorias.length > 0 && (
-                                <Select
+                                <FilterChips
+                                    ariaLabel="Filtrar por categoría"
                                     value={filters.categoria_id || ALL_CATEGORIAS}
-                                    onValueChange={(value) =>
+                                    onChange={(value) =>
                                         applyFilter({
-                                            categoria_id: value === ALL_CATEGORIAS ? '' : value,
+                                            categoria_id:
+                                                value === ALL_CATEGORIAS ? '' : value,
                                         })
                                     }
-                                >
-                                    <SelectTrigger className="h-9 w-44" aria-label="Categoría">
-                                        <SelectValue placeholder="Categoría" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value={ALL_CATEGORIAS}>
-                                            Todas las categorías
-                                        </SelectItem>
-                                        {categorias.map((cat) => (
-                                            <SelectItem key={cat.id} value={cat.id}>
-                                                {cat.nombre}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    options={categoriaOptions}
+                                />
                             )}
                         </DataToolbar>
                     }
@@ -302,6 +311,7 @@ export default function Index({
                 }}
                 servicio={modal.type === 'edit' ? modal.servicio : null}
                 categorias={categorias}
+                productos={productos}
             />
 
             <ServicioDeleteDialog

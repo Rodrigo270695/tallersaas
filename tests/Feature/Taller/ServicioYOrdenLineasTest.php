@@ -53,6 +53,7 @@ it('crea una categoría y un servicio de mano de obra', function (): void {
         'precio' => 80,
         'duracion_minutos' => 45,
         'activo' => true,
+        'kit' => [],
     ])->assertSessionHasNoErrors()->assertRedirect();
 
     TenantContext::runForSlug($this->testTenantSlug, function (): void {
@@ -61,6 +62,35 @@ it('crea una categoría y un servicio de mano de obra', function (): void {
             ->and($servicio->nombre)->toBe('Cambio de aceite')
             ->and((float) $servicio->precio)->toBe(80.0)
             ->and($servicio->duracion_minutos)->toBe(45);
+    });
+});
+
+it('guarda un servicio con kit de repuestos', function (): void {
+    $this->actingAs($this->testTenantAdmin);
+
+    $productoId = null;
+    TenantContext::runForSlug($this->testTenantSlug, function () use (&$productoId): void {
+        $producto = Producto::factory()->create(['nombre' => 'Aceite 5W-30', 'activo' => true]);
+        $productoId = $producto->id;
+    });
+
+    $this->post('http://'.$this->testTenantHost.'/taller/servicios', [
+        'nombre' => 'Cambio de aceite kit',
+        'precio' => 20,
+        'duracion_minutos' => 30,
+        'activo' => true,
+        'kit' => [
+            ['producto_id' => $productoId, 'cantidad' => 4],
+        ],
+    ])->assertSessionHasNoErrors()->assertRedirect();
+
+    TenantContext::runForSlug($this->testTenantSlug, function () use ($productoId): void {
+        $servicio = Servicio::query()->where('nombre', 'Cambio de aceite kit')->first();
+        expect($servicio)->not->toBeNull();
+        $servicio->load('kitItems');
+        expect($servicio->kitItems)->toHaveCount(1)
+            ->and($servicio->kitItems->first()?->producto_id)->toBe($productoId)
+            ->and((float) $servicio->kitItems->first()?->cantidad)->toBe(4.0);
     });
 });
 

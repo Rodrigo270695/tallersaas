@@ -106,9 +106,18 @@ export type ProductoCobroOption = {
     unidad: string;
 };
 
+export type ServicioKitItemOption = {
+    producto_id: string;
+    nombre: string;
+    cantidad: string | number;
+    precio_venta: string | number | null;
+    unidad: string;
+};
+
 export type ServicioCobroOption = {
     id: string;
     nombre: string;
     precio: string | number | null;
     duracion_minutos: number | null;
+    kit?: readonly ServicioKitItemOption[];
 };

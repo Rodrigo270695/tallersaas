@@ -10,12 +10,12 @@ use App\Models\Cliente;
 use App\Models\OrdenTrabajo;
 use App\Models\Producto;
 use App\Models\Sede;
-use App\Models\Servicio;
 use App\Models\TallerSetting;
 use App\Models\Vehiculo;
 use App\Services\Fel\FelEmisionVentaService;
 use App\Services\Taller\AvisarOrdenListaService;
 use App\Services\Taller\OrdenTrabajoLineasService;
+use App\Services\Taller\ServicioKitService;
 use App\Services\Venta\VentaCheckoutFromOrdenService;
 use App\Support\Fel\ApisunatCredentialResolver;
 use Illuminate\Http\RedirectResponse;
@@ -153,11 +153,7 @@ class OrdenTrabajoController extends Controller
                 ->orderBy('nombre')
                 ->limit(400)
                 ->get(['id', 'nombre', 'sku', 'precio_venta', 'unidad']),
-            'servicios' => Servicio::query()
-                ->where('activo', true)
-                ->orderBy('nombre')
-                ->limit(400)
-                ->get(['id', 'nombre', 'precio', 'duracion_minutos']),
+            'servicios' => app(ServicioKitService::class)->catalogoActivos(),
         ]);
     }
 
