@@ -1,9 +1,9 @@
 import { useForm } from '@inertiajs/react';
 import { Loader2 } from 'lucide-react';
-import { useEffect, useMemo  } from 'react';
-import type {FormEvent} from 'react';
+import { useEffect, useMemo, type FormEvent } from 'react';
 import { FormField, FormModal, FormSection } from '@/components/forms';
 import { Button } from '@/components/ui/button';
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -24,6 +24,7 @@ import type {
 } from '../types';
 
 const NONE = '__ninguno__';
+const DURACION_DEFAULT = '60';
 
 const ESTADOS_EDITABLES: { value: CitaEstado; label: string }[] = [
     { value: 'programada', label: 'Programada' },
@@ -97,11 +98,34 @@ export function CitaFormModal({
         vehiculo_id: '',
         assigned_user_id: '',
         inicia_at: '',
-        duracion_minutos: '60',
+        duracion_minutos: DURACION_DEFAULT,
         estado: 'programada',
         motivo: '',
         notas: '',
     });
+
+    const clienteOptions = useMemo<readonly ComboboxOption[]>(
+        () =>
+            clientes.map((cliente) => ({
+                value: cliente.id,
+                label: cliente.nombre,
+            })),
+        [clientes],
+    );
+
+    const vehiculosFiltrados = useMemo(
+        () => vehiculos.filter((vehiculo) => vehiculo.cliente_id === data.cliente_id),
+        [vehiculos, data.cliente_id],
+    );
+
+    const vehiculoOptions = useMemo<readonly ComboboxOption[]>(
+        () =>
+            vehiculosFiltrados.map((vehiculo) => ({
+                value: vehiculo.id,
+                label: vehiculo.label,
+            })),
+        [vehiculosFiltrados],
+    );
 
     useEffect(() => {
         if (!open) {
@@ -122,17 +146,12 @@ export function CitaFormModal({
             vehiculo_id: cita?.vehiculo_id ?? '',
             assigned_user_id: cita?.assigned_user_id ?? '',
             inicia_at: cita ? toDatetimeLocal(cita.inicia_at) : iniciaDefault,
-            duracion_minutos: String(cita?.duracion_minutos ?? 60),
+            duracion_minutos: String(cita?.duracion_minutos ?? Number(DURACION_DEFAULT)),
             estado: cita?.estado === 'convertida' ? 'programada' : (cita?.estado ?? 'programada'),
             motivo: cita?.motivo ?? '',
             notas: cita?.notas ?? '',
         });
     }, [open, cita, prefill, sedes, clearErrors, setData]);
-
-    const vehiculosFiltrados = useMemo(
-        () => vehiculos.filter((vehiculo) => vehiculo.cliente_id === data.cliente_id),
-        [vehiculos, data.cliente_id],
-    );
 
     const canSubmit =
         !processing &&
@@ -182,6 +201,7 @@ export function CitaFormModal({
                         variant="outline"
                         className="cursor-pointer"
                         onClick={() => onOpenChange(false)}
+                        disabled={processing}
                     >
                         Cancelar
                     </Button>
@@ -207,11 +227,17 @@ export function CitaFormModal({
 
             <div className="flex flex-col gap-5">
                 <FormSection index={0} title="Cliente y vehículo" columns={2}>
-                    <FormField id="cita-sede" label="Sede" required error={errors.sede_id}>
+                    <FormField
+                        id="cita-sede"
+                        label="Sede"
+                        required
+                        error={errors.sede_id}
+                        className="min-w-0"
+                    >
                         <Select
                             value={data.sede_id || undefined}
                             onValueChange={(value) => setData('sede_id', value)}
-                            disabled={locked}
+                            disabled={locked || processing}
                         >
                             <SelectTrigger id="cita-sede" className="w-full">
                                 <SelectValue placeholder="Selecciona sede" />
@@ -225,108 +251,90 @@ export function CitaFormModal({
                             </SelectContent>
                         </Select>
                     </FormField>
-                    <FormField id="cita-cliente" label="Cliente" required error={errors.cliente_id}>
-                        <Select
-                            value={data.cliente_id || undefined}
-                            onValueChange={(value) => {
-                                setData('cliente_id', value);
+
+                    <FormField
+                        id="cita-cliente"
+                        label="Cliente"
+                        required
+                        error={errors.cliente_id}
+                        className="min-w-0"
+                    >
+                        <Combobox
+                            id="cita-cliente"
+                            options={clienteOptions}
+                            value={data.cliente_id || null}
+                            onChange={(value) => {
+                                setData('cliente_id', value ?? '');
                                 setData('vehiculo_id', '');
                             }}
-                            disabled={locked}
-                        >
-                            <SelectTrigger id="cita-cliente" className="w-full">
-                                <SelectValue placeholder="Selecciona cliente" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {clientes.map((cliente) => (
-                                    <SelectItem key={cliente.id} value={cliente.id}>
-                                        {cliente.nombre}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            placeholder="Buscar cliente…"
+                            searchPlaceholder="Nombre del cliente…"
+                            emptyMessage="Sin coincidencias."
+                            clearable
+                            disabled={locked || processing}
+                            aria-invalid={Boolean(errors.cliente_id)}
+                        />
                     </FormField>
+
                     <FormField
                         id="cita-vehiculo"
                         label="Vehículo"
                         required
                         error={errors.vehiculo_id}
-                        className="sm:col-span-2"
+                        className="min-w-0 sm:col-span-2"
                     >
-                        <Select
-                            value={data.vehiculo_id || undefined}
-                            onValueChange={(value) => setData('vehiculo_id', value)}
-                            disabled={locked || !data.cliente_id}
-                        >
-                            <SelectTrigger id="cita-vehiculo" className="w-full">
-                                <SelectValue
-                                    placeholder={
-                                        data.cliente_id
-                                            ? 'Selecciona vehículo'
-                                            : 'Primero el cliente'
-                                    }
-                                />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {vehiculosFiltrados.map((vehiculo) => (
-                                    <SelectItem key={vehiculo.id} value={vehiculo.id}>
-                                        {vehiculo.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            id="cita-vehiculo"
+                            options={vehiculoOptions}
+                            value={data.vehiculo_id || null}
+                            onChange={(value) => setData('vehiculo_id', value ?? '')}
+                            placeholder={
+                                data.cliente_id
+                                    ? 'Buscar vehículo…'
+                                    : 'Primero el cliente'
+                            }
+                            searchPlaceholder="Placa o modelo…"
+                            emptyMessage={
+                                data.cliente_id
+                                    ? 'Este cliente no tiene vehículos.'
+                                    : 'Selecciona un cliente primero.'
+                            }
+                            clearable
+                            disabled={locked || processing || !data.cliente_id}
+                            aria-invalid={Boolean(errors.vehiculo_id)}
+                        />
                     </FormField>
                 </FormSection>
 
                 <FormSection index={1} title="Agenda" columns={2}>
-                    <FormField id="cita-inicio" label="Fecha y hora" required error={errors.inicia_at}>
+                    <FormField
+                        id="cita-inicio"
+                        label="Fecha y hora"
+                        required
+                        error={errors.inicia_at}
+                        className="min-w-0"
+                    >
                         <Input
                             id="cita-inicio"
                             type="datetime-local"
                             value={data.inicia_at}
                             onChange={(e) => setData('inicia_at', e.target.value)}
-                            disabled={locked}
+                            disabled={locked || processing}
                         />
                     </FormField>
-                    <FormField id="cita-dur" label="Duración (minutos)" error={errors.duracion_minutos}>
-                        <Input
-                            id="cita-dur"
-                            type="number"
-                            min={15}
-                            max={480}
-                            step={15}
-                            value={data.duracion_minutos}
-                            onChange={(e) => setData('duracion_minutos', e.target.value)}
-                            disabled={locked}
-                        />
-                    </FormField>
-                    {isEdit && (
-                        <FormField id="cita-estado" label="Estado" error={errors.estado}>
-                            <Select
-                                value={data.estado}
-                                onValueChange={(value) => setData('estado', value as CitaEstado)}
-                                disabled={locked}
-                            >
-                                <SelectTrigger id="cita-estado" className="w-full">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {ESTADOS_EDITABLES.map((estado) => (
-                                        <SelectItem key={estado.value} value={estado.value}>
-                                            {estado.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </FormField>
-                    )}
-                    <FormField id="cita-mec" label="Mecánico" error={errors.assigned_user_id}>
+
+                    <FormField
+                        id="cita-mec"
+                        label="Mecánico"
+                        error={errors.assigned_user_id}
+                        className="min-w-0"
+                    >
                         <Select
                             value={data.assigned_user_id || NONE}
                             onValueChange={(value) =>
                                 setData('assigned_user_id', value === NONE ? '' : value)
                             }
-                            disabled={locked}
+                            disabled={locked || processing}
                         >
                             <SelectTrigger id="cita-mec" className="w-full">
                                 <SelectValue placeholder="Sin asignar" />
@@ -341,32 +349,60 @@ export function CitaFormModal({
                             </SelectContent>
                         </Select>
                     </FormField>
+
+                    {isEdit && (
+                        <FormField
+                            id="cita-estado"
+                            label="Estado"
+                            error={errors.estado}
+                            className="min-w-0 sm:col-span-2"
+                        >
+                            <Select
+                                value={data.estado}
+                                onValueChange={(value) => setData('estado', value as CitaEstado)}
+                                disabled={locked || processing}
+                            >
+                                <SelectTrigger id="cita-estado" className="w-full">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {ESTADOS_EDITABLES.map((estado) => (
+                                        <SelectItem key={estado.value} value={estado.value}>
+                                            {estado.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </FormField>
+                    )}
+
                     <FormField
                         id="cita-motivo"
                         label="Motivo"
                         error={errors.motivo}
-                        className="sm:col-span-2"
+                        className="min-w-0 sm:col-span-2"
                     >
                         <Input
                             id="cita-motivo"
                             value={data.motivo}
                             onChange={(e) => setData('motivo', e.target.value)}
                             placeholder="Cambio de aceite, frenos…"
-                            disabled={locked}
+                            disabled={locked || processing}
                         />
                     </FormField>
+
                     <FormField
                         id="cita-notas"
                         label="Notas"
                         error={errors.notas}
-                        className="sm:col-span-2"
+                        className="min-w-0 sm:col-span-2"
                     >
                         <Textarea
                             id="cita-notas"
                             value={data.notas}
                             onChange={(e) => setData('notas', e.target.value)}
                             rows={2}
-                            disabled={locked}
+                            disabled={locked || processing}
                         />
                     </FormField>
                 </FormSection>
