@@ -47,6 +47,8 @@ type RolesIndexProps = {
     filters: RoleFilters;
     stats: RoleStats;
     permissions_catalog: PermissionsCatalog;
+    /** En tenant demo: no se permiten altas/ediciones/borrados. */
+    mutations_locked?: boolean;
 };
 
 type ModalState =
@@ -65,12 +67,13 @@ export default function Index({
     filters,
     stats,
     permissions_catalog,
+    mutations_locked = false,
 }: RolesIndexProps) {
     const { can } = usePermission();
-    const canCreate = can('roles.create');
-    const canUpdate = can('roles.update');
-    const canDelete = can('roles.delete');
-    const canBulkDelete = can('roles.bulk-delete');
+    const canCreate = !mutations_locked && can('roles.create');
+    const canUpdate = !mutations_locked && can('roles.update');
+    const canDelete = !mutations_locked && can('roles.delete');
+    const canBulkDelete = !mutations_locked && can('roles.bulk-delete');
     const showRowActions = canUpdate || canDelete;
 
     const {
@@ -285,7 +288,11 @@ export default function Index({
             <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
                 <PageHeader
                     title="Roles y permisos"
-                    description="Define qué puede hacer cada tipo de usuario. Los roles base están protegidos: no se pueden eliminar ni renombrar, pero sí ajustar permisos."
+                    description={
+                        mutations_locked
+                            ? 'Taller demo: los roles y permisos están bloqueados para que nadie rompa admin_taller. Cada noche se restauran los datos de prueba.'
+                            : 'Define qué puede hacer cada tipo de usuario. Los roles base están protegidos: no se pueden eliminar ni renombrar, pero sí ajustar permisos.'
+                    }
                     stats={[
                         {
                             label: 'Total',
@@ -319,19 +326,21 @@ export default function Index({
                         },
                     ]}
                     action={
-                        <Can permission="roles.create">
-                            <Button
-                                type="button"
-                                onClick={openCreate}
-                                className="cursor-pointer gap-2"
-                            >
-                                <Plus className="size-4" strokeWidth={2.5} />
-                                <span className="hidden sm:inline">
-                                    Nuevo rol
-                                </span>
-                                <span className="sm:hidden">Nuevo</span>
-                            </Button>
-                        </Can>
+                        canCreate ? (
+                            <Can permission="roles.create">
+                                <Button
+                                    type="button"
+                                    onClick={openCreate}
+                                    className="cursor-pointer gap-2"
+                                >
+                                    <Plus className="size-4" strokeWidth={2.5} />
+                                    <span className="hidden sm:inline">
+                                        Nuevo rol
+                                    </span>
+                                    <span className="sm:hidden">Nuevo</span>
+                                </Button>
+                            </Can>
+                        ) : undefined
                     }
                 />
 

@@ -72,6 +72,7 @@ class HandleInertiaRequests extends Middleware
             // por defecto de TallerSaaS.
             'taller_branding' => $tenantContext === null ? null : $this->resolveTallerBranding(),
             'tenant_impersonation' => $this->resolveImpersonation($request),
+            'is_demo' => is_public_demo_tenant(),
         ];
     }
 

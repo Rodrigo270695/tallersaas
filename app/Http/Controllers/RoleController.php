@@ -87,11 +87,14 @@ class RoleController extends Controller
                 'coincidencias' => $roles->total(),
             ],
             'permissions_catalog' => $this->buildPermissionsCatalog($request),
+            'mutations_locked' => is_public_demo_tenant(),
         ]);
     }
 
     public function store(RoleRequest $request): RedirectResponse
     {
+        $this->abortIfDemoRolesLocked();
+
         Role::create([
             'name' => $request->validated('name'),
             'guard_name' => 'web',
@@ -106,6 +109,7 @@ class RoleController extends Controller
 
     public function update(RoleRequest $request, Role $role): RedirectResponse
     {
+        $this->abortIfDemoRolesLocked();
         TallerAdminScope::assertRoleAccessible($role);
 
         if ($role->is_system) {
@@ -126,6 +130,7 @@ class RoleController extends Controller
 
     public function updatePermissions(Request $request, Role $role): RedirectResponse
     {
+        $this->abortIfDemoRolesLocked();
         TallerAdminScope::assertRoleAccessible($role);
 
         $assignable = TallerAdminScope::assignablePermissionNamesFor($request->user());
@@ -176,6 +181,7 @@ class RoleController extends Controller
 
     public function destroy(Role $role): RedirectResponse
     {
+        $this->abortIfDemoRolesLocked();
         TallerAdminScope::assertRoleAccessible($role);
 
         if ($role->is_system) {
@@ -193,6 +199,8 @@ class RoleController extends Controller
 
     public function bulkDestroy(Request $request): RedirectResponse
     {
+        $this->abortIfDemoRolesLocked();
+
         $data = $request->validate([
             'ids' => ['required', 'array', 'min:1', 'max:500'],
             'ids.*' => ['integer'],
@@ -269,5 +277,18 @@ class RoleController extends Controller
         }
 
         return TallerAdminScope::groupPermissionsCatalog($all);
+    }
+
+    /**
+     * En el tenant público `demo` no se permiten alta/edición/borrado de
+     * roles ni sync de permisos: los visitantes suelen romper admin_taller.
+     */
+    private function abortIfDemoRolesLocked(): void
+    {
+        if (! is_public_demo_tenant()) {
+            return;
+        }
+
+        abort(403, 'En el taller demo no se pueden modificar roles ni permisos.');
     }
 }

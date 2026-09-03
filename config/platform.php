@@ -20,7 +20,9 @@ return [
         'razon_social' => env('DEMO_TENANT_RAZON_SOCIAL', 'Taller Demo S.A.C.'),
         'nombre_comercial' => env('DEMO_TENANT_NOMBRE_COMERCIAL', 'Taller Demo'),
         'admin_email' => env('DEMO_TENANT_ADMIN_EMAIL', 'admin@demo.orvae.pe'),
-        'admin_password' => env('DEMO_TENANT_ADMIN_PASSWORD'),
+        // Clave pública de la demo (se restaura cada noche con tallersaas:reset-demo).
+        'admin_password' => env('DEMO_TENANT_ADMIN_PASSWORD', 'demo1234'),
+        'sede_codigo' => env('DEMO_TENANT_SEDE_CODIGO', 'CHI-01'),
+        'sede_nombre' => env('DEMO_TENANT_SEDE_NOMBRE', 'Sede prueba'),
     ],
-
 ];

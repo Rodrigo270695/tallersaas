@@ -20,6 +20,10 @@ use Illuminate\Support\Str;
  * tenant demo en cada deploy. Ejecutar manualmente cuando se necesite:
  *
  *     php artisan db:seed --class=DemoTenantSeeder --force
+ *     php artisan tallersaas:reset-demo
+ *
+ * El scheduler corre `tallersaas:reset-demo` a las 02:00 para limpiar lo
+ * que probaron los visitantes y dejar la sede «Sede prueba» (Chiclayo).
  */
 class DemoTenantSeeder extends Seeder
 {
