@@ -32,9 +32,8 @@ if (! function_exists('tenant_slug')) {
 
 if (! function_exists('is_public_demo_tenant')) {
     /**
-     * Tenant público de demostración (slug fijo `demo` por defecto).
-     * Ahí no se deben editar roles/permisos desde la UI (los visitantes
-     * suelen romper admin_taller).
+     * Tenant público de demostración (slug fijo `demo`).
+     * Ahí no se deben editar roles/permisos desde la UI.
      */
     function is_public_demo_tenant(): bool
     {
@@ -42,10 +41,6 @@ if (! function_exists('is_public_demo_tenant')) {
             ?? tenant_slug()
             ?? null;
 
-        if ($slug === null || $slug === '') {
-            return false;
-        }
-
-        return $slug === (string) config('platform.demo_tenant.slug', 'demo');
+        return $slug === 'demo';
     }
 }

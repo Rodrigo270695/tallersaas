@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Models\Sede;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Tenancy\TenantSchemaMigrator;
 use Database\Seeders\DemoDataSeeder;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\TenantRolesSeeder;
@@ -16,20 +17,36 @@ use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\PermissionRegistrar;
 
 /**
- * Resetea el tenant slug `demo` (datos + contraseña + sede prueba).
+ * Resetea SOLO el tenant público `demo`:
+ *   1) aplica migraciones pendientes de su schema
+ *   2) restaura roles/admin
+ *   3) deja la sede «Sede prueba» (Chiclayo / Lambayeque)
+ *   4) vuelve a sembrar datos de demo
  *
- * Uso normal (scheduler 02:00):
- *   php artisan tallersaas:reset-demo
+ * Scheduler (cron del VPS → `schedule:run`):
+ *   tallersaas:reset-demo  @ 02:00
  *
- * No toca otros talleres.
+ * No lee .env ni toca otros talleres.
  */
 final class ResetDemoCommand extends Command
 {
+    public const DEMO_SLUG = 'demo';
+
+    public const DEMO_PLAN = 'pro';
+
+    public const DEMO_EMAIL = 'demo@tallersaas.pe';
+
+    public const DEMO_PASSWORD = 'demo1234';
+
+    public const DEMO_SEDE_CODIGO = 'CHI-01';
+
+    public const DEMO_SEDE_NOMBRE = 'Sede prueba';
+
     protected $signature = 'tallersaas:reset-demo';
 
-    protected $description = 'Resetea datos y contraseña del tenant demo (corre automáticamente cada noche a las 02:00)';
+    protected $description = 'Migra el schema demo + resetea datos/sede/roles (noche 02:00 vía cron)';
 
-    public function handle(): int
+    public function handle(TenantSchemaMigrator $migrator): int
     {
         if (DB::getDriverName() !== 'pgsql') {
             $this->error('Este comando requiere PostgreSQL.');
@@ -37,17 +54,13 @@ final class ResetDemoCommand extends Command
             return self::FAILURE;
         }
 
-        $slug = (string) config('platform.demo_tenant.slug', 'demo');
-        $adminEmail = (string) config('platform.demo_tenant.admin_email', 'admin@demo.orvae.pe');
-        $adminPassword = (string) config('platform.demo_tenant.admin_password', 'demo1234');
-
         $this->info('── Reset demo ─────────────────────────────────');
 
-        $tenant = Tenant::query()->where('slug', $slug)->first();
+        $tenant = Tenant::query()->where('slug', self::DEMO_SLUG)->first();
 
         if ($tenant === null) {
-            $this->error("Tenant \"{$slug}\" no encontrado en public.tenants.");
-            $this->line('Crea el demo con: php artisan db:seed --class=DemoTenantSeeder --force');
+            $this->error('Tenant "demo" no encontrado en public.tenants.');
+            $this->line('Crea el demo una sola vez: php artisan db:seed --class=DemoTenantSeeder --force');
 
             return self::FAILURE;
         }
@@ -64,8 +77,16 @@ final class ResetDemoCommand extends Command
             return self::FAILURE;
         }
 
+        $this->line("  → Migrando schema {$schema} (solo demo)…");
+        $code = $migrator->migrate($schema, $this->output, false, false);
+        if ($code !== TenantSchemaMigrator::EXIT_SUCCESS) {
+            $this->error("Falló la migración del schema {$schema}.");
+
+            return self::FAILURE;
+        }
+
         $this->resyncRbac($tenant);
-        $this->restoreDemoAdmin($tenant, $adminEmail, $adminPassword);
+        $this->restoreDemoAdmin($tenant);
         $this->ensureDemoSede($tenant);
 
         $this->line('  → Recargando datos operativos del demo…');
@@ -74,8 +95,8 @@ final class ResetDemoCommand extends Command
         $seeder->run();
 
         $root = (string) config('tenant.root_domain', 'tallersaas.orvae.pe');
-        $this->info("✓ Demo listo — https://{$slug}.{$root}/login");
-        $this->line("  {$adminEmail} / {$adminPassword}");
+        $this->info('✓ Demo listo — https://'.self::DEMO_SLUG.".{$root}/login");
+        $this->line('  '.self::DEMO_EMAIL.' / '.self::DEMO_PASSWORD);
 
         return self::SUCCESS;
     }
@@ -90,14 +111,13 @@ final class ResetDemoCommand extends Command
 
         $roles = new TenantRolesSeeder;
         $roles->setCommand($this);
-        // forceSync: restaura admin_taller y roles base si alguien los vació.
         $roles->seedForTenant((string) $tenant->id, true);
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
         $this->line('  → Caché de permisos Spatie limpiada.');
     }
 
-    private function restoreDemoAdmin(Tenant $tenant, string $email, string $password): void
+    private function restoreDemoAdmin(Tenant $tenant): void
     {
         $previousTeam = getPermissionsTeamId();
         setPermissionsTeamId((string) $tenant->id);
@@ -105,27 +125,27 @@ final class ResetDemoCommand extends Command
         try {
             $user = User::query()
                 ->where('tenant_id', $tenant->id)
-                ->where('email', $email)
+                ->where('email', self::DEMO_EMAIL)
                 ->first();
 
             if ($user !== null) {
-                $user->password = Hash::make($password);
+                $user->password = Hash::make(self::DEMO_PASSWORD);
                 $user->must_change_password = false;
                 $user->is_active = true;
                 $user->save();
                 $user->syncRoles(['admin_taller']);
                 $user->forgetCachedPermissions();
-                $this->line("  → Usuario {$email}: clave restaurada + rol admin_taller.");
+                $this->line('  → Usuario '.self::DEMO_EMAIL.': clave restaurada + rol admin_taller.');
 
                 return;
             }
 
-            $this->warn("  ⚠ Usuario {$email} no encontrado — recreando…");
+            $this->warn('  ⚠ Usuario '.self::DEMO_EMAIL.' no encontrado — recreando…');
             $user = User::query()->create([
                 'tenant_id' => $tenant->id,
-                'email' => $email,
+                'email' => self::DEMO_EMAIL,
                 'name' => 'Admin Demo',
-                'password' => Hash::make($password),
+                'password' => Hash::make(self::DEMO_PASSWORD),
                 'is_active' => true,
                 'must_change_password' => false,
                 'email_verified_at' => now(),
@@ -139,22 +159,18 @@ final class ResetDemoCommand extends Command
 
     private function ensureDemoSede(Tenant $tenant): void
     {
-        $codigo = (string) config('platform.demo_tenant.sede_codigo', 'CHI-01');
-        $nombre = (string) config('platform.demo_tenant.sede_nombre', 'Sede prueba');
-
-        // Deja solo la sede de demo (borra las que crearon los visitantes).
         Sede::withTrashed()
             ->where('tenant_id', $tenant->id)
-            ->where('codigo', '!=', $codigo)
+            ->where('codigo', '!=', self::DEMO_SEDE_CODIGO)
             ->forceDelete();
 
         Sede::withTrashed()->updateOrCreate(
             [
                 'tenant_id' => $tenant->id,
-                'codigo' => $codigo,
+                'codigo' => self::DEMO_SEDE_CODIGO,
             ],
             [
-                'nombre' => $nombre,
+                'nombre' => self::DEMO_SEDE_NOMBRE,
                 'direccion' => 'Av. Balta 1234',
                 'distrito' => 'Chiclayo',
                 'provincia' => 'Chiclayo',
@@ -168,6 +184,6 @@ final class ResetDemoCommand extends Command
             ],
         );
 
-        $this->line("  → Sede {$codigo} ({$nombre}, Chiclayo / Lambayeque) asegurada.");
+        $this->line('  → Sede '.self::DEMO_SEDE_CODIGO.' ('.self::DEMO_SEDE_NOMBRE.', Chiclayo / Lambayeque) asegurada.');
     }
 }

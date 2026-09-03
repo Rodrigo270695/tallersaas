@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Console\Commands\ResetDemoCommand;
 use App\Models\Sede;
 use App\Models\Tenant;
 use App\Models\User;
@@ -14,12 +15,8 @@ use Illuminate\Support\Str;
 /**
  * Limpia tablas operativas del tenant demo y deja datos mínimos de prueba.
  *
- * Idempotente: TRUNCATE + reinsert. Ideal para el job diario
- * `tallersaas:reset-demo`.
- *
- * Requisitos:
- *   · DemoTenantSeeder ya corrió (tenant "demo" existe)
- *   · Existe la sede CHI-01 / "Sede prueba"
+ * Idempotente: TRUNCATE + reinsert. Lo invoca `tallersaas:reset-demo`
+ * (cron 02:00 vía `schedule:run`). No usa .env.
  */
 final class DemoDataSeeder extends Seeder
 {
@@ -31,9 +28,9 @@ final class DemoDataSeeder extends Seeder
             return;
         }
 
-        $slug = (string) config('platform.demo_tenant.slug', 'demo');
-        $adminEmail = (string) config('platform.demo_tenant.admin_email', 'admin@demo.orvae.pe');
-        $sedeCodigo = (string) config('platform.demo_tenant.sede_codigo', 'CHI-01');
+        $slug = ResetDemoCommand::DEMO_SLUG;
+        $adminEmail = ResetDemoCommand::DEMO_EMAIL;
+        $sedeCodigo = ResetDemoCommand::DEMO_SEDE_CODIGO;
 
         $tenant = Tenant::query()->where('slug', $slug)->first();
 

@@ -2,34 +2,28 @@
 
 namespace Database\Seeders;
 
+use App\Console\Commands\ResetDemoCommand;
 use App\Models\Tenant;
 use App\Services\Tenancy\TenantProvisioner;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 /**
- * Crea un tenant de demostración accesible en
- * `https://{slug}.{TENANT_ROOT_DOMAIN}` (por defecto `demo.tallersaas.orvae.pe`),
- * usando el mismo {@see TenantProvisioner} que el endpoint de aprovisionamiento
- * de Orvae: registro en `public.tenants`, schema PostgreSQL, migraciones
- * tenant, roles base y usuario admin.
+ * Crea una sola vez el tenant slug `demo`.
  *
- * Idempotente: si el slug ya existe, no hace nada (no se puede "reprovisionar").
- *
- * No está registrado en {@see DatabaseSeeder} a propósito, para no crear el
- * tenant demo en cada deploy. Ejecutar manualmente cuando se necesite:
+ * Credenciales fijas (sin .env): demo@tallersaas.pe / demo1234
  *
  *     php artisan db:seed --class=DemoTenantSeeder --force
  *     php artisan tallersaas:reset-demo
  *
- * El scheduler corre `tallersaas:reset-demo` a las 02:00 para limpiar lo
- * que probaron los visitantes y dejar la sede «Sede prueba» (Chiclayo).
+ * El VPS debe tener cron:
+ *     * * * * * cd /var/www/tallersaas && php artisan schedule:run
+ * que a las 02:00 ejecuta tallersaas:reset-demo (migra schema demo + reseedea).
  */
 class DemoTenantSeeder extends Seeder
 {
     public function run(TenantProvisioner $provisioner): void
     {
-        $slug = (string) config('platform.demo_tenant.slug', 'demo');
+        $slug = ResetDemoCommand::DEMO_SLUG;
 
         $existing = Tenant::query()->where('slug', $slug)->first();
 
@@ -39,16 +33,14 @@ class DemoTenantSeeder extends Seeder
             return;
         }
 
-        $adminEmail = (string) config('platform.demo_tenant.admin_email', 'admin@demo.orvae.pe');
-        $adminPassword = config('platform.demo_tenant.admin_password');
-        $isGeneratedPassword = $adminPassword === null || $adminPassword === '';
-        $adminPassword = $isGeneratedPassword ? Str::password(length: 16, symbols: false) : (string) $adminPassword;
+        $adminEmail = ResetDemoCommand::DEMO_EMAIL;
+        $adminPassword = ResetDemoCommand::DEMO_PASSWORD;
 
         $tenant = $provisioner->provision([
-            'plan_slug' => (string) config('platform.demo_tenant.plan', 'pro'),
+            'plan_slug' => ResetDemoCommand::DEMO_PLAN,
             'tenant_slug' => $slug,
-            'razon_social' => (string) config('platform.demo_tenant.razon_social', 'Taller Demo S.A.C.'),
-            'nombre_comercial' => config('platform.demo_tenant.nombre_comercial', 'Taller Demo'),
+            'razon_social' => 'Taller Demo S.A.C.',
+            'nombre_comercial' => 'Taller Demo',
             'admin_nombres' => 'Admin',
             'admin_apellidos' => 'Demo',
             'admin_email' => $adminEmail,
@@ -60,12 +52,7 @@ class DemoTenantSeeder extends Seeder
         $this->command?->line('  · Slug: '.$tenant->slug);
         $this->command?->line('  · Schema: '.$tenant->schema_name);
         $this->command?->line('  · URL de login: '.$provisioner->buildLoginUrl($tenant));
-        $this->command?->line('  · Admin email: '.$adminEmail);
-
-        if ($isGeneratedPassword) {
-            $this->command?->warn('  · Admin password (generada, guárdala): '.$adminPassword);
-        } else {
-            $this->command?->line('  · Admin password: '.$adminPassword);
-        }
+        $this->command?->line('  · Admin: '.$adminEmail.' / '.$adminPassword);
+        $this->command?->line('  · Luego ejecuta: php artisan tallersaas:reset-demo');
     }
 }
