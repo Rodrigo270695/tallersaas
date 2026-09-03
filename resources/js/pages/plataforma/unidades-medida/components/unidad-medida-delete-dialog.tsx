@@ -1,16 +1,15 @@
 import { router } from '@inertiajs/react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
-import {
-    AlertDialog,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import unidadesMedida from '@/routes/plataforma/unidades-medida';
 import type { UnidadMedida } from '../types';
 
@@ -39,20 +38,29 @@ export function UnidadMedidaDeleteDialog({
     };
 
     return (
-        <AlertDialog open={open} onOpenChange={onOpenChange}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Eliminar unidad</AlertDialogTitle>
-                    <AlertDialogDescription>
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <TriangleAlert className="size-5 text-destructive" />
+                        Eliminar unidad
+                    </DialogTitle>
+                    <DialogDescription>
                         ¿Eliminar <strong>{unidad?.codigo}</strong>
                         {unidad?.nombre ? ` (${unidad.nombre})` : ''}? Los talleres ya no
                         podrán elegirla en repuestos nuevos.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel disabled={processing} className="cursor-pointer">
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={processing}
+                        onClick={() => onOpenChange(false)}
+                        className="cursor-pointer"
+                    >
                         Cancelar
-                    </AlertDialogCancel>
+                    </Button>
                     <Button
                         type="button"
                         variant="destructive"
@@ -63,8 +71,8 @@ export function UnidadMedidaDeleteDialog({
                         {processing && <Loader2 className="size-4 animate-spin" />}
                         Eliminar
                     </Button>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
