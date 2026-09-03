@@ -63,7 +63,9 @@ class TallerSetting extends Model
         'horario_atencion',
         'moneda',
         'igv_porcentaje',
+        'igv_afectacion',
         'precio_incluye_igv',
+        'ticket_ancho_mm',
         'color_primario',
         'color_secundario',
         'updated_by_id',
@@ -94,8 +96,45 @@ class TallerSetting extends Model
             'emite_comprobantes_sunat' => 'boolean',
             'apisunat_configurado' => 'boolean',
             'igv_porcentaje' => 'decimal:2',
+            'ticket_ancho_mm' => 'integer',
             'distrito_id' => 'integer',
         ];
+    }
+
+    public const IGV_AFECTACIONES = ['gravado', 'exonerado', 'inafecto'];
+
+    /** Código SUNAT: 10 gravado, 20 exonerado, 30 inafecto. */
+    public function codigoSunatIgv(): string
+    {
+        return match ($this->igvAfectacion()) {
+            'exonerado' => '20',
+            'inafecto' => '30',
+            default => '10',
+        };
+    }
+
+    public function igvAfectacion(): string
+    {
+        $valor = (string) ($this->igv_afectacion ?? 'gravado');
+
+        return in_array($valor, self::IGV_AFECTACIONES, true) ? $valor : 'gravado';
+    }
+
+    /** Porcentaje efectivo (0 si no es gravado). */
+    public function igvPorcentajeEfectivo(): float
+    {
+        if ($this->igvAfectacion() !== 'gravado') {
+            return 0.0;
+        }
+
+        return max(0.0, (float) $this->igv_porcentaje);
+    }
+
+    public function ticketAnchoMm(): int
+    {
+        $ancho = (int) ($this->ticket_ancho_mm ?? 80);
+
+        return in_array($ancho, [56, 58, 80], true) ? $ancho : 80;
     }
 
     public function distritoModel(): BelongsTo

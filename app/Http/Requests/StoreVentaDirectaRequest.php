@@ -17,6 +17,7 @@ class StoreVentaDirectaRequest extends FormRequest
     {
         return [
             'caja_sesion_id' => ['nullable', 'uuid', 'exists:caja_sesiones,id'],
+            'orden_trabajo_id' => ['nullable', 'uuid', 'exists:ordenes_trabajo,id'],
             'cliente_id' => ['nullable', 'uuid', 'exists:clientes,id'],
             'vehiculo_id' => [
                 'nullable',
@@ -44,6 +45,7 @@ class StoreVentaDirectaRequest extends FormRequest
     {
         return [
             'caja_sesion_id' => 'sesión de caja',
+            'orden_trabajo_id' => 'orden de trabajo',
             'cliente_id' => 'cliente',
             'vehiculo_id' => 'vehículo',
             'lineas' => 'líneas',
@@ -55,7 +57,7 @@ class StoreVentaDirectaRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $nullable = ['cliente_id', 'vehiculo_id', 'caja_sesion_id', 'notas'];
+        $nullable = ['cliente_id', 'vehiculo_id', 'caja_sesion_id', 'orden_trabajo_id', 'notas'];
         $merged = [];
         foreach ($nullable as $field) {
             if ($this->exists($field) && $this->input($field) === '') {

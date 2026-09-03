@@ -54,8 +54,8 @@ final class VentaCheckoutFromOrdenService
             }
 
             $settings = TallerSetting::current();
-            $igvPct = (float) $settings->igv_porcentaje;
-            $incluyeIgv = (bool) $settings->precio_incluye_igv;
+            $igvPct = $settings->igvPorcentajeEfectivo();
+            $incluyeIgv = (bool) $settings->precio_incluye_igv && $igvPct > 0;
             $moneda = $settings->moneda === 'USD' ? 'USD' : 'PEN';
 
             $lineasCalc = $this->calcularLineas($payload['lineas'], $incluyeIgv);
@@ -166,8 +166,8 @@ final class VentaCheckoutFromOrdenService
             $sesion = $this->resolveSesion($payload['caja_sesion_id'] ?? null, $user);
 
             $settings = TallerSetting::current();
-            $igvPct = (float) $settings->igv_porcentaje;
-            $incluyeIgv = (bool) $settings->precio_incluye_igv;
+            $igvPct = $settings->igvPorcentajeEfectivo();
+            $incluyeIgv = (bool) $settings->precio_incluye_igv && $igvPct > 0;
             $moneda = $settings->moneda === 'USD' ? 'USD' : 'PEN';
 
             $lineasCalc = $this->calcularLineas($payload['lineas'], $incluyeIgv);

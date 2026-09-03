@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
     Banknote,
@@ -34,9 +34,9 @@ import { usePermission } from '@/hooks/use-permission';
 import { expandServicioConKit, spliceLinesAtIndex } from '@/lib/servicio-kit';
 import { toastManager } from '@/lib/toast';
 import { cn } from '@/lib/utils';
+import ventas from '@/routes/caja/ventas';
 import ordenesTrabajo from '@/routes/taller/ordenes-trabajo';
 import { OrdenAvisarListaModal } from './components/orden-avisar-lista-modal';
-import { OrdenCobroModal } from './components/orden-cobro-modal';
 import { OrdenFotosSection } from './components/orden-fotos-section';
 import type {
     ClienteOption,
@@ -202,18 +202,23 @@ export default function Show({
     clientes,
     vehiculos,
     mi_sesion_abierta: miSesion,
-    igv,
     taller_nombre: tallerNombre = 'el taller',
     productos = [],
     servicios = [],
-    fel_ready: felReady = false,
 }: ShowProps) {
     const { can } = usePermission();
     const canUpdate = can('ordenes-trabajo.update');
     const canCobrar = can('ventas.create');
-    const [cobrarOpen, setCobrarOpen] = useState(false);
     const [avisarOpen, setAvisarOpen] = useState(false);
     const [tab, setTab] = useState<TabId>(() => defaultTab(orden.estado));
+
+    const irAVenta = () => {
+        router.visit(
+            ventas.create.url({
+                query: { orden_trabajo_id: orden.id },
+            }),
+        );
+    };
 
     const { data, setData, put, processing, errors, recentlySuccessful } = useForm<OrdenFormData>({
         sede_id: orden.sede_id,
@@ -849,7 +854,7 @@ export default function Show({
                                 <Button
                                     type="button"
                                     className="min-h-11 cursor-pointer gap-2"
-                                    onClick={() => setCobrarOpen(true)}
+                                    onClick={irAVenta}
                                 >
                                     <Banknote className="size-4" strokeWidth={2.5} />
                                     Pasar a venta
@@ -933,7 +938,7 @@ export default function Show({
                                     <Button
                                         type="button"
                                         className="mt-1 min-h-11 w-full cursor-pointer gap-2"
-                                        onClick={() => setCobrarOpen(true)}
+                                        onClick={irAVenta}
                                     >
                                         <Banknote className="size-4" />
                                         Pasar a venta
@@ -1015,17 +1020,6 @@ export default function Show({
                     ))}
                 </div>
             </nav>
-
-            <OrdenCobroModal
-                open={cobrarOpen}
-                onOpenChange={setCobrarOpen}
-                orden={orden}
-                sesion={miSesion}
-                igv={igv}
-                productos={productos}
-                servicios={servicios}
-                felReady={felReady}
-            />
 
             <OrdenAvisarListaModal
                 open={avisarOpen}

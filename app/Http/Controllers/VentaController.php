@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreVentaDirectaRequest;
 use App\Models\CajaSesion;
 use App\Models\Cliente;
+use App\Models\OrdenTrabajo;
 use App\Models\Producto;
 use App\Models\TallerSetting;
 use App\Models\Vehiculo;
@@ -17,6 +18,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -111,21 +113,77 @@ class VentaController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         $tenantId = tenant_id();
         abort_if($tenantId === null || $tenantId === '', 403);
 
         $setting = TallerSetting::current();
+        $emiteSunat = (bool) $setting->emite_comprobantes_sunat;
+        $igvPct = $setting->igvPorcentajeEfectivo();
+
+        $desdeOrden = null;
+        $ordenId = trim((string) $request->query('orden_trabajo_id', ''));
+        if ($ordenId !== '') {
+            $orden = OrdenTrabajo::query()
+                ->with([
+                    'lineas' => fn ($q) => $q->orderBy('orden'),
+                    'cliente:id,nombres,apellidos',
+                    'vehiculo:id,placa',
+                ])
+                ->findOrFail($ordenId);
+
+            abort_if($orden->estado === OrdenTrabajo::ESTADO_ANULADA, 422, 'La orden está anulada.');
+
+            $lineasOt = $orden->lineas
+                ->filter(fn ($linea) => trim((string) $linea->descripcion) !== '')
+                ->values()
+                ->map(fn ($linea) => [
+                    'servicio_id' => $linea->servicio_id,
+                    'producto_id' => $linea->producto_id,
+                    'concepto' => (string) $linea->descripcion,
+                    'cantidad' => (string) $linea->cantidad,
+                    'precio_unitario' => (string) $linea->precio_unitario,
+                ])
+                ->all();
+
+            if ($lineasOt === []) {
+                $lineasOt = [[
+                    'servicio_id' => null,
+                    'producto_id' => null,
+                    'concepto' => trim((string) ($orden->solicitud_cliente ?? '')) !== ''
+                        ? (string) $orden->solicitud_cliente
+                        : 'OT '.$orden->numero,
+                    'cantidad' => '1',
+                    'precio_unitario' => (string) (max(0, (float) ($orden->saldo ?? $orden->total ?? 0))),
+                ]];
+            }
+
+            $desdeOrden = [
+                'id' => $orden->id,
+                'numero' => $orden->numero,
+                'cliente_id' => $orden->cliente_id,
+                'vehiculo_id' => $orden->vehiculo_id,
+                'cliente_nombre' => $orden->cliente?->nombreCompleto(),
+                'vehiculo_label' => $orden->vehiculo?->placa,
+                'lineas' => $lineasOt,
+            ];
+        }
 
         return Inertia::render('caja/ventas/create', [
             'mi_sesion_abierta' => CajaSesion::query()
                 ->where('estado', CajaSesion::ESTADO_ABIERTA)
                 ->where('opened_by_id', Auth::id())
                 ->first(['id', 'sede_id', 'opened_at', 'saldo_apertura']),
-            'igv' => $setting->only(['igv_porcentaje', 'precio_incluye_igv', 'moneda']),
-            'fel_ready' => (bool) $setting->emite_comprobantes_sunat
-                && ApisunatCredentialResolver::estaConfigurado($setting),
+            'igv' => [
+                'igv_porcentaje' => $igvPct,
+                'igv_afectacion' => $setting->igvAfectacion(),
+                'precio_incluye_igv' => (bool) $setting->precio_incluye_igv && $igvPct > 0,
+                'moneda' => $setting->moneda === 'USD' ? 'USD' : 'PEN',
+            ],
+            'emite_comprobantes_sunat' => $emiteSunat,
+            'fel_ready' => $emiteSunat && ApisunatCredentialResolver::estaConfigurado($setting),
+            'desde_orden' => $desdeOrden,
             'clientes' => Cliente::query()
                 ->orderBy('nombres')
                 ->get(['id', 'nombres', 'apellidos'])
@@ -156,29 +214,68 @@ class VentaController extends Controller
         VentaCheckoutFromOrdenService $checkout,
         FelEmisionVentaService $fel,
     ): RedirectResponse {
-        $venta = $checkout->cobrarDirecto($request->validated(), $request->user());
+        $data = $request->validated();
+        $setting = TallerSetting::current();
 
-        if ($fel->puedeEmitir(TallerSetting::current(), $venta)) {
+        if (! $setting->emite_comprobantes_sunat) {
+            $data['tipo_comprobante_sunat'] = 0;
+        }
+
+        $ordenId = $data['orden_trabajo_id'] ?? null;
+        unset($data['orden_trabajo_id']);
+
+        if (is_string($ordenId) && $ordenId !== '') {
+            $orden = OrdenTrabajo::query()->findOrFail($ordenId);
+            $venta = $checkout->cobrar($orden, $data, $request->user());
+        } else {
+            $venta = $checkout->cobrarDirecto($data, $request->user());
+        }
+
+        $tipo = (int) ($data['tipo_comprobante_sunat'] ?? 0);
+
+        if ($tipo > 0 && $fel->puedeEmitir($setting, $venta)) {
             try {
                 $doc = $fel->emitir($venta);
                 Inertia::flash('toast', [
                     'type' => 'success',
                     'message' => 'Venta registrada y comprobante '.$doc->numero_completo.' emitido.',
                 ]);
-
-                return redirect()->route('caja.ventas.index');
             } catch (ValidationException $e) {
                 Inertia::flash('toast', [
                     'type' => 'warning',
                     'message' => 'Venta registrada. SUNAT: '.($e->validator->errors()->first() ?: $e->getMessage()),
                 ]);
-
-                return redirect()->route('caja.ventas.index');
             }
+        } else {
+            Inertia::flash('toast', [
+                'type' => 'success',
+                'message' => 'Venta registrada. Puedes imprimir el ticket.',
+            ]);
         }
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Venta registrada correctamente.']);
+        return redirect()->route('caja.ventas.ticket', $venta);
+    }
 
-        return redirect()->route('caja.ventas.index');
+    public function ticket(Venta $venta): View
+    {
+        $venta->load([
+            'cliente:id,nombres,apellidos,tipo_documento,numero_documento',
+            'vehiculo:id,placa',
+            'ordenTrabajo:id,numero',
+            'lineas' => fn ($q) => $q->orderBy('orden'),
+            'pagos',
+        ]);
+
+        $setting = TallerSetting::current();
+        $ancho = $setting->ticketAnchoMm();
+
+        return view('caja.venta-ticket', [
+            'venta' => $venta,
+            'setting' => $setting,
+            'ancho_mm' => $ancho,
+            'taller_nombre' => $setting->nombre_comercial
+                ?: $setting->razon_social
+                ?: 'Taller',
+        ]);
     }
 }

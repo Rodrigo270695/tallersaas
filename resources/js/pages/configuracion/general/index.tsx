@@ -54,7 +54,9 @@ export type TallerSettingPayload = {
     web_url: string | null;
     moneda: string;
     igv_porcentaje: number;
+    igv_afectacion: 'gravado' | 'exonerado' | 'inafecto';
     precio_incluye_igv: boolean;
+    ticket_ancho_mm: number;
     emite_comprobantes_sunat: boolean;
     apisunat_configurado: boolean;
     apisunat_mode: 'sandbox' | 'produccion';
@@ -78,7 +80,9 @@ type FormData = {
     web_url: string;
     moneda: string;
     igv_porcentaje: string;
+    igv_afectacion: string;
     precio_incluye_igv: boolean;
+    ticket_ancho_mm: string;
     emite_comprobantes_sunat: boolean;
     apisunat_token: string;
     clear_apisunat_token: boolean;
@@ -123,11 +127,10 @@ export default function Index({ setting, departamentos }: GeneralIndexProps) {
         web_url: setting.web_url ?? '',
         moneda: setting.moneda || 'PEN',
         igv_porcentaje: String(setting.igv_porcentaje ?? 18),
+        igv_afectacion: setting.igv_afectacion || 'gravado',
         precio_incluye_igv: setting.precio_incluye_igv,
+        ticket_ancho_mm: String(setting.ticket_ancho_mm ?? 80),
         emite_comprobantes_sunat: setting.emite_comprobantes_sunat ?? false,
-        apisunat_token: '',
-        clear_apisunat_token: false,
-        apisunat_mode: setting.apisunat_mode || 'sandbox',
         apisunat_token: '',
         clear_apisunat_token: false,
         apisunat_mode: setting.apisunat_mode || 'sandbox',
@@ -365,7 +368,7 @@ export default function Index({ setting, departamentos }: GeneralIndexProps) {
 
                 <SectionCard
                     title="Contacto y facturación"
-                    description="Datos visibles al cliente y reglas de IGV."
+                    description="Datos de contacto, IGV y reglas de comprobantes."
                     icon={Receipt}
                 >
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -417,7 +420,7 @@ export default function Index({ setting, departamentos }: GeneralIndexProps) {
                             )}
                         </div>
                         <div className={fieldClass}>
-                            <Label htmlFor="moneda">Moneda</Label>
+                            <Label htmlFor="moneda">Moneda *</Label>
                             <Select
                                 value={data.moneda}
                                 onValueChange={(value) => setData('moneda', value)}
@@ -427,8 +430,8 @@ export default function Index({ setting, departamentos }: GeneralIndexProps) {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="PEN">Soles (PEN)</SelectItem>
-                                    <SelectItem value="USD">Dólares (USD)</SelectItem>
+                                    <SelectItem value="PEN">PEN — Soles peruanos</SelectItem>
+                                    <SelectItem value="USD">USD — Dólares</SelectItem>
                                 </SelectContent>
                             </Select>
                             {errors.moneda && (
@@ -436,7 +439,30 @@ export default function Index({ setting, departamentos }: GeneralIndexProps) {
                             )}
                         </div>
                         <div className={fieldClass}>
-                            <Label htmlFor="igv_porcentaje">IGV (%)</Label>
+                            <Label htmlFor="igv_afectacion">Afectación IGV (SUNAT) *</Label>
+                            <Select
+                                value={data.igv_afectacion}
+                                onValueChange={(value) => setData('igv_afectacion', value)}
+                                disabled={!canUpdate}
+                            >
+                                <SelectTrigger id="igv_afectacion" className="w-full">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="gravado">Gravado (código 10)</SelectItem>
+                                    <SelectItem value="exonerado">Exonerado (código 20)</SelectItem>
+                                    <SelectItem value="inafecto">Inafecto (código 30)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                                Tasa estándar peruana: 18%. Solo aplica IGV si es Gravado.
+                            </p>
+                            {errors.igv_afectacion && (
+                                <p className="text-xs text-destructive">{errors.igv_afectacion}</p>
+                            )}
+                        </div>
+                        <div className={fieldClass}>
+                            <Label htmlFor="igv_porcentaje">Porcentaje de IGV *</Label>
                             <Input
                                 id="igv_porcentaje"
                                 type="number"
@@ -445,12 +471,32 @@ export default function Index({ setting, departamentos }: GeneralIndexProps) {
                                 max="100"
                                 value={data.igv_porcentaje}
                                 onChange={(e) => setData('igv_porcentaje', e.target.value)}
-                                disabled={!canUpdate}
+                                disabled={!canUpdate || data.igv_afectacion !== 'gravado'}
                             />
                             {errors.igv_porcentaje && (
                                 <p className="text-xs text-destructive">
                                     {errors.igv_porcentaje}
                                 </p>
+                            )}
+                        </div>
+                        <div className={fieldClass}>
+                            <Label htmlFor="ticket_ancho_mm">Ancho del ticket térmico</Label>
+                            <Select
+                                value={data.ticket_ancho_mm}
+                                onValueChange={(value) => setData('ticket_ancho_mm', value)}
+                                disabled={!canUpdate}
+                            >
+                                <SelectTrigger id="ticket_ancho_mm" className="w-full">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="58">58 mm (rollo angosto)</SelectItem>
+                                    <SelectItem value="80">80 mm (rollo ancho)</SelectItem>
+                                    <SelectItem value="56">56 mm</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {errors.ticket_ancho_mm && (
+                                <p className="text-xs text-destructive">{errors.ticket_ancho_mm}</p>
                             )}
                         </div>
                         <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/60 bg-card/40 p-3 sm:col-span-2">
@@ -459,15 +505,16 @@ export default function Index({ setting, departamentos }: GeneralIndexProps) {
                                 onCheckedChange={(checked) =>
                                     setData('precio_incluye_igv', checked === true)
                                 }
-                                disabled={!canUpdate}
+                                disabled={!canUpdate || data.igv_afectacion !== 'gravado'}
                                 className="mt-0.5"
                             />
                             <div className="flex flex-col gap-0.5">
                                 <span className="text-sm font-medium">
-                                    Los precios incluyen IGV
+                                    Los precios ingresados incluyen IGV
                                 </span>
                                 <span className="text-xs text-muted-foreground">
-                                    Si está activo, el IGV se extrae del precio de lista.
+                                    Si está activo, el sistema calcula la base imponible desde el
+                                    precio final. Si no, el IGV se suma al precio mostrado.
                                 </span>
                             </div>
                         </label>
@@ -475,8 +522,8 @@ export default function Index({ setting, departamentos }: GeneralIndexProps) {
                 </SectionCard>
 
                 <SectionCard
-                    title="Comprobantes SUNAT (APISUNAT)"
-                    description="Emite boletas y facturas después del cobro. El token nunca se muestra."
+                    title="Comprobantes SUNAT (APISUNAT / Lucode)"
+                    description="Emite boletas y facturas después del cobro. El token del tenant se guarda cifrado."
                     icon={FileCheck}
                     badge={
                         setting.apisunat_configurado ? (
@@ -502,11 +549,11 @@ export default function Index({ setting, departamentos }: GeneralIndexProps) {
                             />
                             <div className="flex flex-col gap-0.5">
                                 <span className="text-sm font-medium">
-                                    Emitir boletas y facturas a SUNAT
+                                    Emitir comprobantes electrónicos SUNAT (boleta/factura)
                                 </span>
                                 <span className="text-xs text-muted-foreground">
-                                    Si el cobro elige boleta o factura, se envía a APISUNAT. Un
-                                    rechazo de SUNAT no anula el cobro.
+                                    Si está desactivado, en ventas solo verás ticket interno. Actívalo
+                                    cuando el token Lucode/APISUNAT del tenant esté listo.
                                 </span>
                             </div>
                         </label>
