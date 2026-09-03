@@ -79,19 +79,67 @@ export default function Index({
                 sortable: true,
                 cell: (row) => {
                     const actual = qty(row.cantidad_stock);
-                    const minimo = row.stock_minimo != null ? qty(row.stock_minimo) : null;
-                    const bajo = minimo !== null && actual < minimo;
+                    const minimo =
+                        row.stock_minimo != null && String(row.stock_minimo) !== ''
+                            ? qty(row.stock_minimo)
+                            : null;
+
+                    const nivel: 'ok' | 'alerta' | 'critico' | 'sin' =
+                        minimo === null
+                            ? actual <= 0
+                                ? 'critico'
+                                : 'sin'
+                            : actual <= 0
+                              ? 'critico'
+                              : actual < minimo
+                                ? 'alerta'
+                                : 'ok';
+
+                    const dotClass =
+                        nivel === 'ok'
+                            ? 'bg-emerald-500'
+                            : nivel === 'alerta'
+                              ? 'bg-amber-500'
+                              : nivel === 'critico'
+                                ? 'bg-red-500'
+                                : 'bg-stone-300';
+
+                    const label =
+                        nivel === 'ok'
+                            ? 'OK'
+                            : nivel === 'alerta'
+                              ? 'Bajo alerta'
+                              : nivel === 'critico'
+                                ? 'Sin stock'
+                                : 'Sin alerta';
 
                     return (
-                        <div className="flex flex-col">
-                            <span className={`tabular-nums font-medium ${bajo ? 'text-amber-700' : ''}`}>
-                                {actual.toLocaleString('es-PE')}
-                            </span>
-                            {minimo !== null && (
-                                <span className="text-xs text-muted-foreground">
-                                    Mín. {minimo.toLocaleString('es-PE')}
+                        <div className="flex items-center gap-2.5">
+                            <span
+                                className={`size-2.5 shrink-0 rounded-full ${dotClass}`}
+                                title={label}
+                                aria-label={label}
+                            />
+                            <div className="flex min-w-0 flex-col">
+                                <span
+                                    className={`tabular-nums font-medium ${
+                                        nivel === 'critico'
+                                            ? 'text-red-700'
+                                            : nivel === 'alerta'
+                                              ? 'text-amber-700'
+                                              : ''
+                                    }`}
+                                >
+                                    {actual.toLocaleString('es-PE')}
                                 </span>
-                            )}
+                                {minimo !== null ? (
+                                    <span className="text-xs text-muted-foreground">
+                                        Alerta {minimo.toLocaleString('es-PE')}
+                                    </span>
+                                ) : (
+                                    <span className="text-xs text-muted-foreground">{label}</span>
+                                )}
+                            </div>
                         </div>
                     );
                 },
@@ -133,7 +181,7 @@ export default function Index({
                     stats={[
                         { label: 'Repuestos', value: stats.total, variant: 'info', icon: Warehouse },
                         {
-                            label: 'Bajo mínimo',
+                            label: 'Bajo alerta',
                             value: stats.bajo_minimo,
                             variant: 'warning',
                             icon: TriangleAlert,

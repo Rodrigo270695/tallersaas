@@ -1,17 +1,11 @@
 import { useForm } from '@inertiajs/react';
 import { Loader2 } from 'lucide-react';
-import { useEffect, type FormEvent } from 'react';
+import { useEffect, useMemo, type FormEvent } from 'react';
 import { FormField, FormModal, FormSection } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import productos from '@/routes/inventario/productos';
 import type { Producto, ProductoOption, SedeOption } from '../types';
@@ -31,7 +25,7 @@ type FormData = {
     stock_inicial_cantidad: string;
 };
 
-const NONE = '__none__';
+const isFormValid = (data: FormData): boolean => data.nombre.trim().length > 0;
 
 export function ProductoFormModal({
     open,
@@ -64,6 +58,35 @@ export function ProductoFormModal({
         stock_inicial_cantidad: '',
     });
 
+    const canSubmit = isFormValid(data) && !processing;
+
+    const categoriaOptions = useMemo<readonly ComboboxOption[]>(
+        () =>
+            categorias.map((cat) => ({
+                value: cat.id,
+                label: cat.nombre,
+            })),
+        [categorias],
+    );
+
+    const unidadOptions = useMemo<readonly ComboboxOption[]>(
+        () =>
+            unidades.map((unidad) => ({
+                value: unidad,
+                label: unidad,
+            })),
+        [unidades],
+    );
+
+    const sedeOptions = useMemo<readonly ComboboxOption[]>(
+        () =>
+            sedes.map((sede) => ({
+                value: sede.id,
+                label: sede.nombre,
+            })),
+        [sedes],
+    );
+
     useEffect(() => {
         if (!open) {
             return;
@@ -88,6 +111,11 @@ export function ProductoFormModal({
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
+
+        if (!canSubmit) {
+            return;
+        }
+
         const opts = {
             preserveScroll: true,
             onSuccess: () => onOpenChange(false),
@@ -116,10 +144,15 @@ export function ProductoFormModal({
                         variant="outline"
                         className="cursor-pointer"
                         onClick={() => onOpenChange(false)}
+                        disabled={processing}
                     >
                         Cancelar
                     </Button>
-                    <Button type="submit" disabled={processing} className="cursor-pointer gap-2">
+                    <Button
+                        type="submit"
+                        disabled={!canSubmit}
+                        className="cursor-pointer gap-2 disabled:cursor-not-allowed"
+                    >
                         {processing && <Loader2 className="size-4 animate-spin" />}
                         {isEdit ? 'Guardar' : 'Crear'}
                     </Button>
@@ -132,7 +165,7 @@ export function ProductoFormModal({
                     label="Nombre"
                     required
                     error={errors.nombre}
-                    className="sm:col-span-2"
+                    className="min-w-0 sm:col-span-2"
                 >
                     <Input
                         id="p-nombre"
@@ -141,85 +174,108 @@ export function ProductoFormModal({
                         autoFocus
                     />
                 </FormField>
-                <FormField id="p-cat" label="Categoría" error={errors.categoria_id}>
-                    <Select
-                        value={data.categoria_id || NONE}
-                        onValueChange={(value) =>
-                            setData('categoria_id', value === NONE ? '' : value)
-                        }
-                    >
-                        <SelectTrigger id="p-cat">
-                            <SelectValue placeholder="Sin categoría" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value={NONE}>Sin categoría</SelectItem>
-                            {categorias.map((cat) => (
-                                <SelectItem key={cat.id} value={cat.id}>
-                                    {cat.nombre}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+
+                <FormField
+                    id="p-cat"
+                    label="Categoría"
+                    error={errors.categoria_id}
+                    className="min-w-0"
+                >
+                    <Combobox
+                        id="p-cat"
+                        options={categoriaOptions}
+                        value={data.categoria_id || null}
+                        onChange={(value) => setData('categoria_id', value ?? '')}
+                        placeholder="Sin categoría"
+                        searchPlaceholder="Buscar categoría…"
+                        emptyMessage="Sin coincidencias."
+                        clearable
+                        disabled={processing}
+                        aria-invalid={Boolean(errors.categoria_id)}
+                    />
                 </FormField>
-                <FormField id="p-unidad" label="Unidad" required error={errors.unidad}>
-                    <Select value={data.unidad} onValueChange={(value) => setData('unidad', value)}>
-                        <SelectTrigger id="p-unidad">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {unidades.map((unidad) => (
-                                <SelectItem key={unidad} value={unidad}>
-                                    {unidad}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+
+                <FormField
+                    id="p-unidad"
+                    label="Unidad"
+                    required
+                    error={errors.unidad}
+                    className="min-w-0"
+                >
+                    <Combobox
+                        id="p-unidad"
+                        options={unidadOptions}
+                        value={data.unidad || null}
+                        onChange={(value) => setData('unidad', value ?? 'UN')}
+                        placeholder="Selecciona unidad"
+                        searchPlaceholder="Buscar unidad…"
+                        emptyMessage="Sin coincidencias."
+                        clearable={false}
+                        disabled={processing}
+                        aria-invalid={Boolean(errors.unidad)}
+                    />
                 </FormField>
-                <FormField id="p-sku" label="SKU" error={errors.sku}>
-                    <Input id="p-sku" value={data.sku} onChange={(e) => setData('sku', e.target.value)} />
+
+                <FormField id="p-sku" label="SKU" error={errors.sku} className="min-w-0">
+                    <Input
+                        id="p-sku"
+                        value={data.sku}
+                        onChange={(e) => setData('sku', e.target.value)}
+                    />
                 </FormField>
-                <FormField id="p-barras" label="Código de barras" error={errors.codigo_barras}>
+
+                <FormField
+                    id="p-barras"
+                    label="Código de barras"
+                    error={errors.codigo_barras}
+                    className="min-w-0"
+                >
                     <Input
                         id="p-barras"
                         value={data.codigo_barras}
                         onChange={(e) => setData('codigo_barras', e.target.value)}
                     />
                 </FormField>
-                <FormField id="p-pv" label="Precio de venta" error={errors.precio_venta}>
+
+                <FormField
+                    id="p-pv"
+                    label="Precio de venta"
+                    error={errors.precio_venta}
+                    className="min-w-0"
+                >
                     <Input
                         id="p-pv"
                         type="number"
                         min="0"
                         step="0.01"
+                        inputMode="decimal"
                         value={data.precio_venta}
                         onChange={(e) => setData('precio_venta', e.target.value)}
                     />
                 </FormField>
-                <FormField id="p-pc" label="Precio de compra" error={errors.precio_compra}>
+
+                <FormField
+                    id="p-pc"
+                    label="Precio de compra"
+                    error={errors.precio_compra}
+                    className="min-w-0"
+                >
                     <Input
                         id="p-pc"
                         type="number"
                         min="0"
                         step="0.01"
+                        inputMode="decimal"
                         value={data.precio_compra}
                         onChange={(e) => setData('precio_compra', e.target.value)}
                     />
                 </FormField>
-                <FormField id="p-min" label="Stock mínimo" error={errors.stock_minimo}>
-                    <Input
-                        id="p-min"
-                        type="number"
-                        min="0"
-                        step="0.001"
-                        value={data.stock_minimo}
-                        onChange={(e) => setData('stock_minimo', e.target.value)}
-                    />
-                </FormField>
+
                 <FormField
                     id="p-desc"
                     label="Descripción"
                     error={errors.descripcion}
-                    className="sm:col-span-2"
+                    className="min-w-0 sm:col-span-2"
                 >
                     <Textarea
                         id="p-desc"
@@ -228,45 +284,71 @@ export function ProductoFormModal({
                         rows={2}
                     />
                 </FormField>
+
                 {!isEdit && sedes.length > 0 && (
                     <>
                         <FormField
                             id="p-stock-sede"
                             label="Sede (stock inicial)"
                             error={errors.stock_inicial_sede_id}
+                            className="min-w-0"
                         >
-                            <Select
-                                value={data.stock_inicial_sede_id}
-                                onValueChange={(value) => setData('stock_inicial_sede_id', value)}
-                            >
-                                <SelectTrigger id="p-stock-sede">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {sedes.map((sede) => (
-                                        <SelectItem key={sede.id} value={sede.id}>
-                                            {sede.nombre}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Combobox
+                                id="p-stock-sede"
+                                options={sedeOptions}
+                                value={data.stock_inicial_sede_id || null}
+                                onChange={(value) =>
+                                    setData('stock_inicial_sede_id', value ?? '')
+                                }
+                                placeholder="Selecciona sede"
+                                searchPlaceholder="Buscar sede…"
+                                emptyMessage="Sin coincidencias."
+                                clearable={false}
+                                disabled={processing}
+                                aria-invalid={Boolean(errors.stock_inicial_sede_id)}
+                            />
                         </FormField>
+
                         <FormField
                             id="p-stock-qty"
                             label="Cantidad inicial"
                             error={errors.stock_inicial_cantidad}
+                            className="min-w-0"
                         >
                             <Input
                                 id="p-stock-qty"
                                 type="number"
                                 min="0.001"
                                 step="0.001"
+                                inputMode="decimal"
                                 value={data.stock_inicial_cantidad}
-                                onChange={(e) => setData('stock_inicial_cantidad', e.target.value)}
+                                onChange={(e) =>
+                                    setData('stock_inicial_cantidad', e.target.value)
+                                }
                             />
                         </FormField>
                     </>
                 )}
+
+                <FormField
+                    id="p-alerta"
+                    label="Stock de alerta"
+                    error={errors.stock_minimo}
+                    hint="Si el stock baja de esta cantidad, en Stock se marca en amarillo o rojo."
+                    className="min-w-0 sm:col-span-2 sm:max-w-[calc(50%-0.5rem)]"
+                >
+                    <Input
+                        id="p-alerta"
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        inputMode="decimal"
+                        value={data.stock_minimo}
+                        onChange={(e) => setData('stock_minimo', e.target.value)}
+                        placeholder="Ej. 5"
+                    />
+                </FormField>
+
                 <label className="flex cursor-pointer items-center gap-2 sm:col-span-2">
                     <Checkbox
                         checked={data.activo}
