@@ -88,6 +88,7 @@ class OrdenTrabajoPublicController extends Controller
             'fotos' => $orden->fotos->map(fn ($foto) => [
                 'id' => $foto->id,
                 'url' => $foto->url,
+                'etapa' => $foto->etapa ?: 'proceso',
                 'nota' => $foto->nota,
                 'created_at' => optional($foto->created_at)?->toIso8601String(),
             ])->values(),

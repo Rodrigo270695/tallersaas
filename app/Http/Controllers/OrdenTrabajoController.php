@@ -303,6 +303,7 @@ class OrdenTrabajoController extends Controller
 
         $data = $request->validate([
             'foto' => ['required', 'image', 'max:5120'],
+            'etapa' => ['required', 'string', 'in:'.implode(',', OrdenTrabajoFoto::ETAPAS)],
             'nota' => ['nullable', 'string', 'max:500'],
         ]);
 
@@ -317,11 +318,18 @@ class OrdenTrabajoController extends Controller
         OrdenTrabajoFoto::query()->create([
             'orden_trabajo_id' => $orden_trabajo->id,
             'path' => "{$dir}/{$filename}",
+            'etapa' => $data['etapa'],
             'nota' => $data['nota'] ?? null,
             'created_by_id' => Auth::id(),
         ]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Foto de avance agregada.']);
+        $etapaLabel = match ($data['etapa']) {
+            OrdenTrabajoFoto::ETAPA_INGRESO => 'ingreso',
+            OrdenTrabajoFoto::ETAPA_ENTREGA => 'entrega',
+            default => 'proceso',
+        };
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Foto de {$etapaLabel} agregada."]);
 
         return back();
     }

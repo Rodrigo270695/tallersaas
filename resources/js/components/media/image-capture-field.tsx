@@ -162,31 +162,31 @@ export function ImageCaptureField({
                 <div className="flex min-w-0 flex-1 flex-col gap-2">
                     {cameraFriendly ? (
                         <div className="flex flex-wrap gap-2">
-                            <Button
-                                type="button"
-                                size="sm"
-                                className="cursor-pointer gap-1.5"
-                                disabled={busy}
-                                onClick={() => cameraRef.current?.click()}
-                            >
-                                {compressing ? (
-                                    <Loader2 className="size-3.5 animate-spin" />
-                                ) : (
-                                    <Camera className="size-3.5" />
-                                )}
-                                Tomar foto
-                            </Button>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                className="cursor-pointer gap-1.5"
-                                disabled={busy}
-                                onClick={() => galleryRef.current?.click()}
-                            >
-                                <Images className="size-3.5" />
-                                Galería
-                            </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        className="h-11 cursor-pointer gap-1.5 px-4"
+                        disabled={busy}
+                        onClick={() => cameraRef.current?.click()}
+                    >
+                        {compressing ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                            <Camera className="size-3.5" />
+                        )}
+                        Tomar foto
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-11 cursor-pointer gap-1.5 px-4"
+                        disabled={busy}
+                        onClick={() => galleryRef.current?.click()}
+                    >
+                        <Images className="size-3.5" />
+                        Galería
+                    </Button>
                         </div>
                     ) : (
                         <Button

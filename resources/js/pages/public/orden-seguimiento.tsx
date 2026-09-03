@@ -1,5 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { Camera, CheckCircle2, Circle, Clock3, Phone } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { cn } from '@/lib/utils';
 
 type TimelineStep = {
     key: string;
@@ -10,9 +12,12 @@ type TimelineStep = {
     current?: boolean;
 };
 
+type FotoEtapa = 'ingreso' | 'proceso' | 'entrega';
+
 type Foto = {
     id: string;
     url: string | null;
+    etapa?: FotoEtapa | string | null;
     nota: string | null;
     created_at: string | null;
 };
@@ -40,11 +45,29 @@ type Props = {
     token: string;
 };
 
+const ETAPAS: { value: FotoEtapa; label: string }[] = [
+    { value: 'ingreso', label: 'Ingreso' },
+    { value: 'proceso', label: 'Proceso' },
+    { value: 'entrega', label: 'Entrega' },
+];
+
 const estadoLabel: Record<string, string> = {
     abierta: 'Recepcionada',
     en_proceso: 'En taller',
     lista: 'Lista para recoger',
     entregada: 'Entregada',
+};
+
+const defaultEtapa = (estado: string): FotoEtapa => {
+    if (estado === 'abierta') {
+        return 'ingreso';
+    }
+
+    if (estado === 'lista' || estado === 'entregada') {
+        return 'entrega';
+    }
+
+    return 'proceso';
 };
 
 const formatWhen = (iso: string | null): string => {
@@ -65,13 +88,33 @@ const formatWhen = (iso: string | null): string => {
 
 export default function OrdenSeguimientoPublico({ orden, fotos, taller }: Props) {
     const estadoActual = estadoLabel[orden.estado] ?? orden.estado;
+    const [etapa, setEtapa] = useState<FotoEtapa>(() => defaultEtapa(orden.estado));
+
+    const counts = useMemo(() => {
+        const map: Record<FotoEtapa, number> = { ingreso: 0, proceso: 0, entrega: 0 };
+        for (const foto of fotos) {
+            const key = (foto.etapa ?? 'proceso') as FotoEtapa;
+            if (key in map) {
+                map[key] += 1;
+            } else {
+                map.proceso += 1;
+            }
+        }
+
+        return map;
+    }, [fotos]);
+
+    const fotosEtapa = useMemo(
+        () => fotos.filter((f) => (f.etapa ?? 'proceso') === etapa),
+        [fotos, etapa],
+    );
 
     return (
         <>
             <Head title={`Seguimiento ${orden.numero}`} />
 
             <div className="min-h-dvh bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-50 via-stone-50 to-stone-100">
-                <div className="mx-auto flex w-full max-w-lg flex-col gap-5 px-4 py-6 sm:py-10">
+                <div className="mx-auto flex w-full max-w-lg flex-col gap-5 px-4 py-6 pb-10 sm:py-10">
                     <header className="space-y-3 text-center">
                         {taller.logo_url ? (
                             <img
@@ -103,18 +146,18 @@ export default function OrdenSeguimientoPublico({ orden, fotos, taller }: Props)
 
                     <section className="rounded-2xl border border-white/80 bg-white/90 p-5 shadow-sm backdrop-blur">
                         <div className="mb-5 flex items-center justify-between gap-3">
-                            <h2 className="text-sm font-semibold text-stone-900">Progreso del trabajo</h2>
+                            <h2 className="text-sm font-semibold text-stone-900">Progreso</h2>
                             {orden.prometida_at ? (
                                 <p className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                                     <Clock3 className="size-3.5" />
-                                    Prometida {formatWhen(orden.prometida_at)}
+                                    {formatWhen(orden.prometida_at)}
                                 </p>
                             ) : null}
                         </div>
 
                         <ol className="relative ml-2 space-y-0 border-l-2 border-stone-200 pl-0">
                             {orden.timeline.map((step) => (
-                                <li key={step.key} className="relative pb-6 pl-6 last:pb-0">
+                                <li key={step.key} className="relative pb-5 pl-6 last:pb-0">
                                     <span className="absolute -left-[9px] top-0.5 rounded-full bg-white">
                                         {step.done ? (
                                             <CheckCircle2
@@ -167,11 +210,11 @@ export default function OrdenSeguimientoPublico({ orden, fotos, taller }: Props)
                     {(orden.solicitud_cliente || orden.km_ingreso != null) && (
                         <section className="rounded-2xl border border-white/80 bg-white/90 p-5 shadow-sm backdrop-blur">
                             <h2 className="mb-3 text-sm font-semibold text-stone-900">
-                                Detalle de ingreso
+                                Motivo de ingreso
                             </h2>
                             {orden.km_ingreso != null ? (
                                 <p className="mb-2 text-sm text-muted-foreground">
-                                    Km de ingreso:{' '}
+                                    Km:{' '}
                                     <span className="font-medium text-stone-800">
                                         {orden.km_ingreso.toLocaleString('es-PE')}
                                     </span>
@@ -188,15 +231,42 @@ export default function OrdenSeguimientoPublico({ orden, fotos, taller }: Props)
                     <section className="rounded-2xl border border-white/80 bg-white/90 p-5 shadow-sm backdrop-blur">
                         <div className="mb-3 flex items-center gap-2">
                             <Camera className="size-4 text-brand-600" />
-                            <h2 className="text-sm font-semibold text-stone-900">Fotos del avance</h2>
+                            <h2 className="text-sm font-semibold text-stone-900">Fotos</h2>
                         </div>
-                        {fotos.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">
-                                Aún no hay fotos del proceso. El taller las irá publicando aquí.
+
+                        <div
+                            role="tablist"
+                            className="mb-4 grid grid-cols-3 gap-1 rounded-xl bg-stone-100 p-1"
+                        >
+                            {ETAPAS.map((item) => (
+                                <button
+                                    key={item.value}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={etapa === item.value}
+                                    className={cn(
+                                        'min-h-11 rounded-lg px-1 py-2 text-center text-xs font-semibold transition-colors',
+                                        etapa === item.value
+                                            ? 'bg-white text-stone-900 shadow-sm'
+                                            : 'text-muted-foreground',
+                                    )}
+                                    onClick={() => setEtapa(item.value)}
+                                >
+                                    {item.label}
+                                    <span className="mt-0.5 block text-[10px] font-normal tabular-nums text-muted-foreground">
+                                        {counts[item.value]}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+
+                        {fotosEtapa.length === 0 ? (
+                            <p className="py-4 text-center text-sm text-muted-foreground">
+                                Aún no hay fotos de {ETAPAS.find((e) => e.value === etapa)?.label.toLowerCase()}.
                             </p>
                         ) : (
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                {fotos.map((foto) => (
+                            <div className="grid grid-cols-2 gap-2">
+                                {fotosEtapa.map((foto) => (
                                     <figure
                                         key={foto.id}
                                         className="overflow-hidden rounded-xl border border-stone-200/80 bg-stone-50"
@@ -204,15 +274,17 @@ export default function OrdenSeguimientoPublico({ orden, fotos, taller }: Props)
                                         {foto.url ? (
                                             <img
                                                 src={foto.url}
-                                                alt={foto.nota || 'Avance del taller'}
-                                                className="aspect-[4/3] w-full object-cover"
+                                                alt={foto.nota || 'Foto del taller'}
+                                                className="aspect-square w-full object-cover"
                                             />
                                         ) : null}
-                                        <figcaption className="space-y-0.5 p-2.5">
+                                        <figcaption className="space-y-0.5 p-2">
                                             {foto.nota ? (
-                                                <p className="text-sm text-stone-800">{foto.nota}</p>
+                                                <p className="truncate text-xs text-stone-800">
+                                                    {foto.nota}
+                                                </p>
                                             ) : null}
-                                            <p className="text-[11px] text-muted-foreground">
+                                            <p className="text-[10px] text-muted-foreground">
                                                 {formatWhen(foto.created_at)}
                                             </p>
                                         </figcaption>
@@ -225,15 +297,13 @@ export default function OrdenSeguimientoPublico({ orden, fotos, taller }: Props)
                     {taller.telefono ? (
                         <a
                             href={`tel:${taller.telefono}`}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-stone-900 px-4 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-stone-800"
+                            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-stone-900 px-4 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-stone-800"
                         >
                             <Phone className="size-4" />
-                            Contactar al taller · {taller.telefono}
+                            Llamar al taller
                         </a>
                     ) : (
-                        <p className="text-center text-xs text-muted-foreground">
-                            {taller.nombre}
-                        </p>
+                        <p className="text-center text-xs text-muted-foreground">{taller.nombre}</p>
                     )}
                 </div>
             </div>

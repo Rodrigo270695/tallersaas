@@ -149,7 +149,9 @@ class OrdenTrabajo extends Model
      */
     public function fotos(): HasMany
     {
-        return $this->hasMany(OrdenTrabajoFoto::class, 'orden_trabajo_id')->orderBy('created_at');
+        return $this->hasMany(OrdenTrabajoFoto::class, 'orden_trabajo_id')
+            ->orderByRaw("case etapa when 'ingreso' then 1 when 'proceso' then 2 when 'entrega' then 3 else 4 end")
+            ->orderBy('created_at');
     }
 
     public function ventas(): HasMany

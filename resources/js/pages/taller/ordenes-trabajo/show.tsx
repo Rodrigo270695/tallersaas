@@ -2,11 +2,14 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
     Banknote,
+    Camera,
     CheckCircle2,
     Circle,
     ClipboardList,
     Link2,
     Loader2,
+    MoreHorizontal,
+    Package,
     Plus,
     Trash2,
     Wrench,
@@ -85,6 +88,8 @@ type ShowProps = {
     servicios: readonly ServicioCobroOption[];
 };
 
+type TabId = 'recepcion' | 'cargos' | 'fotos' | 'mas';
+
 const LIBRE = '__libre__';
 
 const ESTADOS: { value: OrdenEstado; label: string }[] = [
@@ -101,6 +106,33 @@ const ESTADO_CLASS: Record<OrdenEstado, string> = {
     lista: 'bg-emerald-50 text-emerald-800 border-emerald-200',
     entregada: 'bg-stone-100 text-stone-600 border-stone-200',
     anulada: 'bg-rose-50 text-rose-800 border-rose-200',
+};
+
+const TABS: {
+    id: TabId;
+    label: string;
+    icon: typeof ClipboardList;
+}[] = [
+    { id: 'recepcion', label: 'Recepción', icon: ClipboardList },
+    { id: 'cargos', label: 'Cargos', icon: Package },
+    { id: 'fotos', label: 'Fotos', icon: Camera },
+    { id: 'mas', label: 'Más', icon: MoreHorizontal },
+];
+
+const defaultTab = (estado: OrdenEstado): TabId => {
+    if (estado === 'abierta') {
+        return 'recepcion';
+    }
+
+    if (estado === 'en_proceso') {
+        return 'fotos';
+    }
+
+    if (estado === 'lista' || estado === 'entregada') {
+        return 'mas';
+    }
+
+    return 'recepcion';
 };
 
 const toDatetimeLocal = (iso: string | null): string => {
@@ -180,6 +212,7 @@ export default function Show({
     const canCobrar = can('ventas.create');
     const [cobrarOpen, setCobrarOpen] = useState(false);
     const [avisarOpen, setAvisarOpen] = useState(false);
+    const [tab, setTab] = useState<TabId>(() => defaultTab(orden.estado));
 
     const { data, setData, put, processing, errors } = useForm<OrdenFormData>({
         sede_id: orden.sede_id,
@@ -212,6 +245,8 @@ export default function Show({
     const saldo = Number(orden.saldo) || Math.max(0, precuentaTotal - Number(orden.pagado_total || 0));
     const puedePasarAVenta =
         canCobrar && orden.estado !== 'anulada' && data.lineas.some((l) => l.descripcion.trim() !== '');
+
+    const showSaveBar = canUpdate && (tab === 'recepcion' || tab === 'cargos');
 
     const timeline = useMemo(
         () => [
@@ -332,30 +367,49 @@ export default function Show({
     const clienteNombre = orden.cliente
         ? `${orden.cliente.nombres} ${orden.cliente.apellidos ?? ''}`.trim()
         : 'Cliente';
-    const vehiculoLabel = [
-        orden.vehiculo?.placa,
-        orden.vehiculo?.marca?.nombre,
-        orden.vehiculo?.modelo?.nombre,
-    ]
-        .filter(Boolean)
-        .join(' · ');
+    const placa = orden.vehiculo?.placa ?? '';
+    const shortMeta = [clienteNombre, placa].filter(Boolean).join(' · ');
+
+    const tabButtonClass = (id: TabId, variant: 'desktop' | 'mobile') =>
+        cn(
+            'flex cursor-pointer items-center justify-center gap-1.5 transition-colors',
+            variant === 'desktop' &&
+                'min-h-11 flex-1 rounded-md px-3 text-sm font-medium',
+            variant === 'mobile' &&
+                'min-h-11 flex-1 flex-col gap-0.5 px-1 text-[11px] font-medium',
+            tab === id
+                ? variant === 'desktop'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-brand-700'
+                : 'text-muted-foreground hover:text-foreground',
+        );
 
     return (
         <>
             <Head title={`${orden.numero} · Orden de trabajo`} />
 
-            <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex flex-col gap-2">
-                        <Button variant="ghost" size="sm" className="h-8 w-fit gap-1.5 px-2" asChild>
-                            <Link href={ordenesTrabajo.index().url}>
-                                <ArrowLeft className="size-4" strokeWidth={2.25} />
-                                Órdenes de trabajo
-                            </Link>
-                        </Button>
+            <div
+                className={cn(
+                    'flex flex-1 flex-col gap-4 p-4 sm:p-6',
+                    showSaveBar ? 'pb-40 lg:pb-6' : 'pb-24 lg:pb-6',
+                )}
+            >
+                {/* Compact header */}
+                <div className="flex items-start gap-3">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="mt-0.5 size-11 shrink-0 cursor-pointer"
+                        asChild
+                    >
+                        <Link href={ordenesTrabajo.index().url} aria-label="Volver a órdenes">
+                            <ArrowLeft className="size-5" strokeWidth={2.25} />
+                        </Link>
+                    </Button>
+                    <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                            <Wrench className="size-6 text-brand-600" strokeWidth={2} />
-                            <h1 className="font-mono text-xl font-semibold tracking-tight">
+                            <Wrench className="size-5 shrink-0 text-brand-600" strokeWidth={2} />
+                            <h1 className="font-mono text-lg font-semibold tracking-tight sm:text-xl">
                                 {orden.numero}
                             </h1>
                             <Badge
@@ -365,64 +419,47 @@ export default function Show({
                                 {ESTADOS.find((e) => e.value === orden.estado)?.label ?? orden.estado}
                             </Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                            {clienteNombre}
-                            {vehiculoLabel ? ` · ${vehiculoLabel}` : ''}
-                            {orden.sede?.nombre ? ` · ${orden.sede.nombre}` : ''}
-                        </p>
-                        {orden.solicitud_cliente ? (
-                            <p className="max-w-2xl text-sm font-medium text-foreground">
-                                {orden.solicitud_cliente}
-                            </p>
-                        ) : null}
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                        {orden.public_token ? (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="cursor-pointer gap-2"
-                                onClick={() => void copyLink()}
-                            >
-                                <Link2 className="size-4" strokeWidth={2.25} />
-                                Link cliente
-                            </Button>
-                        ) : null}
-                        {(orden.estado === 'lista' || orden.estado === 'entregada') && canUpdate ? (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="cursor-pointer gap-2"
-                                onClick={() => setAvisarOpen(true)}
-                            >
-                                WhatsApp
-                            </Button>
-                        ) : null}
-                        {puedePasarAVenta ? (
-                            <Button
-                                type="button"
-                                className="cursor-pointer gap-2"
-                                onClick={() => setCobrarOpen(true)}
-                            >
-                                <Banknote className="size-4" strokeWidth={2.5} />
-                                Pasar a venta
-                            </Button>
-                        ) : null}
+                        <p className="mt-0.5 truncate text-sm text-muted-foreground">{shortMeta}</p>
                     </div>
                 </div>
 
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
-                    <form onSubmit={onSubmit} className="flex flex-col gap-5">
-                        {sedes.length === 0 && (
-                            <p
-                                className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-                                role="alert"
-                            >
-                                Primero crea una sede en Configuración → Sedes.
-                            </p>
-                        )}
+                {/* Desktop segmented tabs */}
+                <div
+                    className="hidden rounded-lg bg-muted/70 p-1 lg:flex"
+                    role="tablist"
+                    aria-label="Secciones de la orden"
+                >
+                    {TABS.map(({ id, label, icon: Icon }) => (
+                        <button
+                            key={id}
+                            type="button"
+                            role="tab"
+                            aria-selected={tab === id}
+                            className={tabButtonClass(id, 'desktop')}
+                            onClick={() => setTab(id)}
+                        >
+                            <Icon className="size-4 shrink-0" strokeWidth={2.25} />
+                            {label}
+                        </button>
+                    ))}
+                </div>
 
+                <form id="orden-trabajo-form" onSubmit={onSubmit} className="flex flex-col gap-5">
+                    {sedes.length === 0 && tab === 'recepcion' ? (
+                        <p
+                            className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                            role="alert"
+                        >
+                            Primero crea una sede en Configuración → Sedes.
+                        </p>
+                    ) : null}
+
+                    {/* Recepción */}
+                    <div
+                        role="tabpanel"
+                        hidden={tab !== 'recepcion'}
+                        className={cn('flex flex-col gap-5', tab !== 'recepcion' && 'hidden')}
+                    >
                         <FormSection
                             index={0}
                             title="Cliente y vehículo"
@@ -435,7 +472,7 @@ export default function Show({
                                     onValueChange={(value) => setData('sede_id', value)}
                                     disabled={!canUpdate}
                                 >
-                                    <SelectTrigger id="ot-sede" className="w-full">
+                                    <SelectTrigger id="ot-sede" className="min-h-11 w-full">
                                         <SelectValue placeholder="Selecciona sede" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -457,7 +494,7 @@ export default function Show({
                                     }}
                                     disabled={!canUpdate}
                                 >
-                                    <SelectTrigger id="ot-cliente" className="w-full">
+                                    <SelectTrigger id="ot-cliente" className="min-h-11 w-full">
                                         <SelectValue placeholder="Selecciona cliente" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -482,7 +519,7 @@ export default function Show({
                                     onValueChange={(value) => setData('vehiculo_id', value)}
                                     disabled={!canUpdate || !data.cliente_id}
                                 >
-                                    <SelectTrigger id="ot-vehiculo" className="w-full">
+                                    <SelectTrigger id="ot-vehiculo" className="min-h-11 w-full">
                                         <SelectValue
                                             placeholder={
                                                 data.cliente_id
@@ -514,7 +551,7 @@ export default function Show({
                                     onValueChange={(value) => setData('estado', value as OrdenEstado)}
                                     disabled={!canUpdate}
                                 >
-                                    <SelectTrigger id="ot-estado" className="w-full">
+                                    <SelectTrigger id="ot-estado" className="min-h-11 w-full">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -535,6 +572,7 @@ export default function Show({
                                 <Input
                                     id="ot-prometida"
                                     type="datetime-local"
+                                    className="min-h-11"
                                     value={data.prometida_at}
                                     onChange={(e) => setData('prometida_at', e.target.value)}
                                     disabled={!canUpdate}
@@ -546,6 +584,7 @@ export default function Show({
                                     id="ot-km-ingreso"
                                     type="number"
                                     min="0"
+                                    className="min-h-11"
                                     value={data.km_ingreso}
                                     onChange={(e) => setData('km_ingreso', e.target.value)}
                                     disabled={!canUpdate}
@@ -557,6 +596,7 @@ export default function Show({
                                     id="ot-km-salida"
                                     type="number"
                                     min="0"
+                                    className="min-h-11"
                                     value={data.km_salida}
                                     onChange={(e) => setData('km_salida', e.target.value)}
                                     disabled={!canUpdate}
@@ -576,6 +616,7 @@ export default function Show({
                                     rows={3}
                                     placeholder="Ruido en el motor, cambio de aceite…"
                                     disabled={!canUpdate}
+                                    className="min-h-24"
                                 />
                                 {orden.cita?.motivo &&
                                 orden.cita.motivo !== (orden.solicitud_cliente ?? '') ? (
@@ -597,6 +638,7 @@ export default function Show({
                                     onChange={(e) => setData('diagnostico', e.target.value)}
                                     rows={3}
                                     disabled={!canUpdate}
+                                    className="min-h-24"
                                 />
                             </FormField>
 
@@ -612,10 +654,18 @@ export default function Show({
                                     onChange={(e) => setData('notas_internas', e.target.value)}
                                     rows={2}
                                     disabled={!canUpdate}
+                                    className="min-h-20"
                                 />
                             </FormField>
                         </FormSection>
+                    </div>
 
+                    {/* Cargos */}
+                    <div
+                        role="tabpanel"
+                        hidden={tab !== 'cargos'}
+                        className={cn('flex flex-col gap-5', tab !== 'cargos' && 'hidden')}
+                    >
                         <FormSection
                             index={2}
                             title="Precuenta · servicios y repuestos"
@@ -623,7 +673,7 @@ export default function Show({
                             columns={1}
                         >
                             {data.lineas.map((linea, index) => (
-                                <div key={index} className="grid gap-2 rounded-md border p-2">
+                                <div key={index} className="grid gap-2 rounded-md border p-3">
                                     {(servicios.length > 0 || productos.length > 0) && (
                                         <FormField
                                             id={`ot-linea-cat-${index}`}
@@ -638,7 +688,10 @@ export default function Show({
                                                 onValueChange={(value) => applyCatalog(index, value)}
                                                 disabled={!canUpdate}
                                             >
-                                                <SelectTrigger id={`ot-linea-cat-${index}`}>
+                                                <SelectTrigger
+                                                    id={`ot-linea-cat-${index}`}
+                                                    className="min-h-11"
+                                                >
                                                     <SelectValue placeholder="Libre / catálogo" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -671,6 +724,7 @@ export default function Show({
                                         >
                                             <Input
                                                 id={`ot-linea-desc-${index}`}
+                                                className="min-h-11"
                                                 value={linea.descripcion}
                                                 onChange={(e) =>
                                                     setLinea(index, { descripcion: e.target.value })
@@ -689,6 +743,7 @@ export default function Show({
                                                 type="number"
                                                 min="0.001"
                                                 step="0.001"
+                                                className="min-h-11"
                                                 value={linea.cantidad}
                                                 onChange={(e) =>
                                                     setLinea(index, { cantidad: e.target.value })
@@ -706,6 +761,7 @@ export default function Show({
                                                 type="number"
                                                 min="0"
                                                 step="0.01"
+                                                className="min-h-11"
                                                 value={linea.precio_unitario}
                                                 onChange={(e) =>
                                                     setLinea(index, {
@@ -720,7 +776,7 @@ export default function Show({
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
-                                                className="mt-6 cursor-pointer"
+                                                className="mt-6 size-11 cursor-pointer sm:mt-6"
                                                 onClick={() =>
                                                     setData(
                                                         'lineas',
@@ -738,11 +794,10 @@ export default function Show({
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    size="sm"
-                                    className="cursor-pointer gap-1.5 self-start"
+                                    className="min-h-11 cursor-pointer gap-1.5 self-start"
                                     onClick={() => setData('lineas', [...data.lineas, emptyLinea()])}
                                 >
-                                    <Plus className="size-3.5" />
+                                    <Plus className="size-4" />
                                     Agregar cargo
                                 </Button>
                             ) : null}
@@ -750,34 +805,54 @@ export default function Show({
                                 <p className="text-sm text-destructive">{errors.lineas}</p>
                             )}
                         </FormSection>
+                    </div>
+                </form>
 
-                        <OrdenFotosSection orden={orden} canUpdate={canUpdate} />
+                {/* Fotos */}
+                {tab === 'fotos' ? (
+                    <div role="tabpanel">
+                        <OrdenFotosSection orden={orden} canUpdate={canUpdate} embedded />
+                    </div>
+                ) : null}
 
-                        {canUpdate ? (
-                            <div className="flex justify-end gap-2 border-t pt-4">
+                {/* Más: acciones + timeline + precuenta */}
+                {tab === 'mas' ? (
+                    <div role="tabpanel" className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                            {orden.public_token ? (
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    className="cursor-pointer"
-                                    onClick={() => router.visit(ordenesTrabajo.index().url)}
+                                    className="min-h-11 cursor-pointer gap-2"
+                                    onClick={() => void copyLink()}
                                 >
-                                    Volver
+                                    <Link2 className="size-4" strokeWidth={2.25} />
+                                    Link cliente
                                 </Button>
+                            ) : null}
+                            {(orden.estado === 'lista' || orden.estado === 'entregada') &&
+                            canUpdate ? (
                                 <Button
-                                    type="submit"
-                                    disabled={processing}
-                                    className="cursor-pointer gap-2 disabled:cursor-not-allowed"
+                                    type="button"
+                                    variant="outline"
+                                    className="min-h-11 cursor-pointer gap-2"
+                                    onClick={() => setAvisarOpen(true)}
                                 >
-                                    {processing ? (
-                                        <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                                    ) : null}
-                                    Guardar cambios
+                                    WhatsApp
                                 </Button>
-                            </div>
-                        ) : null}
-                    </form>
+                            ) : null}
+                            {puedePasarAVenta ? (
+                                <Button
+                                    type="button"
+                                    className="min-h-11 cursor-pointer gap-2"
+                                    onClick={() => setCobrarOpen(true)}
+                                >
+                                    <Banknote className="size-4" strokeWidth={2.5} />
+                                    Pasar a venta
+                                </Button>
+                            ) : null}
+                        </div>
 
-                    <aside className="flex flex-col gap-4 xl:sticky xl:top-4 xl:self-start">
                         <Card>
                             <CardHeader className="pb-3">
                                 <CardTitle className="flex items-center gap-2 text-base">
@@ -789,7 +864,7 @@ export default function Show({
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <ol className="relative space-y-0 border-l border-border/80 ml-2.5">
+                                <ol className="relative ml-2.5 space-y-0 border-l border-border/80">
                                     {timeline.map((step) => (
                                         <li key={step.key} className="relative pb-4 pl-5 last:pb-0">
                                             <span className="absolute -left-[9px] top-0.5 bg-background">
@@ -853,7 +928,7 @@ export default function Show({
                                 {puedePasarAVenta ? (
                                     <Button
                                         type="button"
-                                        className="mt-1 w-full cursor-pointer gap-2"
+                                        className="mt-1 min-h-11 w-full cursor-pointer gap-2"
                                         onClick={() => setCobrarOpen(true)}
                                     >
                                         <Banknote className="size-4" />
@@ -871,9 +946,66 @@ export default function Show({
                                 ) : null}
                             </CardContent>
                         </Card>
-                    </aside>
-                </div>
+                    </div>
+                ) : null}
             </div>
+
+            {/* Sticky save bar (above mobile tabs) */}
+            {showSaveBar ? (
+                <div
+                    className={cn(
+                        'fixed inset-x-0 z-30 border-t bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80',
+                        'bottom-[calc(3.75rem+env(safe-area-inset-bottom,0px))] lg:bottom-0',
+                    )}
+                >
+                    <div className="mx-auto flex max-w-5xl items-center justify-end gap-2 px-4 py-3 sm:px-6">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="min-h-11 cursor-pointer"
+                            onClick={() => router.visit(ordenesTrabajo.index().url)}
+                        >
+                            Volver
+                        </Button>
+                        <Button
+                            type="submit"
+                            form="orden-trabajo-form"
+                            disabled={processing}
+                            className="min-h-11 cursor-pointer gap-2 disabled:cursor-not-allowed"
+                        >
+                            {processing ? (
+                                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                            ) : null}
+                            Guardar cambios
+                        </Button>
+                    </div>
+                </div>
+            ) : null}
+
+            {/* Mobile bottom tab bar */}
+            <nav
+                className="fixed inset-x-0 bottom-0 z-40 border-t bg-background pb-[env(safe-area-inset-bottom,0px)] lg:hidden"
+                aria-label="Navegación de la orden"
+            >
+                <div className="flex min-h-15 items-stretch" role="tablist">
+                    {TABS.map(({ id, label, icon: Icon }) => (
+                        <button
+                            key={id}
+                            type="button"
+                            role="tab"
+                            aria-selected={tab === id}
+                            className={tabButtonClass(id, 'mobile')}
+                            onClick={() => setTab(id)}
+                        >
+                            <Icon
+                                className={cn('size-5', tab === id && 'text-brand-700')}
+                                strokeWidth={tab === id ? 2.5 : 2}
+                            />
+                            <span>{label}</span>
+                        </button>
+                    ))}
+                </div>
+            </nav>
 
             <OrdenCobroModal
                 open={cobrarOpen}

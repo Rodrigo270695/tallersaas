@@ -27,10 +27,13 @@ export type OrdenSedeRef = {
     codigo: string;
 } | null;
 
+export type OrdenFotoEtapa = 'ingreso' | 'proceso' | 'entrega';
+
 export type OrdenFoto = {
     id: string;
     path?: string;
     url: string | null;
+    etapa?: OrdenFotoEtapa;
     nota: string | null;
     created_at: string | null;
 };

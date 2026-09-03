@@ -11,11 +11,24 @@ class OrdenTrabajoFoto extends Model
 {
     use HasUuids;
 
+    public const ETAPA_INGRESO = 'ingreso';
+
+    public const ETAPA_PROCESO = 'proceso';
+
+    public const ETAPA_ENTREGA = 'entrega';
+
+    public const ETAPAS = [
+        self::ETAPA_INGRESO,
+        self::ETAPA_PROCESO,
+        self::ETAPA_ENTREGA,
+    ];
+
     protected $table = 'orden_trabajo_fotos';
 
     protected $fillable = [
         'orden_trabajo_id',
         'path',
+        'etapa',
         'nota',
         'created_by_id',
     ];
