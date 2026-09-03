@@ -9,9 +9,10 @@ import {
     DataTable,
     DataToolbar,
     EmptyState,
+    FilterChips,
     PageHeader,
 } from '@/components/data-page';
-import type { DataTableColumn } from '@/components/data-page';
+import type { DataTableColumn, FilterChip } from '@/components/data-page';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
@@ -58,8 +59,8 @@ export default function Index({
     const canBulkDelete = can('clientes.bulk-delete');
     const showRowActions = canUpdate || canDelete;
 
-    const { search, setSearch, isLoading, sort, setSort, setPerPage } =
-        useDataTablePage({
+    const { search, setSearch, isLoading, sort, setSort, setPerPage, applyFilter } =
+        useDataTablePage<{ estado: ClienteFilters['estado'] }>({
             routeUrl: clientes.index().url,
             initialFilters: filters,
             only: ['clientes', 'filters', 'stats'],
@@ -90,19 +91,29 @@ export default function Index({
         let count = 0;
 
         if (filters.search) {
-count += 1;
-}
+            count += 1;
+        }
+
+        if (filters.estado !== 'todas') {
+            count += 1;
+        }
 
         if (filters.sort) {
-count += 1;
-}
+            count += 1;
+        }
 
         if (filters.per_page !== DEFAULT_PER_PAGE) {
-count += 1;
-}
+            count += 1;
+        }
 
         return count;
-    }, [filters.search, filters.sort, filters.per_page]);
+    }, [filters.search, filters.estado, filters.sort, filters.per_page]);
+
+    const estadoOptions: FilterChip<ClienteFilters['estado']>[] = [
+        { value: 'todas', label: 'Todas' },
+        { value: 'activo', label: 'Activos' },
+        { value: 'inactivo', label: 'Inactivos' },
+    ];
 
     const columns = useMemo<DataTableColumn<Cliente>[]>(() => {
         const base: DataTableColumn<Cliente>[] = [
@@ -209,8 +220,19 @@ count += 1;
                     description="Registra y administra los clientes del taller."
                     stats={[
                         { label: 'Total', value: stats.total, variant: 'info', icon: Users },
-                        { label: 'Filtros', value: activeFiltersCount, variant: 'warning', icon: Filter },
-                        { label: 'Coincidencias', value: stats.coincidencias, variant: 'primary', icon: ScreenShare },
+                        { label: 'Activos', value: stats.activos, variant: 'primary', icon: Users },
+                        {
+                            label: 'Filtros',
+                            value: filters.estado !== 'todas' ? 1 : 0,
+                            variant: 'warning',
+                            icon: Filter,
+                        },
+                        {
+                            label: 'Coincidencias',
+                            value: stats.coincidencias,
+                            variant: 'primary',
+                            icon: ScreenShare,
+                        },
                     ]}
                     action={
                         <Can permission="clientes.create">
@@ -242,7 +264,16 @@ count += 1;
                             onSearchChange={setSearch}
                             isSearching={isLoading}
                             placeholder="Buscar por nombre, documento o teléfono…"
-                        />
+                        >
+                            <FilterChips
+                                ariaLabel="Filtrar clientes por estado"
+                                value={filters.estado}
+                                onChange={(estado) =>
+                                    applyFilter({ estado: estado as ClienteFilters['estado'] })
+                                }
+                                options={estadoOptions}
+                            />
+                        </DataToolbar>
                     }
                     footer={
                         <DataPagination
@@ -253,6 +284,7 @@ count += 1;
                                 per_page: filters.per_page,
                                 sort: filters.sort ?? undefined,
                                 direction: filters.direction ?? undefined,
+                                estado: filters.estado !== 'todas' ? filters.estado : undefined,
                             }}
                         />
                     }

@@ -50,6 +50,8 @@ export type ModeloOption = {
 
 export type VehiculoStats = {
     total: number;
+    activos: number;
+    inactivos: number;
     coincidencias: number;
 };
 
@@ -58,4 +60,5 @@ export type VehiculoFilters = {
     per_page: number;
     sort: string | null;
     direction: 'asc' | 'desc' | null;
+    estado: 'todas' | 'activo' | 'inactivo';
 };

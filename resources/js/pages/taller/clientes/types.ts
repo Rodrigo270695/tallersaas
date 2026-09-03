@@ -17,6 +17,8 @@ export type Cliente = {
 
 export type ClienteStats = {
     total: number;
+    activos: number;
+    inactivos: number;
     /** Cantidad de coincidencias con los filtros vigentes (todas las páginas). */
     coincidencias: number;
 };
@@ -26,4 +28,5 @@ export type ClienteFilters = {
     per_page: number;
     sort: string | null;
     direction: 'asc' | 'desc' | null;
+    estado: 'todas' | 'activo' | 'inactivo';
 };

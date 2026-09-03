@@ -40,6 +40,11 @@ class ClienteController extends Controller
         $sortValid = in_array($sort, self::SORTABLE_COLUMNS, true);
         $directionValid = in_array($direction, ['asc', 'desc'], true);
 
+        $estado = (string) $request->string('estado', 'todas');
+        if (! in_array($estado, ['todas', 'activo', 'inactivo'], true)) {
+            $estado = 'todas';
+        }
+
         $query = Cliente::query()->withCount('vehiculos');
 
         if ($sortValid) {
@@ -47,6 +52,12 @@ class ClienteController extends Controller
             $query->orderByDesc('created_at');
         } else {
             $query->orderByDesc('created_at');
+        }
+
+        if ($estado === 'activo') {
+            $query->where('activo', true);
+        } elseif ($estado === 'inactivo') {
+            $query->where('activo', false);
         }
 
         if ($search !== '') {
@@ -68,9 +79,12 @@ class ClienteController extends Controller
                 'per_page' => $perPage,
                 'sort' => $sortValid ? $sort : null,
                 'direction' => $sortValid && $directionValid ? $direction : null,
+                'estado' => $estado,
             ],
             'stats' => [
                 'total' => Cliente::count(),
+                'activos' => Cliente::where('activo', true)->count(),
+                'inactivos' => Cliente::where('activo', false)->count(),
                 'coincidencias' => $clientes->total(),
             ],
         ]);

@@ -34,6 +34,11 @@ class VehiculoController extends Controller
         $sortValid = in_array($sort, self::SORTABLE_COLUMNS, true);
         $directionValid = in_array($direction, ['asc', 'desc'], true);
 
+        $estado = (string) $request->string('estado', 'todas');
+        if (! in_array($estado, ['todas', 'activo', 'inactivo'], true)) {
+            $estado = 'todas';
+        }
+
         $query = Vehiculo::query()->with([
             'cliente:id,nombres,apellidos',
             'marca:id,nombre',
@@ -45,6 +50,12 @@ class VehiculoController extends Controller
             $query->orderByDesc('created_at');
         } else {
             $query->orderByDesc('created_at');
+        }
+
+        if ($estado === 'activo') {
+            $query->where('activo', true);
+        } elseif ($estado === 'inactivo') {
+            $query->where('activo', false);
         }
 
         if ($search !== '') {
@@ -73,9 +84,12 @@ class VehiculoController extends Controller
                 'per_page' => $perPage,
                 'sort' => $sortValid ? $sort : null,
                 'direction' => $sortValid && $directionValid ? $direction : null,
+                'estado' => $estado,
             ],
             'stats' => [
                 'total' => Vehiculo::count(),
+                'activos' => Vehiculo::where('activo', true)->count(),
+                'inactivos' => Vehiculo::where('activo', false)->count(),
                 'coincidencias' => $vehiculos->total(),
             ],
             'clientes' => Cliente::query()
