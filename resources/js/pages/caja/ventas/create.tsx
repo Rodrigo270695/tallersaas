@@ -24,6 +24,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { expandServicioConKit } from '@/lib/servicio-kit';
+import { toastManager } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { ClienteFormModal } from '@/pages/taller/clientes/components/cliente-form-modal';
 import ventas from '@/routes/caja/ventas';
@@ -270,15 +271,28 @@ function Create({
     }, [pagoPrincipal.metodo, pagoPrincipal.monto_recibido, totales.total]);
 
     const tieneLineasValidas = data.lineas.some(
-        (linea) => linea.concepto.trim() !== '' && Number(linea.precio_unitario) >= 0,
+        (linea) =>
+            linea.concepto.trim() !== '' &&
+            Number(linea.cantidad) > 0 &&
+            Number(linea.precio_unitario) >= 0,
     );
 
-    const canSubmit =
-        Boolean(mi_sesion_abierta) &&
-        !processing &&
-        Boolean(data.cliente_id) &&
-        tieneLineasValidas &&
-        totales.total >= 0.01;
+    const motivoBloqueo = useMemo(() => {
+        if (!mi_sesion_abierta) {
+            return 'Abre una caja antes de registrar la venta.';
+        }
+        if (!data.cliente_id) {
+            return 'Selecciona un cliente.';
+        }
+        if (!tieneLineasValidas) {
+            return 'Agrega al menos un producto o servicio al carrito.';
+        }
+        if (totales.total < 0.01) {
+            return 'El total debe ser mayor a cero.';
+        }
+
+        return null;
+    }, [mi_sesion_abierta, data.cliente_id, tieneLineasValidas, totales.total]);
 
     const setLinea = (index: number, patch: Partial<LineaForm>) => {
         setData(
@@ -366,7 +380,13 @@ function Create({
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
 
-        if (!mi_sesion_abierta || !data.cliente_id || !tieneLineasValidas || totales.total < 0.01) {
+        if (processing) {
+            return;
+        }
+
+        if (motivoBloqueo) {
+            toastManager.error({ title: motivoBloqueo });
+
             return;
         }
 
@@ -380,17 +400,39 @@ function Create({
             orden_trabajo_id: formData.orden_trabajo_id || null,
             cliente_id: formData.cliente_id,
             vehiculo_id: formData.vehiculo_id || null,
-            pagos: formData.pagos.map((pago, index) =>
+            caja_sesion_id: formData.caja_sesion_id || mi_sesion_abierta?.id || null,
+            pagos: (formData.pagos.length > 0
+                ? formData.pagos
+                : [{ metodo: 'efectivo', monto: '', monto_recibido: '' }]
+            ).map((pago, index) =>
                 index === 0
                     ? {
                           ...pago,
-                          monto: pago.monto.trim() !== '' ? pago.monto : totalStr,
+                          metodo: pago.metodo || 'efectivo',
+                          monto:
+                              typeof pago.monto === 'string' && pago.monto.trim() !== ''
+                                  ? pago.monto
+                                  : totalStr,
                       }
                     : pago,
             ),
         }));
 
-        post(ventas.store.url(), { preserveScroll: true });
+        post(ventas.store.url(), {
+            preserveScroll: true,
+            onError: (errs) => {
+                const messages = Object.values(errs).filter(
+                    (m): m is string => typeof m === 'string' && m.length > 0,
+                );
+                toastManager.error({
+                    title: 'No se pudo registrar la venta',
+                    description:
+                        messages.length > 0
+                            ? messages.slice(0, 3).join(' · ')
+                            : 'Revisa los datos e intenta de nuevo.',
+                });
+            },
+        });
     };
 
     const pageTitle = desde_orden ? `Cobrar OT ${desde_orden.numero}` : 'Nueva venta';
@@ -981,9 +1023,15 @@ function Create({
                                     <p className="text-sm text-destructive">{errors.pagos}</p>
                                 )}
 
+                                {motivoBloqueo && (
+                                    <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                                        {motivoBloqueo}
+                                    </p>
+                                )}
+
                                 <Button
                                     type="submit"
-                                    disabled={!canSubmit}
+                                    disabled={processing}
                                     className="h-11 w-full cursor-pointer gap-2 bg-brand-600 text-white hover:bg-brand-700 disabled:cursor-not-allowed"
                                 >
                                     {processing && <Loader2 className="size-4 animate-spin" />}

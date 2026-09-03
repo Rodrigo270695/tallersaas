@@ -115,14 +115,20 @@ final class VentaCheckoutFromOrdenService
                 ]);
 
                 if ($linea['producto_id'] !== null) {
-                    $stock->registrarSalida(
-                        $linea['producto_id'],
-                        (string) $sesion->sede_id,
-                        (string) $linea['cantidad'],
-                        'Salida por cobro de '.$ordenLocked->numero,
-                        (string) $user->getAuthIdentifier(),
-                        (string) $venta->id,
-                    );
+                    try {
+                        $stock->registrarSalida(
+                            $linea['producto_id'],
+                            (string) $sesion->sede_id,
+                            (string) $linea['cantidad'],
+                            'Salida por cobro de '.$ordenLocked->numero,
+                            (string) $user->getAuthIdentifier(),
+                            (string) $venta->id,
+                        );
+                    } catch (ValidationException $e) {
+                        throw ValidationException::withMessages([
+                            'lineas' => 'Stock insuficiente para «'.$linea['concepto'].'» en esta sede.',
+                        ]);
+                    }
                 }
             }
 
@@ -240,14 +246,20 @@ final class VentaCheckoutFromOrdenService
                 ]);
 
                 if ($linea['producto_id'] !== null) {
-                    $stock->registrarSalida(
-                        $linea['producto_id'],
-                        (string) $sesion->sede_id,
-                        (string) $linea['cantidad'],
-                        'Salida por venta '.$venta->numero,
-                        (string) $user->getAuthIdentifier(),
-                        (string) $venta->id,
-                    );
+                    try {
+                        $stock->registrarSalida(
+                            $linea['producto_id'],
+                            (string) $sesion->sede_id,
+                            (string) $linea['cantidad'],
+                            'Salida por venta '.$venta->numero,
+                            (string) $user->getAuthIdentifier(),
+                            (string) $venta->id,
+                        );
+                    } catch (ValidationException $e) {
+                        throw ValidationException::withMessages([
+                            'lineas' => 'Stock insuficiente para «'.$linea['concepto'].'» en esta sede.',
+                        ]);
+                    }
                 }
             }
 
