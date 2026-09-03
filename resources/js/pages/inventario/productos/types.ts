@@ -9,6 +9,8 @@ export type Producto = {
     precio_venta: string | number | null;
     precio_compra: string | number | null;
     stock_minimo: string | number | null;
+    foto_path: string | null;
+    foto_url: string | null;
     activo: boolean;
     categoria?: { id: string; nombre: string } | null;
 };

@@ -7,11 +7,14 @@ use App\Models\CategoriaProducto;
 use App\Models\Producto;
 use App\Models\Sede;
 use App\Services\Inventario\InventarioStockService;
+use App\Tenancy\TenantManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -111,15 +114,24 @@ class ProductoInventarioController extends Controller
         ]);
     }
 
-    public function store(ProductoInventarioRequest $request, InventarioStockService $stock): RedirectResponse
-    {
+    public function store(
+        ProductoInventarioRequest $request,
+        InventarioStockService $stock,
+        TenantManager $tenants,
+    ): RedirectResponse {
         $userId = Auth::id();
         $validated = $request->validated();
-        $productoData = Arr::except($validated, ['stock_inicial_sede_id', 'stock_inicial_cantidad']);
+        $productoData = Arr::except($validated, [
+            'stock_inicial_sede_id',
+            'stock_inicial_cantidad',
+            'foto',
+            'clear_foto',
+        ]);
         $stockSedeId = $validated['stock_inicial_sede_id'] ?? null;
         $stockCantidad = $validated['stock_inicial_cantidad'] ?? null;
 
-        DB::transaction(function () use ($productoData, $userId, $stockSedeId, $stockCantidad, $stock): void {
+        /** @var Producto $producto */
+        $producto = DB::transaction(function () use ($productoData, $userId, $stockSedeId, $stockCantidad, $stock): Producto {
             $producto = Producto::create([
                 ...$productoData,
                 'slug' => Producto::uniqueSlugFrom($productoData['nombre']),
@@ -136,22 +148,36 @@ class ProductoInventarioController extends Controller
                     $userId !== null ? (string) $userId : null,
                 );
             }
+
+            return $producto;
         });
+
+        $this->applyFoto($producto, $request, $tenants);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Repuesto creado correctamente.']);
 
         return back();
     }
 
-    public function update(ProductoInventarioRequest $request, Producto $producto): RedirectResponse
-    {
-        $data = Arr::except($request->validated(), ['stock_inicial_sede_id', 'stock_inicial_cantidad']);
+    public function update(
+        ProductoInventarioRequest $request,
+        Producto $producto,
+        TenantManager $tenants,
+    ): RedirectResponse {
+        $data = Arr::except($request->validated(), [
+            'stock_inicial_sede_id',
+            'stock_inicial_cantidad',
+            'foto',
+            'clear_foto',
+        ]);
 
         $producto->update([
             ...$data,
             'slug' => Producto::uniqueSlugFrom($data['nombre'], (string) $producto->id),
             'updated_by_id' => Auth::id(),
         ]);
+
+        $this->applyFoto($producto, $request, $tenants);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Repuesto actualizado correctamente.']);
 
@@ -160,11 +186,62 @@ class ProductoInventarioController extends Controller
 
     public function destroy(Producto $producto): RedirectResponse
     {
+        $this->deleteFotoFile($producto);
         $producto->update(['updated_by_id' => Auth::id()]);
         $producto->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Repuesto eliminado correctamente.']);
 
         return back();
+    }
+
+    private function applyFoto(
+        Producto $producto,
+        ProductoInventarioRequest $request,
+        TenantManager $tenants,
+    ): void {
+        $disk = Storage::disk('public');
+
+        if (($request->validated('clear_foto') ?? false) === true) {
+            $this->deleteFotoFile($producto);
+            $producto->foto_path = null;
+            $producto->save();
+
+            return;
+        }
+
+        if (! $request->hasFile('foto')) {
+            return;
+        }
+
+        $slug = $tenants->slug() ?? 'shared';
+        $previous = $producto->foto_path;
+        $file = $request->file('foto');
+        $extension = strtolower($file->getClientOriginalExtension() ?: $file->guessExtension() ?: 'jpg');
+        $filename = Str::uuid()->toString().'.'.$extension;
+        $dir = "tenants/{$slug}/productos";
+
+        $disk->putFileAs($dir, $file, $filename, 'public');
+
+        $path = "{$dir}/{$filename}";
+        $producto->foto_path = $path;
+        $producto->save();
+
+        if ($previous && $previous !== $path && $disk->exists($previous)) {
+            $disk->delete($previous);
+        }
+    }
+
+    private function deleteFotoFile(Producto $producto): void
+    {
+        if (! $producto->foto_path) {
+            return;
+        }
+
+        $disk = Storage::disk('public');
+
+        if ($disk->exists($producto->foto_path)) {
+            $disk->delete($producto->foto_path);
+        }
     }
 }

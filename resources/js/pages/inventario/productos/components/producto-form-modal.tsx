@@ -1,7 +1,8 @@
 import { useForm } from '@inertiajs/react';
 import { Loader2 } from 'lucide-react';
-import { useEffect, useMemo, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, type FormEvent } from 'react';
 import { FormField, FormModal, FormSection } from '@/components/forms';
+import { ImageCaptureField } from '@/components/media/image-capture-field';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
@@ -23,6 +24,8 @@ type FormData = {
     activo: boolean;
     stock_inicial_sede_id: string;
     stock_inicial_cantidad: string;
+    foto: File | null;
+    clear_foto: boolean;
 };
 
 const isFormValid = (data: FormData): boolean => data.nombre.trim().length > 0;
@@ -43,22 +46,65 @@ export function ProductoFormModal({
     sedes: readonly SedeOption[];
 }) {
     const isEdit = producto !== null;
-    const { data, setData, post, put, processing, errors, clearErrors } = useForm<FormData>({
-        categoria_id: '',
-        nombre: '',
-        descripcion: '',
-        sku: '',
-        codigo_barras: '',
-        unidad: 'UN',
-        precio_venta: '',
-        precio_compra: '',
-        stock_minimo: '',
-        activo: true,
-        stock_inicial_sede_id: '',
-        stock_inicial_cantidad: '',
-    });
+    const { data, setData, post, processing, errors, clearErrors, transform } =
+        useForm<FormData>({
+            categoria_id: '',
+            nombre: '',
+            descripcion: '',
+            sku: '',
+            codigo_barras: '',
+            unidad: 'UN',
+            precio_venta: '',
+            precio_compra: '',
+            stock_minimo: '',
+            activo: true,
+            stock_inicial_sede_id: '',
+            stock_inicial_cantidad: '',
+            foto: null,
+            clear_foto: false,
+        });
 
     const canSubmit = isFormValid(data) && !processing;
+    const isEditRef = useRef(isEdit);
+    isEditRef.current = isEdit;
+
+    // PHP no parsea bien multipart con PUT: en edición usamos POST + `_method=put`.
+    useEffect(() => {
+        transform((raw) => {
+            const next: Record<string, unknown> = {
+                categoria_id: raw.categoria_id || null,
+                nombre: raw.nombre,
+                descripcion: raw.descripcion.trim() || null,
+                sku: raw.sku.trim() || null,
+                codigo_barras: raw.codigo_barras.trim() || null,
+                unidad: raw.unidad,
+                precio_venta: raw.precio_venta.trim() === '' ? null : raw.precio_venta,
+                precio_compra: raw.precio_compra.trim() === '' ? null : raw.precio_compra,
+                stock_minimo: raw.stock_minimo.trim() === '' ? null : raw.stock_minimo,
+                activo: raw.activo ? '1' : '0',
+                stock_inicial_sede_id: raw.stock_inicial_sede_id || null,
+                stock_inicial_cantidad:
+                    raw.stock_inicial_cantidad.trim() === ''
+                        ? null
+                        : raw.stock_inicial_cantidad,
+            };
+
+            if (raw.foto instanceof File) {
+                next.foto = raw.foto;
+            }
+
+            if (raw.clear_foto === true) {
+                next.clear_foto = true;
+            }
+
+            if (isEditRef.current) {
+                next._method = 'put';
+            }
+
+            return next;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const categoriaOptions = useMemo<readonly ComboboxOption[]>(
         () =>
@@ -106,6 +152,8 @@ export function ProductoFormModal({
             activo: producto?.activo ?? true,
             stock_inicial_sede_id: sedes[0]?.id ?? '',
             stock_inicial_cantidad: '',
+            foto: null,
+            clear_foto: false,
         });
     }, [open, producto, sedes, clearErrors, setData]);
 
@@ -116,18 +164,24 @@ export function ProductoFormModal({
             return;
         }
 
-        const opts = {
-            preserveScroll: true,
-            onSuccess: () => onOpenChange(false),
-        };
+        const onSuccess = () => onOpenChange(false);
+        const hasNewFoto = data.foto instanceof File;
 
         if (isEdit && producto) {
-            put(productos.update(producto.id).url, opts);
+            post(productos.update(producto.id).url, {
+                preserveScroll: true,
+                forceFormData: true,
+                onSuccess,
+            });
 
             return;
         }
 
-        post(productos.store().url, opts);
+        post(productos.store().url, {
+            preserveScroll: true,
+            forceFormData: hasNewFoto,
+            onSuccess,
+        });
     };
 
     return (
@@ -160,6 +214,47 @@ export function ProductoFormModal({
             }
         >
             <FormSection index={0} title="Datos" columns={2}>
+                <FormField
+                    id="p-foto"
+                    label="Foto"
+                    error={errors.foto}
+                    className="min-w-0 sm:col-span-2"
+                >
+                    <ImageCaptureField
+                        id="p-foto"
+                        value={data.foto instanceof File ? data.foto : null}
+                        existingUrl={producto?.foto_url ?? null}
+                        clearExisting={data.clear_foto}
+                        disabled={processing}
+                        onChange={(file) => {
+                            setData('foto', file);
+                            if (file) {
+                                setData('clear_foto', false);
+                            }
+                        }}
+                    />
+                    {isEdit && Boolean(producto?.foto_url) ? (
+                        <label
+                            htmlFor="p-clear-foto"
+                            className="mt-2 flex cursor-pointer items-center gap-2"
+                        >
+                            <Checkbox
+                                id="p-clear-foto"
+                                checked={data.clear_foto}
+                                disabled={data.foto instanceof File || processing}
+                                onCheckedChange={(checked) => {
+                                    const on = checked === true;
+                                    setData('clear_foto', on);
+                                    if (on) {
+                                        setData('foto', null);
+                                    }
+                                }}
+                            />
+                            <span className="text-sm">Quitar foto actual</span>
+                        </label>
+                    ) : null}
+                </FormField>
+
                 <FormField
                     id="p-nombre"
                     label="Nombre"

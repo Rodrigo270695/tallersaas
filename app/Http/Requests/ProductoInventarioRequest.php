@@ -41,6 +41,8 @@ class ProductoInventarioRequest extends FormRequest
             'precio_compra' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
             'stock_minimo' => ['nullable', 'numeric', 'min:0', 'max:999999999.999'],
             'activo' => ['required', 'boolean'],
+            'foto' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'clear_foto' => ['nullable', 'boolean'],
         ];
 
         if ($isCreate) {
@@ -68,6 +70,14 @@ class ProductoInventarioRequest extends FormRequest
             'stock_minimo' => 'stock mínimo',
             'stock_inicial_sede_id' => 'sede de stock inicial',
             'stock_inicial_cantidad' => 'stock inicial',
+            'foto' => 'foto',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'foto.max' => 'La foto no puede superar los 2 MB.',
         ];
     }
 
@@ -85,6 +95,12 @@ class ProductoInventarioRequest extends FormRequest
             'categoria_id' => filled($this->input('categoria_id')) ? $this->input('categoria_id') : null,
             'descripcion' => filled($this->input('descripcion')) ? trim((string) $this->input('descripcion')) : null,
         ]);
+
+        if ($this->has('clear_foto')) {
+            $this->merge([
+                'clear_foto' => filter_var($this->input('clear_foto'), FILTER_VALIDATE_BOOLEAN),
+            ]);
+        }
 
         foreach (['precio_venta', 'precio_compra', 'stock_minimo', 'stock_inicial_cantidad'] as $campo) {
             if ($this->input($campo) === '') {

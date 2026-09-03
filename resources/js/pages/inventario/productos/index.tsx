@@ -25,6 +25,7 @@ import productos from '@/routes/inventario/productos';
 import type { Paginated } from '@/types';
 import { ProductoDeleteDialog } from './components/producto-delete-dialog';
 import { ProductoFormModal } from './components/producto-form-modal';
+import { ProductoFotoCell } from './components/producto-foto-cell';
 import type {
     Producto,
     ProductoFilters,
@@ -87,6 +88,17 @@ export default function Index({
 
     const columns = useMemo<DataTableColumn<Producto>[]>(() => {
         const base: DataTableColumn<Producto>[] = [
+            {
+                key: 'foto',
+                header: 'Foto',
+                cell: (row) => (
+                    <ProductoFotoCell
+                        fotoUrl={row.foto_url}
+                        etiqueta={row.nombre}
+                    />
+                ),
+                className: 'w-14',
+            },
             {
                 key: 'nombre',
                 header: 'Repuesto',

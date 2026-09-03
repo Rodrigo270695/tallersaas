@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\ProductoFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -35,9 +36,17 @@ class Producto extends Model
         'precio_venta',
         'precio_compra',
         'stock_minimo',
+        'foto_path',
         'activo',
         'created_by_id',
         'updated_by_id',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    protected $appends = [
+        'foto_url',
     ];
 
     protected function casts(): array
@@ -48,6 +57,18 @@ class Producto extends Model
             'precio_compra' => 'decimal:2',
             'stock_minimo' => 'decimal:3',
         ];
+    }
+
+    /**
+     * URL pública de la foto (via symlink `public/storage`).
+     */
+    protected function fotoUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): ?string => $this->foto_path
+                ? asset('storage/'.ltrim($this->foto_path, '/'))
+                : null,
+        );
     }
 
     public function categoria(): BelongsTo
