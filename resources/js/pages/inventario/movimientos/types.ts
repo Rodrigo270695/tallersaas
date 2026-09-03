@@ -32,6 +32,14 @@ export type MovimientoFilters = {
     direction: 'asc' | 'desc' | null;
     tipo: 'todos' | MovimientoTipo;
     sede_id: string;
+    fecha_desde: string;
+    fecha_hasta: string;
+};
+
+export type MovimientoFiltroUi = {
+    default_desde: string;
+    default_hasta: string;
+    timezone: string;
 };
 
 export type MovimientoStats = {

@@ -11,6 +11,7 @@ import {
     PageHeader,
 } from '@/components/data-page';
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
+import { DateRangeFilter } from '@/components/date-range-filter';
 import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
@@ -23,6 +24,7 @@ import { CompraRowActions } from './components/compra-row-actions';
 import type {
     Compra,
     CompraFilters,
+    CompraFiltroUi,
     CompraStats,
     ProductoOption,
     ProveedorOption,
@@ -45,6 +47,7 @@ const money = (value: string | number | null): string => {
 export default function Index({
     compras: paginated,
     filters,
+    compra_filtro_ui: compraFiltroUi,
     stats,
     sede_options: sedes,
     proveedor_options: proveedores,
@@ -53,6 +56,7 @@ export default function Index({
 }: {
     compras: Paginated<Compra>;
     filters: CompraFilters;
+    compra_filtro_ui: CompraFiltroUi;
     stats: CompraStats;
     sede_options: readonly SedeOption[];
     proveedor_options: readonly ProveedorOption[];
@@ -68,10 +72,12 @@ export default function Index({
             estado: CompraFilters['estado'];
             sede_id: string;
             proveedor_id: string;
+            fecha_desde: string;
+            fecha_hasta: string;
         }>({
             routeUrl: compras.index().url,
             initialFilters: filters,
-            only: ['compras', 'filters', 'stats'],
+            only: ['compras', 'filters', 'stats', 'compra_filtro_ui'],
             errorMessage: 'No se pudo cargar las compras.',
             storageKey: 'tallersaas.inventario-compras.prefs',
             defaults: { per_page: 10, sort: null, direction: null },
@@ -181,8 +187,30 @@ export default function Index({
         [sedes],
     );
 
-    const activeFiltersCount =
-        (filters.sede_id ? 1 : 0) + (filters.proveedor_id ? 1 : 0);
+    const activeFiltersCount = useMemo(() => {
+        let count = 0;
+        if (filters.sede_id) {
+            count += 1;
+        }
+        if (filters.proveedor_id) {
+            count += 1;
+        }
+        if (
+            filters.fecha_desde !== compraFiltroUi.default_desde ||
+            filters.fecha_hasta !== compraFiltroUi.default_hasta
+        ) {
+            count += 1;
+        }
+
+        return count;
+    }, [
+        filters.sede_id,
+        filters.proveedor_id,
+        filters.fecha_desde,
+        filters.fecha_hasta,
+        compraFiltroUi.default_desde,
+        compraFiltroUi.default_hasta,
+    ]);
 
     return (
         <>
@@ -236,40 +264,56 @@ export default function Index({
                             isSearching={isLoading}
                             placeholder="Buscar por serie, número o proveedor…"
                         >
-                            <FilterChips
-                                ariaLabel="Filtrar por estado"
-                                value={filters.estado}
-                                onChange={(estado) =>
-                                    applyFilter({ estado: estado as CompraFilters['estado'] })
-                                }
-                                options={estadoOptions}
-                            />
-                            {sedes.length > 0 && (
+                            <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
                                 <FilterChips
-                                    ariaLabel="Filtrar por sede"
-                                    value={filters.sede_id || ALL_SEDES}
-                                    onChange={(value) =>
-                                        applyFilter({
-                                            sede_id: value === ALL_SEDES ? '' : value,
-                                        })
+                                    ariaLabel="Filtrar por estado"
+                                    value={filters.estado}
+                                    onChange={(estado) =>
+                                        applyFilter({ estado: estado as CompraFilters['estado'] })
                                     }
-                                    options={sedeOptions}
+                                    options={estadoOptions}
+                                    disabled={isLoading}
                                 />
-                            )}
-                            {proveedores.length > 0 && (
-                                <Combobox
-                                    options={proveedorFilterOptions}
-                                    value={filters.proveedor_id || null}
-                                    onChange={(value) =>
-                                        applyFilter({ proveedor_id: value ?? '' })
+                                {sedes.length > 0 && (
+                                    <FilterChips
+                                        ariaLabel="Filtrar por sede"
+                                        value={filters.sede_id || ALL_SEDES}
+                                        onChange={(value) =>
+                                            applyFilter({
+                                                sede_id: value === ALL_SEDES ? '' : value,
+                                            })
+                                        }
+                                        options={sedeOptions}
+                                        disabled={isLoading}
+                                    />
+                                )}
+                                {proveedores.length > 0 && (
+                                    <Combobox
+                                        options={proveedorFilterOptions}
+                                        value={filters.proveedor_id || null}
+                                        onChange={(value) =>
+                                            applyFilter({ proveedor_id: value ?? '' })
+                                        }
+                                        placeholder="Todos los proveedores"
+                                        searchPlaceholder="Buscar proveedor…"
+                                        emptyMessage="Sin coincidencias."
+                                        clearable
+                                        className="h-9 w-56"
+                                    />
+                                )}
+                                <DateRangeFilter
+                                    desde={filters.fecha_desde}
+                                    hasta={filters.fecha_hasta}
+                                    defaultDesde={compraFiltroUi.default_desde}
+                                    defaultHasta={compraFiltroUi.default_hasta}
+                                    timeZone={compraFiltroUi.timezone}
+                                    disabled={isLoading}
+                                    triggerClassName="h-9 min-w-[12rem]"
+                                    onApply={(desde, hasta) =>
+                                        applyFilter({ fecha_desde: desde, fecha_hasta: hasta })
                                     }
-                                    placeholder="Todos los proveedores"
-                                    searchPlaceholder="Buscar proveedor…"
-                                    emptyMessage="Sin coincidencias."
-                                    clearable
-                                    className="h-9 w-56"
                                 />
-                            )}
+                            </div>
                         </DataToolbar>
                     }
                     footer={
@@ -284,16 +328,24 @@ export default function Index({
                                 estado: filters.estado !== 'activa' ? filters.estado : undefined,
                                 sede_id: filters.sede_id || undefined,
                                 proveedor_id: filters.proveedor_id || undefined,
+                                fecha_desde: filters.fecha_desde,
+                                fecha_hasta: filters.fecha_hasta,
                             }}
                         />
                     }
                     emptyState={
                         <EmptyState
                             icon={ShoppingCart}
-                            title="Aún no hay compras"
-                            description="Registra una compra para actualizar el stock del almacén."
+                            title={
+                                activeFiltersCount > 0 ? 'Sin resultados' : 'Aún no hay compras'
+                            }
+                            description={
+                                activeFiltersCount > 0
+                                    ? 'Prueba ajustando la búsqueda o los filtros.'
+                                    : 'Registra una compra para actualizar el stock del almacén.'
+                            }
                             action={
-                                canCreate ? (
+                                activeFiltersCount === 0 && canCreate ? (
                                     <Button
                                         type="button"
                                         className="cursor-pointer gap-2"

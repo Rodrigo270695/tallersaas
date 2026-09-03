@@ -11,6 +11,7 @@ import {
     PageHeader,
 } from '@/components/data-page';
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
+import { DateRangeFilter } from '@/components/date-range-filter';
 import { Button } from '@/components/ui/button';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
@@ -20,6 +21,7 @@ import { MovimientoFormModal } from './components/movimiento-form-modal';
 import type {
     Movimiento,
     MovimientoFilters,
+    MovimientoFiltroUi,
     MovimientoStats,
     MovimientoTipo,
     ProductoMovimientoOption,
@@ -45,12 +47,14 @@ const tipoClass: Record<MovimientoTipo, string> = {
 export default function Index({
     movimientos: paginated,
     filters,
+    movimiento_filtro_ui: movimientoFiltroUi,
     stats,
     sede_options: sedes,
     producto_options: productos,
 }: {
     movimientos: Paginated<Movimiento>;
     filters: MovimientoFilters;
+    movimiento_filtro_ui: MovimientoFiltroUi;
     stats: MovimientoStats;
     sede_options: readonly SedeOption[];
     producto_options: readonly ProductoMovimientoOption[];
@@ -62,10 +66,12 @@ export default function Index({
         useDataTablePage<{
             tipo: MovimientoFilters['tipo'];
             sede_id: string;
+            fecha_desde: string;
+            fecha_hasta: string;
         }>({
             routeUrl: movimientos.index().url,
             initialFilters: filters,
-            only: ['movimientos', 'filters', 'stats'],
+            only: ['movimientos', 'filters', 'stats', 'movimiento_filtro_ui'],
             errorMessage: 'No se pudo cargar los movimientos.',
             storageKey: 'tallersaas.inventario-movimientos.prefs',
             defaults: { per_page: 10, sort: null, direction: null },
@@ -175,8 +181,30 @@ export default function Index({
         [sedes],
     );
 
-    const activeFiltersCount =
-        (filters.tipo !== 'todos' ? 1 : 0) + (filters.sede_id ? 1 : 0);
+    const activeFiltersCount = useMemo(() => {
+        let count = 0;
+        if (filters.tipo !== 'todos') {
+            count += 1;
+        }
+        if (filters.sede_id) {
+            count += 1;
+        }
+        if (
+            filters.fecha_desde !== movimientoFiltroUi.default_desde ||
+            filters.fecha_hasta !== movimientoFiltroUi.default_hasta
+        ) {
+            count += 1;
+        }
+
+        return count;
+    }, [
+        filters.tipo,
+        filters.sede_id,
+        filters.fecha_desde,
+        filters.fecha_hasta,
+        movimientoFiltroUi.default_desde,
+        movimientoFiltroUi.default_hasta,
+    ]);
 
     return (
         <>
@@ -235,28 +263,44 @@ export default function Index({
                             isSearching={isLoading}
                             placeholder="Buscar por repuesto o notas…"
                         >
-                            <FilterChips
-                                ariaLabel="Filtrar por tipo"
-                                value={filters.tipo}
-                                onChange={(tipo) =>
-                                    applyFilter({
-                                        tipo: tipo as MovimientoFilters['tipo'],
-                                    })
-                                }
-                                options={tipoOptions}
-                            />
-                            {sedes.length > 0 && (
+                            <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
                                 <FilterChips
-                                    ariaLabel="Filtrar por sede"
-                                    value={filters.sede_id || ALL_SEDES}
-                                    onChange={(value) =>
+                                    ariaLabel="Filtrar por tipo"
+                                    value={filters.tipo}
+                                    onChange={(tipo) =>
                                         applyFilter({
-                                            sede_id: value === ALL_SEDES ? '' : value,
+                                            tipo: tipo as MovimientoFilters['tipo'],
                                         })
                                     }
-                                    options={sedeOptions}
+                                    options={tipoOptions}
+                                    disabled={isLoading}
                                 />
-                            )}
+                                {sedes.length > 0 && (
+                                    <FilterChips
+                                        ariaLabel="Filtrar por sede"
+                                        value={filters.sede_id || ALL_SEDES}
+                                        onChange={(value) =>
+                                            applyFilter({
+                                                sede_id: value === ALL_SEDES ? '' : value,
+                                            })
+                                        }
+                                        options={sedeOptions}
+                                        disabled={isLoading}
+                                    />
+                                )}
+                                <DateRangeFilter
+                                    desde={filters.fecha_desde}
+                                    hasta={filters.fecha_hasta}
+                                    defaultDesde={movimientoFiltroUi.default_desde}
+                                    defaultHasta={movimientoFiltroUi.default_hasta}
+                                    timeZone={movimientoFiltroUi.timezone}
+                                    disabled={isLoading}
+                                    triggerClassName="h-9 min-w-[12rem]"
+                                    onApply={(desde, hasta) =>
+                                        applyFilter({ fecha_desde: desde, fecha_hasta: hasta })
+                                    }
+                                />
+                            </div>
                         </DataToolbar>
                     }
                     footer={
@@ -270,16 +314,26 @@ export default function Index({
                                 direction: filters.direction ?? undefined,
                                 tipo: filters.tipo !== 'todos' ? filters.tipo : undefined,
                                 sede_id: filters.sede_id || undefined,
+                                fecha_desde: filters.fecha_desde,
+                                fecha_hasta: filters.fecha_hasta,
                             }}
                         />
                     }
                     emptyState={
                         <EmptyState
                             icon={ArrowLeftRight}
-                            title="Aún no hay movimientos"
-                            description="Registra una entrada, salida o merma para ver el kardex."
+                            title={
+                                activeFiltersCount > 0
+                                    ? 'Sin resultados'
+                                    : 'Aún no hay movimientos'
+                            }
+                            description={
+                                activeFiltersCount > 0
+                                    ? 'Prueba ajustando la búsqueda o los filtros.'
+                                    : 'Registra una entrada, salida o merma para ver el kardex.'
+                            }
                             action={
-                                canCreate ? (
+                                activeFiltersCount === 0 && canCreate ? (
                                     <Button
                                         type="button"
                                         className="cursor-pointer gap-2"

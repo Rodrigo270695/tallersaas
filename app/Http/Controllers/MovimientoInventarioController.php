@@ -38,6 +38,21 @@ class MovimientoInventarioController extends Controller
             $tipo = 'todos';
         }
 
+        $tz = (string) config('app.timezone', 'America/Lima');
+        $now = now($tz);
+        $defaultDesde = $now->copy()->startOfMonth()->toDateString();
+        $defaultHasta = $now->toDateString();
+
+        $fechaDesde = $this->parseDateParam($request->query('fecha_desde'));
+        $fechaHasta = $this->parseDateParam($request->query('fecha_hasta'));
+
+        if ($fechaDesde === null || $fechaHasta === null) {
+            $fechaDesde = $defaultDesde;
+            $fechaHasta = $defaultHasta;
+        } elseif ($fechaDesde > $fechaHasta) {
+            [$fechaDesde, $fechaHasta] = [$fechaHasta, $fechaDesde];
+        }
+
         $sedesActivas = Sede::query()
             ->where('tenant_id', $tenantId)
             ->where('activa', true)
@@ -50,7 +65,9 @@ class MovimientoInventarioController extends Controller
             : '';
 
         $query = MovimientoInventario::query()
-            ->with(['producto:id,nombre,sku', 'creadoPor:id,name']);
+            ->with(['producto:id,nombre,sku', 'creadoPor:id,name'])
+            ->whereRaw('DATE(created_at) >= ?', [$fechaDesde])
+            ->whereRaw('DATE(created_at) <= ?', [$fechaHasta]);
 
         if ($sortValid) {
             $query->orderBy($sort, $directionValid ? $direction : 'desc');
@@ -92,6 +109,11 @@ class MovimientoInventarioController extends Controller
             return $mov;
         });
 
+        $statsBase = MovimientoInventario::query()
+            ->whereRaw('DATE(created_at) >= ?', [$fechaDesde])
+            ->whereRaw('DATE(created_at) <= ?', [$fechaHasta])
+            ->when($sedeFiltro !== '', fn ($q) => $q->where('sede_id', $sedeFiltro));
+
         return Inertia::render('inventario/movimientos/index', [
             'movimientos' => $movimientos,
             'filters' => [
@@ -101,11 +123,16 @@ class MovimientoInventarioController extends Controller
                 'direction' => $sortValid && $directionValid ? $direction : null,
                 'tipo' => $tipo,
                 'sede_id' => $sedeFiltro,
+                'fecha_desde' => $fechaDesde,
+                'fecha_hasta' => $fechaHasta,
+            ],
+            'movimiento_filtro_ui' => [
+                'default_desde' => $defaultDesde,
+                'default_hasta' => $defaultHasta,
+                'timezone' => $tz,
             ],
             'stats' => [
-                'total' => MovimientoInventario::query()
-                    ->when($sedeFiltro !== '', fn ($q) => $q->where('sede_id', $sedeFiltro))
-                    ->count(),
+                'total' => (clone $statsBase)->count(),
                 'coincidencias' => $movimientos->total(),
             ],
             'sede_options' => $sedesActivas,
@@ -146,5 +173,14 @@ class MovimientoInventarioController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Movimiento registrado correctamente.']);
 
         return back();
+    }
+
+    private function parseDateParam(mixed $value): ?string
+    {
+        if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) !== 1) {
+            return null;
+        }
+
+        return $value;
     }
 }

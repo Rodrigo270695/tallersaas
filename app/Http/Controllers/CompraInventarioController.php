@@ -47,6 +47,21 @@ class CompraInventarioController extends Controller
             $estado = 'activa';
         }
 
+        $tz = (string) config('app.timezone', 'America/Lima');
+        $hoy = now($tz)->toDateString();
+        $defaultDesde = $hoy;
+        $defaultHasta = $hoy;
+
+        $fechaDesde = $this->parseDateParam($request->query('fecha_desde'));
+        $fechaHasta = $this->parseDateParam($request->query('fecha_hasta'));
+
+        if ($fechaDesde === null || $fechaHasta === null) {
+            $fechaDesde = $defaultDesde;
+            $fechaHasta = $defaultHasta;
+        } elseif ($fechaDesde > $fechaHasta) {
+            [$fechaDesde, $fechaHasta] = [$fechaHasta, $fechaDesde];
+        }
+
         $sedesActivas = Sede::query()
             ->where('tenant_id', $tenantId)
             ->where('activa', true)
@@ -63,6 +78,9 @@ class CompraInventarioController extends Controller
         $query = Compra::query()->with(['proveedor:id,ruc,razon_social', 'creadoPor:id,name'])->withCount('lineas');
 
         $query = $estado === 'anulada' ? $query->onlyTrashed() : $query->whereNull('deleted_at');
+
+        $query->whereDate('fecha_documento', '>=', $fechaDesde)
+            ->whereDate('fecha_documento', '<=', $fechaHasta);
 
         if ($sortValid) {
             $query->orderBy($sort, $directionValid ? $direction : 'desc');
@@ -101,6 +119,17 @@ class CompraInventarioController extends Controller
             return $c;
         });
 
+        $statsBase = Compra::query()
+            ->whereDate('fecha_documento', '>=', $fechaDesde)
+            ->whereDate('fecha_documento', '<=', $fechaHasta)
+            ->when($sedeFiltro !== '', fn ($q) => $q->where('sede_id', $sedeFiltro));
+
+        if ($estado === 'anulada') {
+            $statsBase->onlyTrashed();
+        } else {
+            $statsBase->whereNull('deleted_at');
+        }
+
         return Inertia::render('inventario/compras/index', [
             'compras' => $compras,
             'filters' => [
@@ -111,9 +140,16 @@ class CompraInventarioController extends Controller
                 'estado' => $estado,
                 'sede_id' => $sedeFiltro,
                 'proveedor_id' => $proveedorFiltro,
+                'fecha_desde' => $fechaDesde,
+                'fecha_hasta' => $fechaHasta,
+            ],
+            'compra_filtro_ui' => [
+                'default_desde' => $defaultDesde,
+                'default_hasta' => $defaultHasta,
+                'timezone' => $tz,
             ],
             'stats' => [
-                'total' => Compra::count(),
+                'total' => (clone $statsBase)->count(),
                 'coincidencias' => $compras->total(),
             ],
             'sede_options' => $sedesActivas,
@@ -306,5 +342,14 @@ class CompraInventarioController extends Controller
             'factura_path' => "{$dir}/{$filename}",
             'factura_original_name' => $file->getClientOriginalName(),
         ]);
+    }
+
+    private function parseDateParam(mixed $value): ?string
+    {
+        if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) !== 1) {
+            return null;
+        }
+
+        return $value;
     }
 }

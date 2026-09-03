@@ -53,4 +53,12 @@ export type CompraFilters = {
     estado: 'activa' | 'anulada';
     sede_id: string;
     proveedor_id: string;
+    fecha_desde: string;
+    fecha_hasta: string;
+};
+
+export type CompraFiltroUi = {
+    default_desde: string;
+    default_hasta: string;
+    timezone: string;
 };
