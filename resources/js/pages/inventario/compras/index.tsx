@@ -13,13 +13,6 @@ import {
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
 import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
 import compras from '@/routes/inventario/compras';
@@ -177,6 +170,17 @@ export default function Index({
         { value: 'anulada', label: 'Anuladas' },
     ];
 
+    const sedeOptions = useMemo<FilterChip<string>[]>(
+        () => [
+            { value: ALL_SEDES, label: 'Todas las sedes' },
+            ...sedes.map((sede) => ({
+                value: sede.id,
+                label: sede.nombre,
+            })),
+        ],
+        [sedes],
+    );
+
     const activeFiltersCount =
         (filters.sede_id ? 1 : 0) + (filters.proveedor_id ? 1 : 0);
 
@@ -240,27 +244,17 @@ export default function Index({
                                 }
                                 options={estadoOptions}
                             />
-                            {sedes.length > 1 && (
-                                <Select
+                            {sedes.length > 0 && (
+                                <FilterChips
+                                    ariaLabel="Filtrar por sede"
                                     value={filters.sede_id || ALL_SEDES}
-                                    onValueChange={(value) =>
+                                    onChange={(value) =>
                                         applyFilter({
                                             sede_id: value === ALL_SEDES ? '' : value,
                                         })
                                     }
-                                >
-                                    <SelectTrigger className="h-9 w-56" aria-label="Sede">
-                                        <SelectValue placeholder="Sede" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value={ALL_SEDES}>Todas las sedes</SelectItem>
-                                        {sedes.map((sede) => (
-                                            <SelectItem key={sede.id} value={sede.id}>
-                                                {sede.nombre}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    options={sedeOptions}
+                                />
                             )}
                             {proveedores.length > 0 && (
                                 <Combobox

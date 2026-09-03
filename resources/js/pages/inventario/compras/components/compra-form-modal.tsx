@@ -5,13 +5,6 @@ import { FormField, FormModal, FormSection } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import compras from '@/routes/inventario/compras';
 import type {
@@ -45,7 +38,24 @@ type FormData = {
     lineas: LineaForm[];
 };
 
-const today = (): string => new Date().toISOString().slice(0, 10);
+/** Fecha de hoy en zona horaria de Perú (America/Lima), formato YYYY-MM-DD. */
+const todayPeru = (): string =>
+    new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Lima',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(new Date());
+
+const TIPO_OPTIONS: ComboboxOption[] = [
+    { value: 'boleta', label: 'Boleta' },
+    { value: 'factura', label: 'Factura' },
+];
+
+const MODO_OPTIONS: ComboboxOption[] = [
+    { value: 'existente', label: 'Repuesto existente' },
+    { value: 'nuevo', label: 'Repuesto nuevo' },
+];
 
 const emptyLinea = (unidadDefault: string): LineaForm => ({
     modo: 'existente',
@@ -96,7 +106,7 @@ export function CompraFormModal({
             tipo_comprobante: 'boleta',
             serie: '',
             numero_documento: '',
-            fecha_documento: today(),
+            fecha_documento: todayPeru(),
             notas: '',
             factura: null,
             lineas: [emptyLinea(unidadDefault)],
@@ -116,7 +126,7 @@ export function CompraFormModal({
             tipo_comprobante: 'boleta',
             serie: '',
             numero_documento: '',
-            fecha_documento: today(),
+            fecha_documento: todayPeru(),
             notas: '',
             factura: null,
             lineas: [emptyLinea(unidadDefault)],
@@ -131,6 +141,11 @@ export function CompraFormModal({
                 label: `${p.razon_social} (${p.ruc})`,
             })),
         [proveedores],
+    );
+
+    const sedeOptions = useMemo<readonly ComboboxOption[]>(
+        () => sedes.map((s) => ({ value: s.id, label: s.nombre })),
+        [sedes],
     );
 
     const productoOptions = useMemo<readonly ComboboxOption[]>(
@@ -273,7 +288,7 @@ export function CompraFormModal({
                     >
                         <Combobox
                             id="compra-sede"
-                            options={sedes.map((s) => ({ value: s.id, label: s.nombre }))}
+                            options={sedeOptions}
                             value={data.sede_id || null}
                             onChange={(value) => setData('sede_id', value ?? '')}
                             placeholder="Selecciona sede"
@@ -292,21 +307,23 @@ export function CompraFormModal({
                         error={errors.tipo_comprobante}
                         className="min-w-0"
                     >
-                        <Select
+                        <Combobox
+                            id="compra-tipo"
+                            options={TIPO_OPTIONS}
                             value={data.tipo_comprobante}
-                            onValueChange={(value) =>
-                                setData('tipo_comprobante', value as CompraTipoComprobante)
+                            onChange={(value) =>
+                                setData(
+                                    'tipo_comprobante',
+                                    (value as CompraTipoComprobante) ?? 'boleta',
+                                )
                             }
+                            placeholder="Tipo"
+                            searchPlaceholder="Buscar…"
+                            emptyMessage="Sin coincidencias."
+                            clearable={false}
                             disabled={processing}
-                        >
-                            <SelectTrigger id="compra-tipo">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="boleta">Boleta</SelectItem>
-                                <SelectItem value="factura">Factura</SelectItem>
-                            </SelectContent>
-                        </Select>
+                            aria-invalid={Boolean(errors.tipo_comprobante)}
+                        />
                     </FormField>
 
                     <FormField
@@ -368,6 +385,7 @@ export function CompraFormModal({
                             accept=".pdf,.jpg,.jpeg,.png"
                             onChange={(e) => setData('factura', e.target.files?.[0] ?? null)}
                             disabled={processing}
+                            className="cursor-pointer file:mr-3 file:cursor-pointer"
                         />
                     </FormField>
 
@@ -394,61 +412,82 @@ export function CompraFormModal({
                     columns={1}
                 >
                     {data.lineas.map((linea, index) => (
-                        <div key={index} className="flex flex-col gap-2 rounded-md border p-3">
-                            <div className="flex items-center justify-between gap-2">
-                                <Select
-                                    value={linea.modo}
-                                    onValueChange={(value) =>
-                                        setLinea(index, { modo: value as LineaModo })
-                                    }
-                                    disabled={processing}
-                                >
-                                    <SelectTrigger className="h-8 w-44">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="existente">
-                                            Repuesto existente
-                                        </SelectItem>
-                                        <SelectItem value="nuevo">Repuesto nuevo</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                {data.lineas.length > 1 && (
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="size-8 cursor-pointer text-destructive"
-                                        onClick={() =>
-                                            setData(
-                                                'lineas',
-                                                data.lineas.filter((_, i) => i !== index),
-                                            )
+                        <div
+                            key={index}
+                            className="grid gap-3 rounded-md border border-border/70 p-3 sm:grid-cols-2"
+                        >
+                            <FormField
+                                id={`compra-linea-modo-${index}`}
+                                label="Tipo de línea"
+                                className="min-w-0"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Combobox
+                                        id={`compra-linea-modo-${index}`}
+                                        options={MODO_OPTIONS}
+                                        value={linea.modo}
+                                        onChange={(value) =>
+                                            setLinea(index, {
+                                                modo: (value as LineaModo) ?? 'existente',
+                                            })
                                         }
+                                        placeholder="Tipo"
+                                        searchPlaceholder="Buscar…"
+                                        emptyMessage="Sin coincidencias."
+                                        clearable={false}
                                         disabled={processing}
-                                    >
-                                        <Trash2 className="size-4" />
-                                    </Button>
-                                )}
-                            </div>
+                                        className="min-w-0 flex-1"
+                                    />
+                                    {data.lineas.length > 1 && (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="size-9 shrink-0 cursor-pointer text-destructive"
+                                            onClick={() =>
+                                                setData(
+                                                    'lineas',
+                                                    data.lineas.filter((_, i) => i !== index),
+                                                )
+                                            }
+                                            disabled={processing}
+                                            aria-label="Quitar línea"
+                                        >
+                                            <Trash2 className="size-4" />
+                                        </Button>
+                                    )}
+                                </div>
+                            </FormField>
 
                             {linea.modo === 'existente' ? (
-                                <Combobox
-                                    options={productoOptions}
-                                    value={linea.producto_id || null}
-                                    onChange={(value) =>
-                                        setLinea(index, { producto_id: value ?? '' })
-                                    }
-                                    placeholder="Elegir repuesto"
-                                    searchPlaceholder="Buscar repuesto…"
-                                    emptyMessage="Sin coincidencias."
-                                    clearable={false}
-                                    disabled={processing}
-                                    aria-invalid={Boolean(errors.lineas)}
-                                />
+                                <FormField
+                                    id={`compra-linea-producto-${index}`}
+                                    label="Repuesto"
+                                    className="min-w-0"
+                                >
+                                    <Combobox
+                                        id={`compra-linea-producto-${index}`}
+                                        options={productoOptions}
+                                        value={linea.producto_id || null}
+                                        onChange={(value) =>
+                                            setLinea(index, { producto_id: value ?? '' })
+                                        }
+                                        placeholder="Elegir repuesto"
+                                        searchPlaceholder="Buscar repuesto…"
+                                        emptyMessage="Sin coincidencias."
+                                        clearable={false}
+                                        disabled={processing}
+                                        aria-invalid={Boolean(errors.lineas)}
+                                    />
+                                </FormField>
                             ) : (
-                                <div className="grid gap-2 sm:grid-cols-[1fr_10rem]">
+                                <FormField
+                                    id={`compra-linea-nuevo-nombre-${index}`}
+                                    label="Nombre del repuesto"
+                                    className="min-w-0"
+                                >
                                     <Input
+                                        id={`compra-linea-nuevo-nombre-${index}`}
                                         value={linea.nuevo_nombre}
                                         onChange={(e) =>
                                             setLinea(index, { nuevo_nombre: e.target.value })
@@ -456,7 +495,17 @@ export function CompraFormModal({
                                         placeholder="Nombre del repuesto nuevo"
                                         disabled={processing}
                                     />
+                                </FormField>
+                            )}
+
+                            {linea.modo === 'nuevo' && (
+                                <FormField
+                                    id={`compra-linea-unidad-${index}`}
+                                    label="Unidad"
+                                    className="min-w-0"
+                                >
                                     <Combobox
+                                        id={`compra-linea-unidad-${index}`}
                                         options={unidadOptions}
                                         value={linea.nuevo_unidad || null}
                                         onChange={(value) =>
@@ -470,47 +519,46 @@ export function CompraFormModal({
                                         clearable={false}
                                         disabled={processing}
                                     />
-                                </div>
+                                </FormField>
                             )}
 
-                            <div className="grid gap-2 sm:grid-cols-2">
-                                <FormField
+                            <FormField
+                                id={`compra-linea-cantidad-${index}`}
+                                label="Cantidad"
+                                className="min-w-0"
+                            >
+                                <Input
                                     id={`compra-linea-cantidad-${index}`}
-                                    label="Cantidad"
-                                    className="min-w-0"
-                                >
-                                    <Input
-                                        id={`compra-linea-cantidad-${index}`}
-                                        type="number"
-                                        min="0.001"
-                                        step="0.001"
-                                        inputMode="decimal"
-                                        value={linea.cantidad}
-                                        onChange={(e) =>
-                                            setLinea(index, { cantidad: e.target.value })
-                                        }
-                                        disabled={processing}
-                                    />
-                                </FormField>
-                                <FormField
+                                    type="number"
+                                    min="0.001"
+                                    step="0.001"
+                                    inputMode="decimal"
+                                    value={linea.cantidad}
+                                    onChange={(e) =>
+                                        setLinea(index, { cantidad: e.target.value })
+                                    }
+                                    disabled={processing}
+                                />
+                            </FormField>
+
+                            <FormField
+                                id={`compra-linea-costo-${index}`}
+                                label="Costo unitario"
+                                className="min-w-0"
+                            >
+                                <Input
                                     id={`compra-linea-costo-${index}`}
-                                    label="Costo unitario"
-                                    className="min-w-0"
-                                >
-                                    <Input
-                                        id={`compra-linea-costo-${index}`}
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        inputMode="decimal"
-                                        value={linea.costo_unitario}
-                                        onChange={(e) =>
-                                            setLinea(index, { costo_unitario: e.target.value })
-                                        }
-                                        disabled={processing}
-                                    />
-                                </FormField>
-                            </div>
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    inputMode="decimal"
+                                    value={linea.costo_unitario}
+                                    onChange={(e) =>
+                                        setLinea(index, { costo_unitario: e.target.value })
+                                    }
+                                    disabled={processing}
+                                />
+                            </FormField>
                         </div>
                     ))}
 
