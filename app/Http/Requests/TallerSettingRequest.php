@@ -43,6 +43,10 @@ class TallerSettingRequest extends FormRequest
             'apisunat_token' => ['nullable', 'string', 'max:500'],
             'clear_apisunat_token' => ['nullable', 'boolean'],
             'apisunat_mode' => ['nullable', Rule::in(['sandbox', 'produccion'])],
+
+            'notificar_cita_whatsapp_activo' => ['nullable', 'boolean'],
+            'recordatorio_48h_activo' => ['nullable', 'boolean'],
+            'recordatorio_2h_activo' => ['nullable', 'boolean'],
         ];
     }
 
@@ -91,6 +95,9 @@ class TallerSettingRequest extends FormRequest
             'precio_incluye_igv' => $this->boolean('precio_incluye_igv'),
             'emite_comprobantes_sunat' => $this->boolean('emite_comprobantes_sunat'),
             'clear_apisunat_token' => $this->boolean('clear_apisunat_token'),
+            'notificar_cita_whatsapp_activo' => $this->boolean('notificar_cita_whatsapp_activo'),
+            'recordatorio_48h_activo' => $this->boolean('recordatorio_48h_activo'),
+            'recordatorio_2h_activo' => $this->boolean('recordatorio_2h_activo'),
         ];
 
         foreach ($nullable as $field) {

@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Eye, Filter, Plus, Receipt, RefreshCw, ScreenShare, Wallet } from 'lucide-react';
 import { useMemo } from 'react';
 import { Can } from '@/components/can';
+import { DateRangeFilter } from '@/components/date-range-filter';
 import {
     DataPagination,
     DataTable,
@@ -12,6 +13,13 @@ import {
 } from '@/components/data-page';
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
 import { Button } from '@/components/ui/button';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
 import {
@@ -22,17 +30,26 @@ import {
 import ventas from '@/routes/caja/ventas';
 import documentos from '@/routes/facturacion/documentos';
 import type { Paginated } from '@/types';
-import type { Venta, VentaEstado, VentaFilters, VentaStats } from './types';
+import type {
+    Venta,
+    VentaEstado,
+    VentaFilters,
+    VentaFiltroUi,
+    VentaStats,
+} from './types';
 
 type IndexProps = {
     ventas: Paginated<Venta>;
     filters: VentaFilters;
+    venta_filtro_ui: VentaFiltroUi;
     stats: VentaStats;
     mi_sesion_abierta?: { id: string } | null;
 };
 
 const DEFAULT_PER_PAGE = 10;
 const DEFAULT_ESTADO = 'todas';
+const DEFAULT_METODO = 'todos';
+const DEFAULT_TIPO = 'todos';
 
 const money = (value: string | number): string =>
     Number(value).toLocaleString('es-PE', { style: 'currency', currency: 'PEN' });
@@ -49,6 +66,7 @@ const METODO_LABEL: Record<string, string> = {
 export default function Index({
     ventas: paginated,
     filters,
+    venta_filtro_ui: ventaFiltroUi,
     stats,
     mi_sesion_abierta: miSesion = null,
 }: IndexProps) {
@@ -57,10 +75,16 @@ export default function Index({
     const canCreate = can('ventas.create');
 
     const { search, setSearch, isLoading, sort, setSort, setPerPage, applyFilter } =
-        useDataTablePage<{ estado: VentaFilters['estado'] }>({
+        useDataTablePage<{
+            estado: VentaFilters['estado'];
+            metodo_pago: VentaFilters['metodo_pago'];
+            tipo_comprobante: VentaFilters['tipo_comprobante'];
+            fecha_desde: string;
+            fecha_hasta: string;
+        }>({
             routeUrl: ventas.index().url,
             initialFilters: filters,
-            only: ['ventas', 'filters', 'stats'],
+            only: ['ventas', 'filters', 'stats', 'venta_filtro_ui'],
             errorMessage: 'No se pudo cargar las ventas.',
             storageKey: 'tallersaas.ventas.prefs',
             defaults: { per_page: DEFAULT_PER_PAGE, sort: null, direction: null },
@@ -74,9 +98,21 @@ export default function Index({
         if (filters.estado !== DEFAULT_ESTADO) {
             count += 1;
         }
+        if (filters.metodo_pago !== DEFAULT_METODO) {
+            count += 1;
+        }
+        if (filters.tipo_comprobante !== DEFAULT_TIPO) {
+            count += 1;
+        }
+        if (
+            filters.fecha_desde !== ventaFiltroUi.default_desde ||
+            filters.fecha_hasta !== ventaFiltroUi.default_hasta
+        ) {
+            count += 1;
+        }
 
         return count;
-    }, [filters.search, filters.estado]);
+    }, [filters, ventaFiltroUi.default_desde, ventaFiltroUi.default_hasta]);
 
     const estadoOptions: FilterChip[] = [
         { value: 'todas', label: 'Todas' },
@@ -316,14 +352,76 @@ export default function Index({
                             isSearching={isLoading}
                             placeholder="Buscar por número, cliente u OT…"
                         >
-                            <FilterChips
-                                ariaLabel="Filtrar por estado"
-                                value={filters.estado}
-                                onChange={(estado) =>
-                                    applyFilter({ estado: estado as VentaEstado | 'todas' })
-                                }
-                                options={estadoOptions}
-                            />
+                            <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
+                                <FilterChips
+                                    ariaLabel="Filtrar por estado"
+                                    value={filters.estado}
+                                    onChange={(estado) =>
+                                        applyFilter({ estado: estado as VentaEstado | 'todas' })
+                                    }
+                                    options={estadoOptions}
+                                />
+                                <Select
+                                    value={filters.tipo_comprobante}
+                                    onValueChange={(value) =>
+                                        applyFilter({
+                                            tipo_comprobante:
+                                                value as VentaFilters['tipo_comprobante'],
+                                        })
+                                    }
+                                    disabled={isLoading}
+                                >
+                                    <SelectTrigger
+                                        className="h-9 w-[10.5rem]"
+                                        aria-label="Tipo de comprobante"
+                                    >
+                                        <SelectValue placeholder="Comprobante" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="todos">Todos los comprobantes</SelectItem>
+                                        <SelectItem value="ticket">Ticket</SelectItem>
+                                        <SelectItem value="boleta">Boleta</SelectItem>
+                                        <SelectItem value="factura">Factura</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Select
+                                    value={filters.metodo_pago}
+                                    onValueChange={(value) =>
+                                        applyFilter({ metodo_pago: value })
+                                    }
+                                    disabled={isLoading}
+                                >
+                                    <SelectTrigger
+                                        className="h-9 w-[10.5rem]"
+                                        aria-label="Método de pago"
+                                    >
+                                        <SelectValue placeholder="Método" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="todos">Todos los métodos</SelectItem>
+                                        <SelectItem value="efectivo">Efectivo</SelectItem>
+                                        <SelectItem value="yape">Yape</SelectItem>
+                                        <SelectItem value="plin">Plin</SelectItem>
+                                        <SelectItem value="tarjeta">Tarjeta</SelectItem>
+                                        <SelectItem value="transferencia">
+                                            Transferencia
+                                        </SelectItem>
+                                        <SelectItem value="mixto">Mixto</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <DateRangeFilter
+                                    desde={filters.fecha_desde}
+                                    hasta={filters.fecha_hasta}
+                                    defaultDesde={ventaFiltroUi.default_desde}
+                                    defaultHasta={ventaFiltroUi.default_hasta}
+                                    timeZone={ventaFiltroUi.timezone}
+                                    disabled={isLoading}
+                                    triggerClassName="h-9 min-w-[12rem]"
+                                    onApply={(desde, hasta) =>
+                                        applyFilter({ fecha_desde: desde, fecha_hasta: hasta })
+                                    }
+                                />
+                            </div>
                         </DataToolbar>
                     }
                     footer={
@@ -339,6 +437,16 @@ export default function Index({
                                     filters.estado !== DEFAULT_ESTADO
                                         ? filters.estado
                                         : undefined,
+                                metodo_pago:
+                                    filters.metodo_pago !== DEFAULT_METODO
+                                        ? filters.metodo_pago
+                                        : undefined,
+                                tipo_comprobante:
+                                    filters.tipo_comprobante !== DEFAULT_TIPO
+                                        ? filters.tipo_comprobante
+                                        : undefined,
+                                fecha_desde: filters.fecha_desde,
+                                fecha_hasta: filters.fecha_hasta,
                             }}
                         />
                     }

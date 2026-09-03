@@ -64,6 +64,9 @@ class TallerSettingController extends Controller
             'ticket_ancho_mm' => (int) ($data['ticket_ancho_mm'] ?? $setting->ticketAnchoMm()),
             'emite_comprobantes_sunat' => (bool) ($data['emite_comprobantes_sunat'] ?? false),
             'apisunat_mode' => $data['apisunat_mode'] ?? $setting->apisunat_mode ?? 'sandbox',
+            'notificar_cita_whatsapp_activo' => (bool) ($data['notificar_cita_whatsapp_activo'] ?? false),
+            'recordatorio_48h_activo' => (bool) ($data['recordatorio_48h_activo'] ?? false),
+            'recordatorio_2h_activo' => (bool) ($data['recordatorio_2h_activo'] ?? false),
             'updated_by_id' => Auth::id(),
         ]);
 
@@ -181,6 +184,9 @@ class TallerSettingController extends Controller
             'emite_comprobantes_sunat' => (bool) $setting->emite_comprobantes_sunat,
             'apisunat_configurado' => ApisunatCredentialResolver::estaConfigurado($setting),
             'apisunat_mode' => $setting->apisunat_mode ?: 'sandbox',
+            'notificar_cita_whatsapp_activo' => (bool) $setting->notificar_cita_whatsapp_activo,
+            'recordatorio_48h_activo' => (bool) $setting->recordatorio_48h_activo,
+            'recordatorio_2h_activo' => (bool) $setting->recordatorio_2h_activo,
             'updated_at' => $setting->updated_at?->toIso8601String(),
             'actualizado_por' => $setting->actualizadoPor === null ? null : [
                 'id' => $setting->actualizadoPor->id,

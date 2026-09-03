@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreVentaDirectaRequest;
 use App\Models\CajaSesion;
 use App\Models\Cliente;
+use App\Models\FelSerie;
 use App\Models\OrdenTrabajo;
 use App\Models\Producto;
 use App\Models\TallerSetting;
@@ -55,13 +56,41 @@ class VentaController extends Controller
             $estado = 'todas';
         }
 
+        $metodosPermitidos = ['efectivo', 'yape', 'plin', 'tarjeta', 'transferencia', 'mixto'];
+        $metodoPago = (string) $request->string('metodo_pago', 'todos');
+        if (! in_array($metodoPago, ['todos', ...$metodosPermitidos], true)) {
+            $metodoPago = 'todos';
+        }
+
+        $tipoComprobante = (string) $request->string('tipo_comprobante', 'todos');
+        if (! in_array($tipoComprobante, ['todos', 'ticket', 'boleta', 'factura'], true)) {
+            $tipoComprobante = 'todos';
+        }
+
+        $tz = (string) config('app.timezone', 'America/Lima');
+        $hoy = now($tz)->toDateString();
+        $defaultDesde = $hoy;
+        $defaultHasta = $hoy;
+
+        $fechaDesde = $this->parseDateParam($request->query('fecha_desde'));
+        $fechaHasta = $this->parseDateParam($request->query('fecha_hasta'));
+
+        if ($fechaDesde === null || $fechaHasta === null) {
+            $fechaDesde = $defaultDesde;
+            $fechaHasta = $defaultHasta;
+        } elseif ($fechaDesde > $fechaHasta) {
+            [$fechaDesde, $fechaHasta] = [$fechaHasta, $fechaDesde];
+        }
+
         $query = Venta::query()
             ->with([
                 'cliente:id,nombres,apellidos',
                 'vehiculo:id,placa',
                 'ordenTrabajo:id,numero',
                 'sede:id,nombre',
-            ]);
+            ])
+            ->whereRaw('DATE(COALESCE(fecha_pago, created_at)) >= ?', [$fechaDesde])
+            ->whereRaw('DATE(COALESCE(fecha_pago, created_at)) <= ?', [$fechaHasta]);
 
         if ($sortValid) {
             $query->orderBy($sort, $directionValid ? $direction : 'desc');
@@ -87,9 +116,37 @@ class VentaController extends Controller
             $query->where('estado', $estado);
         }
 
+        if ($metodoPago !== 'todos') {
+            $query->where(function ($q) use ($metodoPago): void {
+                $q->where('metodo_pago', $metodoPago)
+                    ->orWhereHas('pagos', fn ($pq) => $pq->where('metodo', $metodoPago));
+            });
+        }
+
+        if ($tipoComprobante !== 'todos') {
+            if ($tipoComprobante === 'ticket') {
+                $query->where(function ($q): void {
+                    $q->whereNull('tipo_comprobante_sunat')
+                        ->orWhere('tipo_comprobante_sunat', FelSerie::TIPO_TICKET)
+                        ->orWhereNotIn('tipo_comprobante_sunat', [
+                            FelSerie::TIPO_BOLETA,
+                            FelSerie::TIPO_FACTURA,
+                        ]);
+                });
+            } elseif ($tipoComprobante === 'boleta') {
+                $query->where('tipo_comprobante_sunat', FelSerie::TIPO_BOLETA);
+            } else {
+                $query->where('tipo_comprobante_sunat', FelSerie::TIPO_FACTURA);
+            }
+        }
+
         $ventas = $query->paginate($perPage)->withQueryString();
 
-        $counts = Venta::query()
+        $countsQuery = Venta::query()
+            ->whereRaw('DATE(COALESCE(fecha_pago, created_at)) >= ?', [$fechaDesde])
+            ->whereRaw('DATE(COALESCE(fecha_pago, created_at)) <= ?', [$fechaHasta]);
+
+        $counts = (clone $countsQuery)
             ->selectRaw('estado, count(*) as total')
             ->groupBy('estado')
             ->pluck('total', 'estado');
@@ -102,9 +159,18 @@ class VentaController extends Controller
                 'sort' => $sortValid ? $sort : null,
                 'direction' => $sortValid && $directionValid ? $direction : null,
                 'estado' => $estado,
+                'metodo_pago' => $metodoPago,
+                'tipo_comprobante' => $tipoComprobante,
+                'fecha_desde' => $fechaDesde,
+                'fecha_hasta' => $fechaHasta,
+            ],
+            'venta_filtro_ui' => [
+                'default_desde' => $defaultDesde,
+                'default_hasta' => $defaultHasta,
+                'timezone' => $tz,
             ],
             'stats' => [
-                'total' => Venta::count(),
+                'total' => (int) array_sum($counts->all()),
                 'pagadas' => (int) ($counts[Venta::ESTADO_PAGADO] ?? 0),
                 'anuladas' => (int) ($counts[Venta::ESTADO_ANULADO] ?? 0),
                 'coincidencias' => $ventas->total(),
@@ -351,5 +417,14 @@ class VentaController extends Controller
             'caja.venta-ticket',
             $ticketView->viewData($venta, $setting, $ancho, $autoPrint),
         );
+    }
+
+    private function parseDateParam(mixed $value): ?string
+    {
+        if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) !== 1) {
+            return null;
+        }
+
+        return $value;
     }
 }

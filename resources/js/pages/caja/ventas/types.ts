@@ -22,6 +22,16 @@ export type VentaFilters = {
     sort: string | null;
     direction: 'asc' | 'desc' | null;
     estado: 'todas' | VentaEstado;
+    metodo_pago: 'todos' | string;
+    tipo_comprobante: 'todos' | 'ticket' | 'boleta' | 'factura';
+    fecha_desde: string;
+    fecha_hasta: string;
+};
+
+export type VentaFiltroUi = {
+    default_desde: string;
+    default_hasta: string;
+    timezone: string;
 };
 
 export type VentaStats = {
