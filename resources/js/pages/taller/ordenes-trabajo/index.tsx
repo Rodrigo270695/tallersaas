@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import {
     ClipboardList,
     Filter,
@@ -28,7 +28,6 @@ import ordenesTrabajo from '@/routes/taller/ordenes-trabajo';
 import type { Paginated } from '@/types';
 import { OrdenAvisarListaModal } from './components/orden-avisar-lista-modal';
 import { OrdenBulkDeleteDialog } from './components/orden-bulk-delete-dialog';
-import { OrdenCobroModal } from './components/orden-cobro-modal';
 import { OrdenDeleteDialog } from './components/orden-delete-dialog';
 import { OrdenFormModal } from './components/orden-form-modal';
 import { OrdenRowActions } from './components/orden-row-actions';
@@ -65,9 +64,7 @@ type IndexProps = {
 type ModalState =
     | { type: 'idle' }
     | { type: 'create' }
-    | { type: 'edit'; orden: OrdenTrabajo }
     | { type: 'delete'; orden: OrdenTrabajo }
-    | { type: 'cobrar'; orden: OrdenTrabajo }
     | { type: 'avisar'; orden: OrdenTrabajo }
     | { type: 'bulk-delete' };
 
@@ -97,21 +94,17 @@ export default function Index({
     sedes,
     clientes,
     vehiculos,
-    mi_sesion_abierta: miSesion,
-    igv,
     taller_nombre: tallerNombre = 'el taller',
     productos = [],
     servicios = [],
-    fel_ready: felReady = false,
 }: IndexProps) {
     const { can } = usePermission();
     const canCreate = can('ordenes-trabajo.create');
     const canUpdate = can('ordenes-trabajo.update');
     const canDelete = can('ordenes-trabajo.delete');
     const canBulkDelete = can('ordenes-trabajo.delete');
-    const canCobrar = can('ventas.create');
     const canPresupuesto = can('cotizaciones.create');
-    const showRowActions = canUpdate || canDelete || canCobrar || canPresupuesto;
+    const showRowActions = canUpdate || canDelete || canPresupuesto;
 
     const { search, setSearch, isLoading, sort, setSort, setPerPage, applyFilter } =
         useDataTablePage<{ estado: OrdenEstadoFilter }>({
@@ -138,16 +131,8 @@ export default function Index({
     const [modal, setModal] = useState<ModalState>({ type: 'idle' });
     const closeModal = useCallback(() => setModal({ type: 'idle' }), []);
     const openCreate = useCallback(() => setModal({ type: 'create' }), []);
-    const openEdit = useCallback(
-        (orden: OrdenTrabajo) => setModal({ type: 'edit', orden }),
-        [],
-    );
     const openDelete = useCallback(
         (orden: OrdenTrabajo) => setModal({ type: 'delete', orden }),
-        [],
-    );
-    const openCobrar = useCallback(
-        (orden: OrdenTrabajo) => setModal({ type: 'cobrar', orden }),
         [],
     );
     const openAvisar = useCallback(
@@ -190,12 +175,16 @@ export default function Index({
                 header: 'Número',
                 sortable: true,
                 cell: (orden) => (
-                    <div className="flex flex-col">
+                    <button
+                        type="button"
+                        className="flex flex-col text-left cursor-pointer hover:underline"
+                        onClick={() => router.visit(ordenesTrabajo.show(orden.id).url)}
+                    >
                         <span className="font-mono text-sm font-medium">{orden.numero}</span>
                         <span className="text-xs text-muted-foreground">
                             {orden.sede?.nombre ?? '—'}
                         </span>
-                    </div>
+                    </button>
                 ),
             },
             {
@@ -273,13 +262,10 @@ export default function Index({
                     <div className="flex justify-end">
                         <OrdenRowActions
                             orden={orden}
-                            onEdit={openEdit}
                             onDelete={openDelete}
-                            onCobrar={openCobrar}
                             onAvisar={openAvisar}
                             canUpdate={canUpdate}
                             canDelete={canDelete}
-                            canCobrar={canCobrar}
                             canPresupuesto={canPresupuesto}
                         />
                     </div>
@@ -289,7 +275,7 @@ export default function Index({
         }
 
         return base;
-    }, [showRowActions, canUpdate, canDelete, canCobrar, openEdit, openDelete, openCobrar, openAvisar]);
+    }, [showRowActions, canUpdate, canDelete, canPresupuesto, openDelete, openAvisar]);
 
     return (
         <>
@@ -390,13 +376,13 @@ export default function Index({
             </div>
 
             <OrdenFormModal
-                open={modal.type === 'create' || modal.type === 'edit'}
+                open={modal.type === 'create'}
                 onOpenChange={(open) => {
                     if (!open) {
                         closeModal();
                     }
                 }}
-                orden={modal.type === 'edit' ? modal.orden : null}
+                orden={null}
                 sedes={sedes}
                 clientes={clientes}
                 vehiculos={vehiculos}
@@ -415,21 +401,6 @@ export default function Index({
                 orden={modal.type === 'delete' ? modal.orden : null}
             />
 
-            <OrdenCobroModal
-                open={modal.type === 'cobrar'}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        closeModal();
-                    }
-                }}
-                orden={modal.type === 'cobrar' ? modal.orden : null}
-                sesion={miSesion}
-                igv={igv}
-                productos={productos}
-                servicios={servicios}
-                felReady={felReady}
-            />
-
             <OrdenAvisarListaModal
                 open={modal.type === 'avisar'}
                 onOpenChange={(open) => {
@@ -440,7 +411,6 @@ export default function Index({
                 orden={modal.type === 'avisar' ? modal.orden : null}
                 tallerNombre={tallerNombre}
             />
-
             <OrdenBulkDeleteDialog
                 open={modal.type === 'bulk-delete'}
                 onOpenChange={(open) => {

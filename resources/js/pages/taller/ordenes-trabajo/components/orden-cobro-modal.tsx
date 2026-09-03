@@ -186,8 +186,8 @@ export function OrdenCobroModal({
         <FormModal
             open={open}
             onOpenChange={onOpenChange}
-            title={orden ? `Cobrar ${orden.numero}` : 'Cobrar orden'}
-            description="Registra servicios o repuestos y el pago. Los repuestos descuentan stock de la sede de la caja."
+            title={orden ? `Pasar a venta · ${orden.numero}` : 'Pasar a venta'}
+            description="Confirma la precuenta y registra el cobro en caja. La OT acumula cargos; Ventas cierra la venta."
             size="lg"
             onSubmit={onSubmit}
             footer={
@@ -206,7 +206,7 @@ export function OrdenCobroModal({
                         className="cursor-pointer gap-2"
                     >
                         {processing && <Loader2 className="size-4 animate-spin" />}
-                        Registrar cobro
+                        Confirmar venta
                     </Button>
                 </>
             }

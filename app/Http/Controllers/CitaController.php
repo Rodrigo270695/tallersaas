@@ -265,7 +265,7 @@ class CitaController extends Controller
             'message' => "Cita convertida en {$orden->numero}.",
         ]);
 
-        return back();
+        return redirect()->route('taller.ordenes-trabajo.show', $orden);
     }
 
     /**

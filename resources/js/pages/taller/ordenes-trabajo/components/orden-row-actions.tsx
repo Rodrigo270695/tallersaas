@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { Banknote, FileText, Link2, MessageCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Eye, FileText, Link2, MessageCircle, MoreHorizontal, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -13,28 +13,21 @@ import type { OrdenTrabajo } from '../types';
 
 export type OrdenRowActionsProps = {
     orden: OrdenTrabajo;
-    onEdit: (orden: OrdenTrabajo) => void;
     onDelete: (orden: OrdenTrabajo) => void;
-    onCobrar?: (orden: OrdenTrabajo) => void;
     onAvisar?: (orden: OrdenTrabajo) => void;
     canUpdate?: boolean;
     canDelete?: boolean;
-    canCobrar?: boolean;
     canPresupuesto?: boolean;
 };
 
 export function OrdenRowActions({
     orden,
-    onEdit,
     onDelete,
-    onCobrar,
     onAvisar,
     canUpdate = true,
     canDelete = true,
-    canCobrar = false,
     canPresupuesto = false,
 }: OrdenRowActionsProps) {
-    const puedeCobrar = canCobrar && orden.estado !== 'anulada';
     const puedePresupuesto = canPresupuesto && orden.estado !== 'anulada';
     const puedeAvisar =
         canUpdate &&
@@ -58,7 +51,7 @@ export function OrdenRowActions({
         }
     };
 
-    if (!canUpdate && !canDelete && !puedeCobrar && !puedePresupuesto) {
+    if (!canUpdate && !canDelete && !puedePresupuesto) {
         return null;
     }
 
@@ -76,6 +69,14 @@ export function OrdenRowActions({
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem
+                    onSelect={() => router.visit(ordenesTrabajo.show(orden.id).url)}
+                    className="cursor-pointer gap-2"
+                >
+                    <Eye className="size-4" strokeWidth={2.25} />
+                    Abrir expediente
+                </DropdownMenuItem>
+
                 {orden.estado !== 'anulada' && orden.public_token ? (
                     <DropdownMenuItem
                         onSelect={() => {
@@ -98,16 +99,6 @@ export function OrdenRowActions({
                     </DropdownMenuItem>
                 )}
 
-                {puedeCobrar && onCobrar && (
-                    <DropdownMenuItem
-                        onSelect={() => onCobrar(orden)}
-                        className="cursor-pointer gap-2"
-                    >
-                        <Banknote className="size-4" strokeWidth={2.25} />
-                        Cobrar
-                    </DropdownMenuItem>
-                )}
-
                 {puedePresupuesto && (
                     <DropdownMenuItem
                         onSelect={() =>
@@ -117,16 +108,6 @@ export function OrdenRowActions({
                     >
                         <FileText className="size-4" strokeWidth={2.25} />
                         Crear presupuesto
-                    </DropdownMenuItem>
-                )}
-
-                {canUpdate && (
-                    <DropdownMenuItem
-                        onSelect={() => onEdit(orden)}
-                        className="cursor-pointer gap-2"
-                    >
-                        <Pencil className="size-4" strokeWidth={2.25} />
-                        Editar
                     </DropdownMenuItem>
                 )}
 

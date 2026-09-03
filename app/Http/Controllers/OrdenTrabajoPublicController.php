@@ -25,41 +25,49 @@ class OrdenTrabajoPublicController extends Controller
 
         $settings = TallerSetting::current();
 
+        $enProcesoDone = in_array($orden->estado, [
+            OrdenTrabajo::ESTADO_EN_PROCESO,
+            OrdenTrabajo::ESTADO_LISTA,
+            OrdenTrabajo::ESTADO_ENTREGADA,
+        ], true);
+
+        $listaDone = in_array($orden->estado, [
+            OrdenTrabajo::ESTADO_LISTA,
+            OrdenTrabajo::ESTADO_ENTREGADA,
+        ], true);
+
         $timeline = [
             [
                 'key' => 'abierta',
-                'label' => 'Recepcionada',
+                'label' => 'Vehículo recepcionado',
+                'description' => 'Tu vehículo ingresó al taller.',
                 'at' => optional($orden->ingreso_at)?->toIso8601String(),
                 'done' => true,
+                'current' => $orden->estado === OrdenTrabajo::ESTADO_ABIERTA,
             ],
             [
                 'key' => 'en_proceso',
-                'label' => 'En taller',
-                'at' => in_array($orden->estado, [
-                    OrdenTrabajo::ESTADO_EN_PROCESO,
-                    OrdenTrabajo::ESTADO_LISTA,
-                    OrdenTrabajo::ESTADO_ENTREGADA,
-                ], true) ? optional($orden->updated_at)?->toIso8601String() : null,
-                'done' => in_array($orden->estado, [
-                    OrdenTrabajo::ESTADO_EN_PROCESO,
-                    OrdenTrabajo::ESTADO_LISTA,
-                    OrdenTrabajo::ESTADO_ENTREGADA,
-                ], true),
+                'label' => 'En proceso de trabajo',
+                'description' => 'El equipo está trabajando en tu vehículo.',
+                'at' => optional($orden->en_proceso_at)?->toIso8601String(),
+                'done' => $enProcesoDone,
+                'current' => $orden->estado === OrdenTrabajo::ESTADO_EN_PROCESO,
             ],
             [
                 'key' => 'lista',
                 'label' => 'Lista para recoger',
+                'description' => 'El trabajo terminó. Ya puedes pasar a recogerlo.',
                 'at' => optional($orden->lista_at)?->toIso8601String(),
-                'done' => in_array($orden->estado, [
-                    OrdenTrabajo::ESTADO_LISTA,
-                    OrdenTrabajo::ESTADO_ENTREGADA,
-                ], true),
+                'done' => $listaDone,
+                'current' => $orden->estado === OrdenTrabajo::ESTADO_LISTA,
             ],
             [
                 'key' => 'entregada',
                 'label' => 'Entregada',
+                'description' => 'Tu vehículo fue entregado.',
                 'at' => optional($orden->entregada_at)?->toIso8601String(),
                 'done' => $orden->estado === OrdenTrabajo::ESTADO_ENTREGADA,
+                'current' => $orden->estado === OrdenTrabajo::ESTADO_ENTREGADA,
             ],
         ];
 
@@ -71,6 +79,7 @@ class OrdenTrabajoPublicController extends Controller
                 'prometida_at' => optional($orden->prometida_at)?->toIso8601String(),
                 'lista_at' => optional($orden->lista_at)?->toIso8601String(),
                 'entregada_at' => optional($orden->entregada_at)?->toIso8601String(),
+                'km_ingreso' => $orden->km_ingreso,
                 'solicitud_cliente' => $orden->solicitud_cliente,
                 'cliente_nombre' => $orden->cliente?->nombreCompleto(),
                 'vehiculo_label' => $this->vehiculoLabel($orden),

@@ -53,6 +53,7 @@ class OrdenTrabajo extends Model
         'presupuesto_id',
         'estado',
         'ingreso_at',
+        'en_proceso_at',
         'prometida_at',
         'lista_at',
         'entregada_at',
@@ -86,6 +87,7 @@ class OrdenTrabajo extends Model
     {
         return [
             'ingreso_at' => 'datetime',
+            'en_proceso_at' => 'datetime',
             'prometida_at' => 'datetime',
             'lista_at' => 'datetime',
             'entregada_at' => 'datetime',

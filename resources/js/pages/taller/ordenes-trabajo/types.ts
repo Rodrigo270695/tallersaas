@@ -44,6 +44,7 @@ export type OrdenTrabajo = {
     vehiculo_id: string;
     estado: OrdenEstado;
     ingreso_at: string | null;
+    en_proceso_at?: string | null;
     prometida_at: string | null;
     km_ingreso: number | null;
     km_salida: number | null;

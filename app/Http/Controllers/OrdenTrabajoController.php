@@ -124,41 +124,31 @@ class OrdenTrabajoController extends Controller
                 'listas' => (int) ($counts[OrdenTrabajo::ESTADO_LISTA] ?? 0),
                 'coincidencias' => $ordenes->total(),
             ],
-            'sedes' => Sede::query()
-                ->where('tenant_id', $tenantId)
-                ->where('activa', true)
-                ->orderBy('nombre')
-                ->get(['id', 'nombre', 'codigo']),
-            'clientes' => Cliente::query()
-                ->orderBy('nombres')
-                ->get(['id', 'nombres', 'apellidos'])
-                ->map(fn (Cliente $cliente) => [
-                    'id' => $cliente->id,
-                    'nombre' => $cliente->nombreCompleto(),
-                ]),
-            'vehiculos' => Vehiculo::query()
-                ->with(['marca:id,nombre', 'modelo:id,nombre'])
-                ->orderBy('placa')
-                ->get(['id', 'cliente_id', 'placa', 'marca_id', 'modelo_id'])
-                ->map(fn (Vehiculo $vehiculo) => [
-                    'id' => $vehiculo->id,
-                    'cliente_id' => $vehiculo->cliente_id,
-                    'label' => trim($vehiculo->placa.' '.$vehiculo->marca?->nombre.' '.$vehiculo->modelo?->nombre),
-                ]),
-            'mi_sesion_abierta' => CajaSesion::query()
-                ->where('estado', CajaSesion::ESTADO_ABIERTA)
-                ->where('opened_by_id', Auth::id())
-                ->first(['id', 'sede_id', 'opened_at', 'saldo_apertura']),
-            'igv' => $setting->only(['igv_porcentaje', 'precio_incluye_igv', 'moneda']),
-            'fel_ready' => (bool) $setting->emite_comprobantes_sunat
-                && ApisunatCredentialResolver::estaConfigurado($setting),
-            'taller_nombre' => $this->tallerDisplayName(),
-            'productos' => Producto::query()
-                ->where('activo', true)
-                ->orderBy('nombre')
-                ->limit(400)
-                ->get(['id', 'nombre', 'sku', 'precio_venta', 'unidad']),
-            'servicios' => app(ServicioKitService::class)->catalogoActivos(),
+            ...$this->ordenCatalogProps($tenantId, $setting),
+        ]);
+    }
+
+    public function show(OrdenTrabajo $orden_trabajo): Response
+    {
+        $tenantId = tenant_id();
+        abort_if($tenantId === null || $tenantId === '', 403);
+
+        $orden_trabajo->load([
+            'cliente:id,nombres,apellidos,telefono,tipo_documento,numero_documento',
+            'vehiculo:id,placa,marca_id,modelo_id,cliente_id',
+            'vehiculo.marca:id,nombre',
+            'vehiculo.modelo:id,nombre',
+            'sede:id,nombre,codigo',
+            'lineas',
+            'fotos',
+            'cita:id,motivo,inicia_at',
+        ]);
+
+        $setting = TallerSetting::current();
+
+        return Inertia::render('taller/ordenes-trabajo/show', [
+            'orden' => $orden_trabajo,
+            ...$this->ordenCatalogProps($tenantId, $setting),
         ]);
     }
 
@@ -250,7 +240,7 @@ class OrdenTrabajoController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Orden de trabajo creada correctamente.']);
 
-        return back();
+        return redirect()->route('taller.ordenes-trabajo.show', $orden);
     }
 
     public function update(OrdenTrabajoRequest $request, OrdenTrabajo $orden_trabajo, OrdenTrabajoLineasService $lineas): RedirectResponse
@@ -260,8 +250,15 @@ class OrdenTrabajoController extends Controller
         unset($data['lineas']);
         $nuevoEstado = $data['estado'] ?? $orden_trabajo->estado;
 
+        if ($nuevoEstado === OrdenTrabajo::ESTADO_EN_PROCESO && $orden_trabajo->en_proceso_at === null) {
+            $data['en_proceso_at'] = now();
+        }
+
         if ($nuevoEstado === OrdenTrabajo::ESTADO_LISTA && $orden_trabajo->lista_at === null) {
             $data['lista_at'] = now();
+            if ($orden_trabajo->en_proceso_at === null) {
+                $data['en_proceso_at'] = now();
+            }
         }
 
         if ($nuevoEstado === OrdenTrabajo::ESTADO_ENTREGADA && $orden_trabajo->entregada_at === null) {
@@ -385,6 +382,50 @@ class OrdenTrabajoController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function ordenCatalogProps(string $tenantId, TallerSetting $setting): array
+    {
+        return [
+            'sedes' => Sede::query()
+                ->where('tenant_id', $tenantId)
+                ->where('activa', true)
+                ->orderBy('nombre')
+                ->get(['id', 'nombre', 'codigo']),
+            'clientes' => Cliente::query()
+                ->orderBy('nombres')
+                ->get(['id', 'nombres', 'apellidos'])
+                ->map(fn (Cliente $cliente) => [
+                    'id' => $cliente->id,
+                    'nombre' => $cliente->nombreCompleto(),
+                ]),
+            'vehiculos' => Vehiculo::query()
+                ->with(['marca:id,nombre', 'modelo:id,nombre'])
+                ->orderBy('placa')
+                ->get(['id', 'cliente_id', 'placa', 'marca_id', 'modelo_id'])
+                ->map(fn (Vehiculo $vehiculo) => [
+                    'id' => $vehiculo->id,
+                    'cliente_id' => $vehiculo->cliente_id,
+                    'label' => trim($vehiculo->placa.' '.$vehiculo->marca?->nombre.' '.$vehiculo->modelo?->nombre),
+                ]),
+            'mi_sesion_abierta' => CajaSesion::query()
+                ->where('estado', CajaSesion::ESTADO_ABIERTA)
+                ->where('opened_by_id', Auth::id())
+                ->first(['id', 'sede_id', 'opened_at', 'saldo_apertura']),
+            'igv' => $setting->only(['igv_porcentaje', 'precio_incluye_igv', 'moneda']),
+            'fel_ready' => (bool) $setting->emite_comprobantes_sunat
+                && ApisunatCredentialResolver::estaConfigurado($setting),
+            'taller_nombre' => $this->tallerDisplayName(),
+            'productos' => Producto::query()
+                ->where('activo', true)
+                ->orderBy('nombre')
+                ->limit(400)
+                ->get(['id', 'nombre', 'sku', 'precio_venta', 'unidad']),
+            'servicios' => app(ServicioKitService::class)->catalogoActivos(),
+        ];
     }
 
     private function tallerDisplayName(): string

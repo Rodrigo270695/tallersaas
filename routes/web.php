@@ -183,6 +183,9 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
         Route::middleware('permission:ordenes-trabajo.view')
             ->get('ordenes-trabajo', [OrdenTrabajoController::class, 'index'])
             ->name('ordenes-trabajo.index');
+        Route::middleware('permission:ordenes-trabajo.view')
+            ->get('ordenes-trabajo/{orden_trabajo}', [OrdenTrabajoController::class, 'show'])
+            ->name('ordenes-trabajo.show');
         Route::middleware('permission:ordenes-trabajo.create')
             ->post('ordenes-trabajo', [OrdenTrabajoController::class, 'store'])
             ->name('ordenes-trabajo.store');

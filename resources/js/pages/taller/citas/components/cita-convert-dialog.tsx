@@ -35,7 +35,6 @@ export function CitaConvertDialog({
 
         setProcessing(true);
         router.post(citas.convertir(cita.id).url, {}, {
-            preserveScroll: true,
             onFinish: () => setProcessing(false),
             onSuccess: () => onOpenChange(false),
         });
