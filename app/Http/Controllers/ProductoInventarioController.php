@@ -27,6 +27,7 @@ class ProductoInventarioController extends Controller
         'nombre',
         'sku',
         'unidad',
+        'precio_compra',
         'precio_venta',
         'activo',
         'created_at',

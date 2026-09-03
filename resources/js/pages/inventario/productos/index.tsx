@@ -12,13 +12,6 @@ import {
 } from '@/components/data-page';
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
 import { Button } from '@/components/ui/button';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
 import productos from '@/routes/inventario/productos';
@@ -26,6 +19,7 @@ import type { Paginated } from '@/types';
 import { ProductoDeleteDialog } from './components/producto-delete-dialog';
 import { ProductoFormModal } from './components/producto-form-modal';
 import { ProductoFotoCell } from './components/producto-foto-cell';
+import { ProductoRowActions } from './components/producto-row-actions';
 import type {
     Producto,
     ProductoFilters,
@@ -70,6 +64,7 @@ export default function Index({
     const canCreate = can('productos.create');
     const canUpdate = can('productos.update');
     const canDelete = can('productos.delete');
+    const showRowActions = canUpdate || canDelete;
 
     const { search, setSearch, isLoading, sort, setSort, setPerPage, applyFilter } =
         useDataTablePage<{
@@ -86,6 +81,14 @@ export default function Index({
 
     const [modal, setModal] = useState<ModalState>({ type: 'idle' });
     const closeModal = useCallback(() => setModal({ type: 'idle' }), []);
+    const openEdit = useCallback(
+        (producto: Producto) => setModal({ type: 'edit', producto }),
+        [],
+    );
+    const openDelete = useCallback(
+        (producto: Producto) => setModal({ type: 'delete', producto }),
+        [],
+    );
 
     const columns = useMemo<DataTableColumn<Producto>[]>(() => {
         const base: DataTableColumn<Producto>[] = [
@@ -93,10 +96,7 @@ export default function Index({
                 key: 'foto',
                 header: 'Foto',
                 cell: (row) => (
-                    <ProductoFotoCell
-                        fotoUrl={row.foto_url}
-                        etiqueta={row.nombre}
-                    />
+                    <ProductoFotoCell fotoUrl={row.foto_url} etiqueta={row.nombre} />
                 ),
                 className: 'w-14',
             },
@@ -118,7 +118,9 @@ export default function Index({
                 header: 'SKU',
                 sortable: true,
                 cell: (row) => (
-                    <span className="font-mono text-xs text-muted-foreground">{row.sku ?? '—'}</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                        {row.sku ?? '—'}
+                    </span>
                 ),
             },
             {
@@ -128,11 +130,21 @@ export default function Index({
                 cell: (row) => <span className="text-sm">{row.unidad}</span>,
             },
             {
+                key: 'precio_compra',
+                header: 'P. compra',
+                sortable: true,
+                cell: (row) => (
+                    <span className="tabular-nums text-sm">{money(row.precio_compra)}</span>
+                ),
+            },
+            {
                 key: 'precio_venta',
                 header: 'P. venta',
                 sortable: true,
                 cell: (row) => (
-                    <span className="tabular-nums text-sm">{money(row.precio_venta)}</span>
+                    <span className="tabular-nums text-sm font-medium">
+                        {money(row.precio_venta)}
+                    </span>
                 ),
             },
             {
@@ -153,48 +165,45 @@ export default function Index({
             },
         ];
 
-        if (canUpdate || canDelete) {
+        if (showRowActions) {
             base.push({
                 key: 'acciones',
                 header: <span className="md:sr-only">Acciones</span>,
                 align: 'right',
                 cell: (row) => (
-                    <div className="flex justify-end gap-1">
-                        {canUpdate && (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="cursor-pointer"
-                                onClick={() => setModal({ type: 'edit', producto: row })}
-                            >
-                                Editar
-                            </Button>
-                        )}
-                        {canDelete && (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="cursor-pointer text-destructive"
-                                onClick={() => setModal({ type: 'delete', producto: row })}
-                            >
-                                Eliminar
-                            </Button>
-                        )}
+                    <div className="flex justify-end">
+                        <ProductoRowActions
+                            producto={row}
+                            onEdit={openEdit}
+                            onDelete={openDelete}
+                            canUpdate={canUpdate}
+                            canDelete={canDelete}
+                        />
                     </div>
                 ),
+                className: 'w-12',
             });
         }
 
         return base;
-    }, [canUpdate, canDelete]);
+    }, [showRowActions, canUpdate, canDelete, openEdit, openDelete]);
 
-    const estadoOptions: FilterChip[] = [
+    const estadoOptions: FilterChip<ProductoFilters['estado']>[] = [
         { value: 'todas', label: 'Todos' },
         { value: 'activa', label: 'Activos' },
         { value: 'inactiva', label: 'Inactivos' },
     ];
+
+    const categoriaOptions = useMemo<FilterChip<string>[]>(
+        () => [
+            { value: ALL_CATEGORIAS, label: 'Todas las categorías' },
+            ...categorias.map((cat) => ({
+                value: cat.id,
+                label: cat.nombre,
+            })),
+        ],
+        [categorias],
+    );
 
     const activeFiltersCount =
         (filters.estado !== 'todas' ? 1 : 0) + (filters.categoria_id ? 1 : 0);
@@ -209,7 +218,12 @@ export default function Index({
                     description="Catálogo de productos y repuestos del taller."
                     stats={[
                         { label: 'Total', value: stats.total, variant: 'info', icon: Package },
-                        { label: 'Activos', value: stats.activos, variant: 'primary', icon: Package },
+                        {
+                            label: 'Activos',
+                            value: stats.activos,
+                            variant: 'primary',
+                            icon: Package,
+                        },
                         {
                             label: 'Filtros',
                             value: activeFiltersCount,
@@ -256,31 +270,24 @@ export default function Index({
                                 ariaLabel="Filtrar por estado"
                                 value={filters.estado}
                                 onChange={(estado) =>
-                                    applyFilter({ estado: estado as ProductoFilters['estado'] })
+                                    applyFilter({
+                                        estado: estado as ProductoFilters['estado'],
+                                    })
                                 }
                                 options={estadoOptions}
                             />
                             {categorias.length > 0 && (
-                                <Select
+                                <FilterChips
+                                    ariaLabel="Filtrar por categoría"
                                     value={filters.categoria_id || ALL_CATEGORIAS}
-                                    onValueChange={(value) =>
+                                    onChange={(value) =>
                                         applyFilter({
-                                            categoria_id: value === ALL_CATEGORIAS ? '' : value,
+                                            categoria_id:
+                                                value === ALL_CATEGORIAS ? '' : value,
                                         })
                                     }
-                                >
-                                    <SelectTrigger className="h-9 w-44" aria-label="Categoría">
-                                        <SelectValue placeholder="Categoría" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value={ALL_CATEGORIAS}>Todas las categorías</SelectItem>
-                                        {categorias.map((cat) => (
-                                            <SelectItem key={cat.id} value={cat.id}>
-                                                {cat.nombre}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    options={categoriaOptions}
+                                />
                             )}
                         </DataToolbar>
                     }
@@ -293,7 +300,8 @@ export default function Index({
                                 per_page: filters.per_page,
                                 sort: filters.sort ?? undefined,
                                 direction: filters.direction ?? undefined,
-                                estado: filters.estado !== 'todas' ? filters.estado : undefined,
+                                estado:
+                                    filters.estado !== 'todas' ? filters.estado : undefined,
                                 categoria_id: filters.categoria_id || undefined,
                             }}
                         />
