@@ -1,5 +1,5 @@
-import { useForm } from '@inertiajs/react';
-import { Loader2 } from 'lucide-react';
+import { useForm, usePage } from '@inertiajs/react';
+import { Loader2, Wrench } from 'lucide-react';
 import { useEffect, useMemo, type FormEvent } from 'react';
 import { FormField, FormModal, FormSection } from '@/components/forms';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import citas from '@/routes/taller/citas';
+import type { Auth } from '@/types';
 import type {
     Cita,
     CitaEstado,
@@ -25,6 +26,7 @@ import type {
 
 const NONE = '__ninguno__';
 const DURACION_DEFAULT = '60';
+const ACTIVAS = new Set(['programada', 'confirmada', 'en_recepcion']);
 
 const ESTADOS_EDITABLES: { value: CitaEstado; label: string }[] = [
     { value: 'programada', label: 'Programada' },
@@ -79,6 +81,8 @@ export function CitaFormModal({
     vehiculos,
     mecanicos,
     prefill,
+    onConvert,
+    canConvert = false,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -88,9 +92,20 @@ export function CitaFormModal({
     vehiculos: readonly VehiculoOption[];
     mecanicos: readonly MecanicoOption[];
     prefill?: { fecha?: string; hora?: string } | null;
+    onConvert?: (cita: Cita) => void;
+    canConvert?: boolean;
 }) {
     const isEdit = cita !== null;
     const locked = cita?.estado === 'convertida';
+    const puedeAbrirOt =
+        isEdit &&
+        cita !== null &&
+        canConvert &&
+        Boolean(onConvert) &&
+        ACTIVAS.has(cita.estado) &&
+        !cita.orden_trabajo_id;
+    const { auth } = usePage<{ auth?: Auth }>().props;
+    const currentUserId = auth?.user?.id ?? '';
 
     const { data, setData, post, put, processing, errors, clearErrors } = useForm<FormData>({
         sede_id: '',
@@ -103,6 +118,16 @@ export function CitaFormModal({
         motivo: '',
         notas: '',
     });
+
+    const defaultMecanicoId = useMemo(() => {
+        if (!currentUserId) {
+            return '';
+        }
+
+        return mecanicos.some((mecanico) => mecanico.id === currentUserId)
+            ? currentUserId
+            : '';
+    }, [currentUserId, mecanicos]);
 
     const clienteOptions = useMemo<readonly ComboboxOption[]>(
         () =>
@@ -144,14 +169,14 @@ export function CitaFormModal({
             sede_id: cita?.sede_id ?? (sedes.length === 1 ? sedes[0].id : ''),
             cliente_id: cita?.cliente_id ?? '',
             vehiculo_id: cita?.vehiculo_id ?? '',
-            assigned_user_id: cita?.assigned_user_id ?? '',
+            assigned_user_id: cita?.assigned_user_id ?? defaultMecanicoId,
             inicia_at: cita ? toDatetimeLocal(cita.inicia_at) : iniciaDefault,
             duracion_minutos: String(cita?.duracion_minutos ?? Number(DURACION_DEFAULT)),
             estado: cita?.estado === 'convertida' ? 'programada' : (cita?.estado ?? 'programada'),
             motivo: cita?.motivo ?? '',
             notas: cita?.notas ?? '',
         });
-    }, [open, cita, prefill, sedes, clearErrors, setData]);
+    }, [open, cita, prefill, sedes, defaultMecanicoId, clearErrors, setData]);
 
     const canSubmit =
         !processing &&
@@ -205,6 +230,21 @@ export function CitaFormModal({
                     >
                         Cancelar
                     </Button>
+                    {puedeAbrirOt && cita && onConvert ? (
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            className="cursor-pointer gap-2"
+                            disabled={processing}
+                            onClick={() => {
+                                onOpenChange(false);
+                                onConvert(cita);
+                            }}
+                        >
+                            <Wrench className="size-4" strokeWidth={2.25} />
+                            Abrir OT
+                        </Button>
+                    ) : null}
                     <Button
                         type="submit"
                         disabled={!canSubmit}

@@ -402,6 +402,7 @@ export default function Index({
                 vehiculos={vehiculos}
                 servicios={servicios}
                 productos={productos}
+                canUpdate={canUpdate}
             />
 
             <OrdenDeleteDialog

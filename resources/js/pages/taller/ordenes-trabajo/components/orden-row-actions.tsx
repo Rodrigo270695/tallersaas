@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { Banknote, FileText, MessageCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Banknote, FileText, Link2, MessageCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -7,6 +7,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { toastManager } from '@/lib/toast';
 import ordenesTrabajo from '@/routes/taller/ordenes-trabajo';
 import type { OrdenTrabajo } from '../types';
 
@@ -40,6 +41,23 @@ export function OrdenRowActions({
         onAvisar !== undefined &&
         (orden.estado === 'lista' || orden.estado === 'entregada');
 
+    const copySeguimiento = async () => {
+        if (!orden.public_token) {
+            toastManager.error({ title: 'Esta orden aún no tiene link público.' });
+
+            return;
+        }
+
+        const url = `${window.location.origin}/ot/${orden.public_token}`;
+
+        try {
+            await navigator.clipboard.writeText(url);
+            toastManager.success({ title: 'Link de seguimiento copiado.' });
+        } catch {
+            toastManager.error({ title: 'No se pudo copiar el link.' });
+        }
+    };
+
     if (!canUpdate && !canDelete && !puedeCobrar && !puedePresupuesto) {
         return null;
     }
@@ -58,6 +76,18 @@ export function OrdenRowActions({
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
+                {orden.estado !== 'anulada' && orden.public_token ? (
+                    <DropdownMenuItem
+                        onSelect={() => {
+                            void copySeguimiento();
+                        }}
+                        className="cursor-pointer gap-2"
+                    >
+                        <Link2 className="size-4" strokeWidth={2.25} />
+                        Copiar link cliente
+                    </DropdownMenuItem>
+                ) : null}
+
                 {puedeAvisar && (
                     <DropdownMenuItem
                         onSelect={() => onAvisar(orden)}

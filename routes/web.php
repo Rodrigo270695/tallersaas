@@ -16,6 +16,7 @@ use App\Http\Controllers\ModeloController;
 use App\Http\Controllers\MovimientoInventarioController;
 use App\Http\Controllers\NotificationQueueController;
 use App\Http\Controllers\OrdenTrabajoController;
+use App\Http\Controllers\OrdenTrabajoPublicController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PresupuestoController;
 use App\Http\Controllers\PresupuestoPublicController;
@@ -49,6 +50,8 @@ Route::middleware('tenant')
             ->name('presupuesto.public.aprobar');
         Route::post('p/{token}/rechazar', [PresupuestoPublicController::class, 'rechazar'])
             ->name('presupuesto.public.rechazar');
+        Route::get('ot/{token}', [OrdenTrabajoPublicController::class, 'show'])
+            ->name('orden.public');
     });
 
 /*
@@ -189,6 +192,12 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
         Route::middleware('permission:ordenes-trabajo.update')
             ->post('ordenes-trabajo/{orden_trabajo}/avisar-lista', [OrdenTrabajoController::class, 'avisarLista'])
             ->name('ordenes-trabajo.avisar-lista');
+        Route::middleware('permission:ordenes-trabajo.update')
+            ->post('ordenes-trabajo/{orden_trabajo}/fotos', [OrdenTrabajoController::class, 'storeFoto'])
+            ->name('ordenes-trabajo.fotos.store');
+        Route::middleware('permission:ordenes-trabajo.update')
+            ->delete('ordenes-trabajo/{orden_trabajo}/fotos/{foto}', [OrdenTrabajoController::class, 'destroyFoto'])
+            ->name('ordenes-trabajo.fotos.destroy');
         Route::middleware('permission:ordenes-trabajo.delete')
             ->delete('ordenes-trabajo/{orden_trabajo}', [OrdenTrabajoController::class, 'destroy'])
             ->name('ordenes-trabajo.destroy');

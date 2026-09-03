@@ -54,6 +54,8 @@ final class OrdenListaWhatsAppMessage
             $lineas[] = 'Saldo pendiente: '.$this->money($saldo, $moneda).'.';
         }
 
+        $seguimiento = $orden->publicUrl();
+        $lineas[] = "Sigue el avance aquí: {$seguimiento}";
         $lineas[] = 'Te esperamos.';
 
         return implode("\n", $lineas);

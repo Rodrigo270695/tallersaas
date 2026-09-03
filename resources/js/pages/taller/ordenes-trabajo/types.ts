@@ -27,10 +27,19 @@ export type OrdenSedeRef = {
     codigo: string;
 } | null;
 
+export type OrdenFoto = {
+    id: string;
+    path?: string;
+    url: string | null;
+    nota: string | null;
+    created_at: string | null;
+};
+
 export type OrdenTrabajo = {
     id: string;
     sede_id: string;
     numero: string;
+    public_token?: string | null;
     cliente_id: string;
     vehiculo_id: string;
     estado: OrdenEstado;
@@ -49,6 +58,7 @@ export type OrdenTrabajo = {
     vehiculo: OrdenVehiculoRef;
     sede: OrdenSedeRef;
     lineas?: OrdenLinea[];
+    fotos?: OrdenFoto[];
     created_at: string;
     updated_at: string;
 };

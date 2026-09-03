@@ -8,6 +8,7 @@ use App\Http\Requests\OrdenTrabajoRequest;
 use App\Models\CajaSesion;
 use App\Models\Cliente;
 use App\Models\OrdenTrabajo;
+use App\Models\OrdenTrabajoFoto;
 use App\Models\Producto;
 use App\Models\Sede;
 use App\Models\TallerSetting;
@@ -18,9 +19,12 @@ use App\Services\Taller\OrdenTrabajoLineasService;
 use App\Services\Taller\ServicioKitService;
 use App\Services\Venta\VentaCheckoutFromOrdenService;
 use App\Support\Fel\ApisunatCredentialResolver;
+use App\Tenancy\TenantManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -67,6 +71,7 @@ class OrdenTrabajoController extends Controller
                 'vehiculo.modelo:id,nombre',
                 'sede:id,nombre,codigo',
                 'lineas',
+                'fotos',
             ]);
 
         if ($sortValid) {
@@ -284,6 +289,58 @@ class OrdenTrabajoController extends Controller
         $orden_trabajo->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Orden de trabajo eliminada correctamente.']);
+
+        return back();
+    }
+
+    public function storeFoto(
+        Request $request,
+        OrdenTrabajo $orden_trabajo,
+        TenantManager $tenants,
+    ): RedirectResponse {
+        if ($orden_trabajo->estado === OrdenTrabajo::ESTADO_ANULADA) {
+            throw ValidationException::withMessages([
+                'foto' => 'No se pueden agregar fotos a una orden anulada.',
+            ]);
+        }
+
+        $data = $request->validate([
+            'foto' => ['required', 'image', 'max:5120'],
+            'nota' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $slug = $tenants->slug() ?? 'shared';
+        $file = $request->file('foto');
+        $extension = strtolower($file->getClientOriginalExtension() ?: $file->guessExtension() ?: 'jpg');
+        $filename = Str::uuid()->toString().'.'.$extension;
+        $dir = "tenants/{$slug}/ordenes/{$orden_trabajo->id}";
+
+        Storage::disk('public')->putFileAs($dir, $file, $filename, 'public');
+
+        OrdenTrabajoFoto::query()->create([
+            'orden_trabajo_id' => $orden_trabajo->id,
+            'path' => "{$dir}/{$filename}",
+            'nota' => $data['nota'] ?? null,
+            'created_by_id' => Auth::id(),
+        ]);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Foto de avance agregada.']);
+
+        return back();
+    }
+
+    public function destroyFoto(OrdenTrabajo $orden_trabajo, OrdenTrabajoFoto $foto): RedirectResponse
+    {
+        abort_unless($foto->orden_trabajo_id === $orden_trabajo->id, 404);
+
+        $disk = Storage::disk('public');
+        if ($foto->path && $disk->exists($foto->path)) {
+            $disk->delete($foto->path);
+        }
+
+        $foto->delete();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Foto eliminada.']);
 
         return back();
     }

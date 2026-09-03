@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 /**
  * Orden de trabajo del taller (schema del tenant).
@@ -45,6 +46,7 @@ class OrdenTrabajo extends Model
     protected $fillable = [
         'sede_id',
         'numero',
+        'public_token',
         'cliente_id',
         'vehiculo_id',
         'cita_id',
@@ -72,6 +74,14 @@ class OrdenTrabajo extends Model
         'closed_by_id',
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function (OrdenTrabajo $orden): void {
+            if ($orden->public_token === null || $orden->public_token === '') {
+                $orden->public_token = (string) Str::uuid();
+            }
+        });
+    }
     protected function casts(): array
     {
         return [
@@ -132,9 +142,31 @@ class OrdenTrabajo extends Model
         return $this->hasMany(OrdenTrabajoLinea::class, 'orden_trabajo_id')->orderBy('orden');
     }
 
+    /**
+     * @return HasMany<OrdenTrabajoFoto, $this>
+     */
+    public function fotos(): HasMany
+    {
+        return $this->hasMany(OrdenTrabajoFoto::class, 'orden_trabajo_id')->orderBy('created_at');
+    }
+
     public function ventas(): HasMany
     {
         return $this->hasMany(Venta::class, 'orden_trabajo_id');
+    }
+
+    public function ensurePublicToken(): string
+    {
+        if ($this->public_token === null || $this->public_token === '') {
+            $this->forceFill(['public_token' => (string) Str::uuid()])->save();
+        }
+
+        return (string) $this->public_token;
+    }
+
+    public function publicUrl(): string
+    {
+        return url('/ot/'.$this->ensurePublicToken());
     }
 
     public static function generateNextNumber(): string

@@ -552,6 +552,8 @@ export default function Index({
                 clientes={clientes}
                 vehiculos={vehiculos}
                 mecanicos={mecanicos}
+                onConvert={openConvert}
+                canConvert={canConvert}
             />
 
             <CitaDeleteDialog

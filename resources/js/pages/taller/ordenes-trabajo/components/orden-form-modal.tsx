@@ -25,6 +25,7 @@ import type {
     ServicioCobroOption,
     VehiculoOption,
 } from '../types';
+import { OrdenFotosSection } from './orden-fotos-section';
 
 export type OrdenFormModalProps = {
     open: boolean;
@@ -35,6 +36,7 @@ export type OrdenFormModalProps = {
     vehiculos: readonly VehiculoOption[];
     servicios?: readonly ServicioCobroOption[];
     productos?: readonly ProductoCobroOption[];
+    canUpdate?: boolean;
 };
 
 type LineaForm = {
@@ -159,6 +161,7 @@ export function OrdenFormModal({
     vehiculos,
     servicios = [],
     productos = [],
+    canUpdate = true,
 }: OrdenFormModalProps) {
     const isEdit = orden !== null;
 
@@ -666,6 +669,15 @@ export function OrdenFormModal({
                         <p className="text-sm text-destructive">{errors.lineas}</p>
                     )}
                 </FormSection>
+
+                {isEdit && orden ? (
+                    <OrdenFotosSection orden={orden} canUpdate={canUpdate} />
+                ) : (
+                    <p className="text-xs text-muted-foreground">
+                        Después de crear la OT podrás subir fotos de avance y compartir el link
+                        con el cliente.
+                    </p>
+                )}
             </div>
         </FormModal>
     );
