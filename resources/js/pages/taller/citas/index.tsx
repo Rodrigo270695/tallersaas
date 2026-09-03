@@ -1,5 +1,6 @@
-import { Head } from '@inertiajs/react';
-import { CalendarDays, Filter, Plus, ScreenShare, Wrench } from 'lucide-react';
+import { TZDate } from '@date-fns/tz';
+import { Head, router } from '@inertiajs/react';
+import { CalendarDays, Filter, LayoutList, Plus, ScreenShare, Wrench } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { Can } from '@/components/can';
 import {
@@ -12,29 +13,37 @@ import {
 } from '@/components/data-page';
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
 import { Button } from '@/components/ui/button';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
+import { toastManager } from '@/lib/toast';
 import citasRoutes from '@/routes/taller/citas';
 import type { Paginated } from '@/types';
 import { CitaConvertDialog } from './components/cita-convert-dialog';
 import { CitaDeleteDialog } from './components/cita-delete-dialog';
 import { CitaFormModal } from './components/cita-form-modal';
 import { CitaRowActions } from './components/cita-row-actions';
+import { CitasCalendar, shiftMes } from './components/citas-calendar';
 import type {
     Cita,
     CitaEstado,
     CitaFilters,
+    CitaFormPrefill,
     CitaRango,
     CitaStats,
     ClienteOption,
     MecanicoOption,
     SedeOption,
     VehiculoOption,
+    VistaCita,
 } from './types';
 
 type IndexProps = {
     citas: Paginated<Cita>;
+    citas_agenda: readonly Cita[];
     filters: CitaFilters;
+    agenda_horario: { hora_inicio: string; hora_fin: string };
+    timezone: string;
     stats: CitaStats;
     sedes: readonly SedeOption[];
     clientes: readonly ClienteOption[];
@@ -44,7 +53,7 @@ type IndexProps = {
 
 type ModalState =
     | { type: 'idle' }
-    | { type: 'create' }
+    | { type: 'create'; prefill?: CitaFormPrefill }
     | { type: 'edit'; cita: Cita }
     | { type: 'delete'; cita: Cita }
     | { type: 'convert'; cita: Cita };
@@ -84,9 +93,19 @@ const formatInicio = (iso: string): string => {
     });
 };
 
+const currentMes = (tz: string): string => {
+    const now = new TZDate(new Date(), tz);
+    const pad = (n: number) => String(n).padStart(2, '0');
+
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
+};
+
 export default function Index({
     citas: paginated,
+    citas_agenda = [],
     filters,
+    agenda_horario,
+    timezone,
     stats,
     sedes,
     clientes,
@@ -100,11 +119,26 @@ export default function Index({
     const canConvert = can('citas.convert') && can('ordenes-trabajo.create');
     const showRowActions = canUpdate || canDelete || canConvert;
 
+    const vista = (filters.vista ?? 'calendario') as VistaCita;
+    const mesActivo = filters.mes ?? currentMes(timezone);
+
     const { search, setSearch, isLoading, sort, setSort, setPerPage, applyFilter } =
-        useDataTablePage<{ estado: CitaFilters['estado']; rango: CitaRango }>({
+        useDataTablePage<{
+            estado: CitaFilters['estado'];
+            rango: CitaRango;
+            vista: VistaCita;
+            mes: string | null;
+        }>({
             routeUrl: citasRoutes.index().url,
             initialFilters: filters,
-            only: ['citas', 'filters', 'stats'],
+            only: [
+                'citas',
+                'citas_agenda',
+                'filters',
+                'stats',
+                'agenda_horario',
+                'timezone',
+            ],
             errorMessage: 'No se pudo cargar la agenda.',
             storageKey: 'tallersaas.citas.prefs',
             defaults: { per_page: DEFAULT_PER_PAGE, sort: null, direction: null },
@@ -135,9 +169,62 @@ export default function Index({
     const [modal, setModal] = useState<ModalState>({ type: 'idle' });
     const closeModal = useCallback(() => setModal({ type: 'idle' }), []);
     const openCreate = useCallback(() => setModal({ type: 'create' }), []);
+    const openCreateOnDay = useCallback(
+        (fecha: string, hora?: string) => setModal({ type: 'create', prefill: { fecha, hora } }),
+        [],
+    );
     const openEdit = useCallback((cita: Cita) => setModal({ type: 'edit', cita }), []);
     const openDelete = useCallback((cita: Cita) => setModal({ type: 'delete', cita }), []);
     const openConvert = useCallback((cita: Cita) => setModal({ type: 'convert', cita }), []);
+
+    const handleReschedule = useCallback(
+        (cita: Cita, fecha: string, hora?: string) => {
+            if (!canUpdate || cita.estado === 'convertida') {
+                return;
+            }
+
+            const current = new TZDate(cita.inicia_at, timezone);
+            const pad = (n: number) => String(n).padStart(2, '0');
+            const time =
+                hora ?? `${pad(current.getHours())}:${pad(current.getMinutes())}`;
+            const iniciaAt = `${fecha}T${time}`;
+            const currentKey = `${current.getFullYear()}-${pad(current.getMonth() + 1)}-${pad(current.getDate())}T${pad(current.getHours())}:${pad(current.getMinutes())}`;
+
+            if (iniciaAt === currentKey) {
+                return;
+            }
+
+            const target = new TZDate(`${iniciaAt}:00`, timezone);
+            if (target.getTime() <= Date.now()) {
+                toastManager.add({
+                    type: 'warning',
+                    title: 'No se puede reprogramar a una hora pasada.',
+                });
+
+                return;
+            }
+
+            router.put(
+                citasRoutes.update(cita.id).url,
+                {
+                    sede_id: cita.sede_id,
+                    cliente_id: cita.cliente_id,
+                    vehiculo_id: cita.vehiculo_id,
+                    assigned_user_id: cita.assigned_user_id ?? '',
+                    inicia_at: iniciaAt,
+                    duracion_minutos: cita.duracion_minutos,
+                    estado: cita.estado,
+                    motivo: cita.motivo ?? '',
+                    notas: cita.notas ?? '',
+                },
+                {
+                    preserveScroll: true,
+                    only: ['citas', 'citas_agenda', 'filters', 'stats', 'flash', 'errors'],
+                },
+            );
+        },
+        [canUpdate, timezone],
+    );
 
     const activeFiltersCount = useMemo(() => {
         let count = 0;
@@ -158,12 +245,12 @@ export default function Index({
             count += 1;
         }
 
-        if (filters.rango !== DEFAULT_RANGO) {
+        if (vista === 'lista' && filters.rango !== DEFAULT_RANGO) {
             count += 1;
         }
 
         return count;
-    }, [filters]);
+    }, [filters, vista]);
 
     const columns = useMemo<DataTableColumn<Cita>[]>(() => {
         const base: DataTableColumn<Cita>[] = [
@@ -252,6 +339,35 @@ export default function Index({
         return base;
     }, [showRowActions, canUpdate, canDelete, canConvert, openEdit, openDelete, openConvert]);
 
+    const vistaToggle = (
+        <ToggleGroup
+            type="single"
+            value={vista}
+            onValueChange={(value) => {
+                if (value !== 'calendario' && value !== 'lista') {
+                    return;
+                }
+
+                applyFilter({
+                    vista: value,
+                    mes: value === 'calendario' ? mesActivo : null,
+                });
+            }}
+            variant="outline"
+            className="justify-start"
+            aria-label="Vista de citas"
+        >
+            <ToggleGroupItem value="calendario" className="cursor-pointer gap-1.5 px-3">
+                <CalendarDays className="size-3.5" />
+                Calendario
+            </ToggleGroupItem>
+            <ToggleGroupItem value="lista" className="cursor-pointer gap-1.5 px-3">
+                <LayoutList className="size-3.5" />
+                Lista
+            </ToggleGroupItem>
+        </ToggleGroup>
+    );
+
     return (
         <>
             <Head title="Citas" />
@@ -259,7 +375,7 @@ export default function Index({
             <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
                 <PageHeader
                     title="Citas"
-                    description="Agenda de recepción. Convierte la cita en orden de trabajo al llegar el vehículo."
+                    description="Agenda de recepción: cliente, vehículo, sede, horario y estado."
                     stats={[
                         { label: 'Hoy', value: stats.hoy, variant: 'info', icon: CalendarDays },
                         { label: 'Próximas', value: stats.proximas, variant: 'warning', icon: Wrench },
@@ -282,28 +398,16 @@ export default function Index({
                     }
                 />
 
-                <DataTable
-                    columns={columns}
-                    data={paginated.data}
-                    rowKey={(cita) => cita.id}
-                    sort={sort}
-                    onSortChange={setSort}
-                    isLoading={isLoading}
-                    ariaLiveMessage={`${stats.coincidencias} citas encontradas`}
-                    toolbar={
+                {vista === 'calendario' ? (
+                    <div className="flex flex-col gap-4">
                         <DataToolbar
                             search={search}
                             onSearchChange={setSearch}
                             isSearching={isLoading}
                             placeholder="Buscar por placa, cliente o motivo…"
                         >
-                            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                                <FilterChips
-                                    ariaLabel="Filtrar por rango"
-                                    value={filters.rango}
-                                    onChange={(rango) => applyFilter({ rango })}
-                                    options={rangoOptions}
-                                />
+                            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                                {vistaToggle}
                                 <FilterChips
                                     ariaLabel="Filtrar por estado"
                                     value={filters.estado}
@@ -312,53 +416,121 @@ export default function Index({
                                 />
                             </div>
                         </DataToolbar>
-                    }
-                    footer={
-                        <DataPagination
-                            meta={paginated}
-                            onPerPageChange={setPerPage}
-                            preservedQuery={{
-                                search: filters.search || undefined,
-                                per_page: filters.per_page,
-                                sort: filters.sort ?? undefined,
-                                direction: filters.direction ?? undefined,
-                                estado: filters.estado !== DEFAULT_ESTADO ? filters.estado : undefined,
-                                rango: filters.rango !== DEFAULT_RANGO ? filters.rango : undefined,
-                            }}
-                        />
-                    }
-                    emptyState={
-                        <EmptyState
-                            icon={CalendarDays}
-                            title={
-                                activeFiltersCount > 0 || filters.rango === 'hoy'
-                                    ? 'Sin citas en este rango'
-                                    : 'Aún no hay citas'
+
+                        <CitasCalendar
+                            citas={citas_agenda}
+                            mes={mesActivo}
+                            timeZone={timezone}
+                            horaInicio={agenda_horario.hora_inicio}
+                            horaFin={agenda_horario.hora_fin}
+                            isLoading={isLoading}
+                            canCreate={canCreate}
+                            canUpdate={canUpdate}
+                            onSelectCita={openEdit}
+                            onScheduleDay={openCreateOnDay}
+                            onReschedule={handleReschedule}
+                            onPrevMonth={() =>
+                                applyFilter({ vista: 'calendario', mes: shiftMes(mesActivo, -1) })
                             }
-                            description={
-                                filters.rango === 'hoy' && activeFiltersCount === 0
-                                    ? 'No hay recepciones agendadas para hoy.'
-                                    : activeFiltersCount > 0
-                                      ? 'Prueba ajustando la búsqueda o los filtros.'
-                                      : sedes.length === 0
-                                        ? 'Crea una sede antes de agendar la primera cita.'
-                                        : 'Agenda la primera recepción del taller.'
+                            onNextMonth={() =>
+                                applyFilter({ vista: 'calendario', mes: shiftMes(mesActivo, 1) })
                             }
-                            action={
-                                canCreate ? (
-                                    <Button
-                                        type="button"
-                                        onClick={openCreate}
-                                        className="cursor-pointer gap-2"
-                                    >
-                                        <Plus className="size-4" strokeWidth={2.5} />
-                                        Crear la primera cita
-                                    </Button>
-                                ) : undefined
+                            onJumpToMonth={(mes) => applyFilter({ vista: 'calendario', mes })}
+                            onToday={() =>
+                                applyFilter({
+                                    vista: 'calendario',
+                                    mes: currentMes(timezone),
+                                })
                             }
                         />
-                    }
-                />
+                    </div>
+                ) : (
+                    <DataTable
+                        columns={columns}
+                        data={paginated.data}
+                        rowKey={(cita) => cita.id}
+                        sort={sort}
+                        onSortChange={setSort}
+                        isLoading={isLoading}
+                        ariaLiveMessage={`${stats.coincidencias} citas encontradas`}
+                        toolbar={
+                            <DataToolbar
+                                search={search}
+                                onSearchChange={setSearch}
+                                isSearching={isLoading}
+                                placeholder="Buscar por placa, cliente o motivo…"
+                            >
+                                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                                    {vistaToggle}
+                                    <FilterChips
+                                        ariaLabel="Filtrar por rango"
+                                        value={filters.rango}
+                                        onChange={(rango) => applyFilter({ rango })}
+                                        options={rangoOptions}
+                                    />
+                                    <FilterChips
+                                        ariaLabel="Filtrar por estado"
+                                        value={filters.estado}
+                                        onChange={(estado) => applyFilter({ estado })}
+                                        options={estadoOptions}
+                                    />
+                                </div>
+                            </DataToolbar>
+                        }
+                        footer={
+                            <DataPagination
+                                meta={paginated}
+                                onPerPageChange={setPerPage}
+                                preservedQuery={{
+                                    search: filters.search || undefined,
+                                    per_page: filters.per_page,
+                                    sort: filters.sort ?? undefined,
+                                    direction: filters.direction ?? undefined,
+                                    estado:
+                                        filters.estado !== DEFAULT_ESTADO
+                                            ? filters.estado
+                                            : undefined,
+                                    rango:
+                                        filters.rango !== DEFAULT_RANGO
+                                            ? filters.rango
+                                            : undefined,
+                                    vista: 'lista',
+                                }}
+                            />
+                        }
+                        emptyState={
+                            <EmptyState
+                                icon={CalendarDays}
+                                title={
+                                    activeFiltersCount > 0 || filters.rango === 'hoy'
+                                        ? 'Sin citas en este rango'
+                                        : 'Aún no hay citas'
+                                }
+                                description={
+                                    filters.rango === 'hoy' && activeFiltersCount === 0
+                                        ? 'No hay recepciones agendadas para hoy.'
+                                        : activeFiltersCount > 0
+                                          ? 'Prueba ajustando la búsqueda o los filtros.'
+                                          : sedes.length === 0
+                                            ? 'Crea una sede antes de agendar la primera cita.'
+                                            : 'Agenda la primera recepción del taller.'
+                                }
+                                action={
+                                    canCreate ? (
+                                        <Button
+                                            type="button"
+                                            onClick={openCreate}
+                                            className="cursor-pointer gap-2"
+                                        >
+                                            <Plus className="size-4" strokeWidth={2.5} />
+                                            Crear la primera cita
+                                        </Button>
+                                    ) : undefined
+                                }
+                            />
+                        }
+                    />
+                )}
             </div>
 
             <CitaFormModal
@@ -369,6 +541,7 @@ export default function Index({
                     }
                 }}
                 cita={modal.type === 'edit' ? modal.cita : null}
+                prefill={modal.type === 'create' ? modal.prefill : null}
                 sedes={sedes}
                 clientes={clientes}
                 vehiculos={vehiculos}

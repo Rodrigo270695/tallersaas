@@ -8,6 +8,13 @@ export type CitaEstado =
 
 export type CitaRango = 'hoy' | 'proximas' | 'todas';
 
+export type VistaCita = 'calendario' | 'lista';
+
+export type CitaFormPrefill = {
+    fecha?: string;
+    hora?: string;
+};
+
 export type CitaClienteRef = {
     id: string;
     nombres: string;
@@ -83,6 +90,8 @@ export type CitaFilters = {
     direction: 'asc' | 'desc' | null;
     estado: 'todas' | CitaEstado;
     rango: CitaRango;
+    vista: VistaCita;
+    mes: string | null;
 };
 
 export type CitaStats = {

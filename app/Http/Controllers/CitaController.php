@@ -6,14 +6,15 @@ use App\Http\Requests\CitaRequest;
 use App\Models\Cita;
 use App\Models\Cliente;
 use App\Models\Sede;
+use App\Models\TallerSetting;
 use App\Models\User;
 use App\Models\Vehiculo;
 use App\Services\Notifications\CitaWhatsAppNotifier;
 use App\Services\Taller\ConvertCitaAOrdenService;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -30,6 +31,8 @@ class CitaController extends Controller
     ];
 
     private const RANGOS = ['hoy', 'proximas', 'todas'];
+
+    private const VISTAS = ['calendario', 'lista'];
 
     public function index(Request $request): Response
     {
@@ -52,6 +55,11 @@ class CitaController extends Controller
             $estado = 'todas';
         }
 
+        $vista = (string) $request->string('vista', 'calendario');
+        if (! in_array($vista, self::VISTAS, true)) {
+            $vista = 'calendario';
+        }
+
         $rango = (string) $request->string('rango', 'hoy');
         if (! in_array($rango, self::RANGOS, true)) {
             $rango = 'hoy';
@@ -59,26 +67,31 @@ class CitaController extends Controller
 
         $tz = (string) config('app.timezone', 'America/Lima');
         $now = now($tz);
+        $defaultMes = $now->format('Y-m');
 
-        $query = Cita::query()
-            ->with([
-                'cliente:id,nombres,apellidos',
-                'vehiculo:id,placa,marca_id,modelo_id',
-                'vehiculo.marca:id,nombre',
-                'vehiculo.modelo:id,nombre',
-                'sede:id,nombre,codigo',
-                'asignadoA:id,name',
-                'ordenTrabajo:id,numero,estado',
-            ]);
+        $mes = (string) $request->string('mes', '');
+        if (preg_match('/^\d{4}-\d{2}$/', $mes) !== 1) {
+            $mes = $defaultMes;
+        }
 
-        $this->applyRango($query, $rango, $now);
+        $with = [
+            'cliente:id,nombres,apellidos',
+            'vehiculo:id,placa,marca_id,modelo_id',
+            'vehiculo.marca:id,nombre',
+            'vehiculo.modelo:id,nombre',
+            'sede:id,nombre,codigo',
+            'asignadoA:id,name',
+            'ordenTrabajo:id,numero,estado',
+        ];
+
+        $baseQuery = Cita::query()->with($with);
 
         if ($estado !== 'todas') {
-            $query->where('estado', $estado);
+            $baseQuery->where('estado', $estado);
         }
 
         if ($search !== '') {
-            $query->where(function ($q) use ($search): void {
+            $baseQuery->where(function ($q) use ($search): void {
                 $q->where('motivo', 'ILIKE', "%{$search}%")
                     ->orWhereHas('cliente', function ($c) use ($search): void {
                         $c->where('nombres', 'ILIKE', "%{$search}%")
@@ -90,24 +103,51 @@ class CitaController extends Controller
             });
         }
 
-        if ($sortValid) {
-            $query->orderBy($sort, $directionValid ? $direction : 'asc');
-            if ($sort !== 'inicia_at') {
-                $query->orderBy('inicia_at');
-            }
-        } elseif ($rango === 'todas') {
-            $query->orderByDesc('inicia_at');
-        } else {
-            $query->orderBy('inicia_at');
-        }
+        $citasAgenda = collect();
+        $citas = null;
 
-        $citas = $query->paginate($perPage)->withQueryString();
+        if ($vista === 'calendario') {
+            $mesStart = $now->setDate(
+                (int) substr($mes, 0, 4),
+                (int) substr($mes, 5, 2),
+                1,
+            )->startOfDay();
+            $mesEnd = $mesStart->endOfMonth()->endOfDay();
+
+            $citasAgenda = (clone $baseQuery)
+                ->whereBetween('inicia_at', [$mesStart, $mesEnd])
+                ->orderBy('inicia_at')
+                ->limit(800)
+                ->get();
+
+            $citas = Cita::query()->whereRaw('0 = 1')->paginate($perPage)->withQueryString();
+            $coincidencias = $citasAgenda->count();
+        } else {
+            $listQuery = clone $baseQuery;
+            $this->applyRango($listQuery, $rango, $now);
+
+            if ($sortValid) {
+                $listQuery->orderBy($sort, $directionValid ? $direction : 'asc');
+                if ($sort !== 'inicia_at') {
+                    $listQuery->orderBy('inicia_at');
+                }
+            } elseif ($rango === 'todas') {
+                $listQuery->orderByDesc('inicia_at');
+            } else {
+                $listQuery->orderBy('inicia_at');
+            }
+
+            $citas = $listQuery->paginate($perPage)->withQueryString();
+            $coincidencias = $citas->total();
+        }
 
         $hoyInicio = $now->copy()->startOfDay();
         $hoyFin = $now->copy()->endOfDay();
+        $horario = $this->agendaHorario();
 
         return Inertia::render('taller/citas/index', [
             'citas' => $citas,
+            'citas_agenda' => $citasAgenda->values()->all(),
             'filters' => [
                 'search' => $search,
                 'per_page' => $perPage,
@@ -115,7 +155,11 @@ class CitaController extends Controller
                 'direction' => $sortValid && $directionValid ? $direction : null,
                 'estado' => $estado,
                 'rango' => $rango,
+                'vista' => $vista,
+                'mes' => $vista === 'calendario' ? $mes : null,
             ],
+            'agenda_horario' => $horario,
+            'timezone' => $tz,
             'stats' => [
                 'hoy' => Cita::query()
                     ->whereBetween('inicia_at', [$hoyInicio, $hoyFin])
@@ -126,7 +170,7 @@ class CitaController extends Controller
                     ->whereIn('estado', Cita::ESTADOS_ACTIVAS)
                     ->count(),
                 'convertidas' => Cita::query()->where('estado', Cita::ESTADO_CONVERTIDA)->count(),
-                'coincidencias' => $citas->total(),
+                'coincidencias' => $coincidencias,
             ],
             'sedes' => Sede::query()
                 ->where('tenant_id', $tenantId)
@@ -227,7 +271,7 @@ class CitaController extends Controller
     /**
      * @param  Builder<Cita>  $query
      */
-    private function applyRango($query, string $rango, Carbon $now): void
+    private function applyRango($query, string $rango, CarbonInterface $now): void
     {
         if ($rango === 'hoy') {
             $query->whereBetween('inicia_at', [$now->copy()->startOfDay(), $now->copy()->endOfDay()]);
@@ -239,6 +283,31 @@ class CitaController extends Controller
             $query->where('inicia_at', '>=', $now)
                 ->whereIn('estado', Cita::ESTADOS_ACTIVAS);
         }
+    }
+
+    /**
+     * @return array{hora_inicio: string, hora_fin: string}
+     */
+    private function agendaHorario(): array
+    {
+        $setting = TallerSetting::current();
+        $schedule = is_array($setting->horario_atencion) ? $setting->horario_atencion : [];
+
+        $inicio = $schedule['hora_inicio'] ?? $schedule['abre'] ?? '08:00';
+        $fin = $schedule['hora_fin'] ?? $schedule['cierra'] ?? '18:00';
+
+        if (! is_string($inicio) || preg_match('/^(?:[01]\d|2[0-3]):00$/', $inicio) !== 1) {
+            $inicio = '08:00';
+        }
+
+        if (! is_string($fin) || preg_match('/^(?:[01]\d|2[0-3]):00$/', $fin) !== 1) {
+            $fin = '18:00';
+        }
+
+        return [
+            'hora_inicio' => $inicio,
+            'hora_fin' => $fin,
+        ];
     }
 
     /**

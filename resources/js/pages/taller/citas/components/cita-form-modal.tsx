@@ -77,6 +77,7 @@ export function CitaFormModal({
     clientes,
     vehiculos,
     mecanicos,
+    prefill,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -85,6 +86,7 @@ export function CitaFormModal({
     clientes: readonly ClienteOption[];
     vehiculos: readonly VehiculoOption[];
     mecanicos: readonly MecanicoOption[];
+    prefill?: { fecha?: string; hora?: string } | null;
 }) {
     const isEdit = cita !== null;
     const locked = cita?.estado === 'convertida';
@@ -107,18 +109,25 @@ export function CitaFormModal({
         }
 
         clearErrors();
+
+        let iniciaDefault = nextHourLocal();
+        if (!cita && prefill?.fecha) {
+            const hora = prefill.hora && /^\d{2}:\d{2}$/.test(prefill.hora) ? prefill.hora : '09:00';
+            iniciaDefault = `${prefill.fecha}T${hora}`;
+        }
+
         setData({
             sede_id: cita?.sede_id ?? (sedes.length === 1 ? sedes[0].id : ''),
             cliente_id: cita?.cliente_id ?? '',
             vehiculo_id: cita?.vehiculo_id ?? '',
             assigned_user_id: cita?.assigned_user_id ?? '',
-            inicia_at: cita ? toDatetimeLocal(cita.inicia_at) : nextHourLocal(),
+            inicia_at: cita ? toDatetimeLocal(cita.inicia_at) : iniciaDefault,
             duracion_minutos: String(cita?.duracion_minutos ?? 60),
             estado: cita?.estado === 'convertida' ? 'programada' : (cita?.estado ?? 'programada'),
             motivo: cita?.motivo ?? '',
             notas: cita?.notas ?? '',
         });
-    }, [open, cita, sedes, clearErrors, setData]);
+    }, [open, cita, prefill, sedes, clearErrors, setData]);
 
     const vehiculosFiltrados = useMemo(
         () => vehiculos.filter((vehiculo) => vehiculo.cliente_id === data.cliente_id),
