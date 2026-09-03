@@ -20,7 +20,7 @@ class Producto extends Model
     use HasUuids;
     use SoftDeletes;
 
-    /** @var list<string> */
+    /** @deprecated Usar {@see UnidadMedida::codigosActivos()} — se mantiene por compatibilidad de factories/tests. */
     public const UNIDADES = ['UN', 'L', 'KG', 'JGO', 'PAR', 'M'];
 
     protected $table = 'productos';

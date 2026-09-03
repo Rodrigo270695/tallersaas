@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             PermissionsSeeder::class,
             PlansAndFeaturesSeeder::class,
+            UnidadesMedidaSeeder::class,
             TenantRolesSeeder::class,
             VehiculoMarcaModeloSeeder::class,
             SuperadminSeeder::class,

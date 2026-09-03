@@ -18,6 +18,7 @@ import {
     ListChecks,
     Package,
     Receipt,
+    Ruler,
     ScrollText,
     Settings2,
     ShieldCheck,
@@ -57,6 +58,7 @@ import stockInventario from '@/routes/inventario/stock';
 import planes from '@/routes/plataforma/planes';
 import suscripciones from '@/routes/plataforma/suscripciones';
 import tenants from '@/routes/plataforma/tenants';
+import unidadesMedida from '@/routes/plataforma/unidades-medida';
 import categoriasServicios from '@/routes/taller/categorias-servicios';
 import citasTaller from '@/routes/taller/citas';
 import clientes from '@/routes/taller/clientes';
@@ -250,6 +252,12 @@ function useNavConfig(): { singles: NavItem[]; groups: NavGroup[] } {
                             href: planes.index(),
                             icon: Layers,
                             permission: 'plataforma-planes.view',
+                        },
+                        {
+                            title: 'Unidades de medida',
+                            href: unidadesMedida.index(),
+                            icon: Ruler,
+                            permission: 'plataforma-unidades-medida.view',
                         },
                         {
                             title: 'Suscripciones',

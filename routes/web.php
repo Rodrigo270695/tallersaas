@@ -30,6 +30,7 @@ use App\Http\Controllers\TallerSettingController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\TenantImpersonationController;
 use App\Http\Controllers\TenantWhatsAppController;
+use App\Http\Controllers\UnidadMedidaController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VehiculoController;
 use App\Http\Controllers\VentaController;
@@ -486,6 +487,19 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.none'])
         Route::middleware('permission:plataforma-planes.delete')
             ->delete('planes/{plan}', [PlanController::class, 'destroy'])
             ->name('planes.destroy');
+
+        Route::middleware('permission:plataforma-unidades-medida.view')
+            ->get('unidades-medida', [UnidadMedidaController::class, 'index'])
+            ->name('unidades-medida.index');
+        Route::middleware('permission:plataforma-unidades-medida.create')
+            ->post('unidades-medida', [UnidadMedidaController::class, 'store'])
+            ->name('unidades-medida.store');
+        Route::middleware('permission:plataforma-unidades-medida.update')
+            ->match(['put', 'patch'], 'unidades-medida/{unidadMedida}', [UnidadMedidaController::class, 'update'])
+            ->name('unidades-medida.update');
+        Route::middleware('permission:plataforma-unidades-medida.delete')
+            ->delete('unidades-medida/{unidadMedida}', [UnidadMedidaController::class, 'destroy'])
+            ->name('unidades-medida.destroy');
 
         Route::middleware('permission:plataforma-suscripciones.view')
             ->get('suscripciones', [SubscriptionController::class, 'index'])

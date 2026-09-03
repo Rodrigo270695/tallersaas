@@ -17,6 +17,8 @@ export type Producto = {
 
 export type ProductoOption = { id: string; nombre: string };
 
+export type UnidadOption = { codigo: string; nombre: string };
+
 export type SedeOption = { id: string; nombre: string; codigo: string };
 
 export type ProductoFilters = {

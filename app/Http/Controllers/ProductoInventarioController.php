@@ -6,6 +6,7 @@ use App\Http\Requests\ProductoInventarioRequest;
 use App\Models\CategoriaProducto;
 use App\Models\Producto;
 use App\Models\Sede;
+use App\Models\UnidadMedida;
 use App\Services\Inventario\InventarioStockService;
 use App\Tenancy\TenantManager;
 use Illuminate\Http\RedirectResponse;
@@ -105,7 +106,7 @@ class ProductoInventarioController extends Controller
                 ->orderBy('orden')
                 ->orderBy('nombre')
                 ->get(['id', 'nombre']),
-            'unidad_options' => Producto::UNIDADES,
+            'unidad_options' => UnidadMedida::opcionesParaFormulario(),
             'sede_options' => Sede::query()
                 ->where('tenant_id', $tenantId)
                 ->where('activa', true)

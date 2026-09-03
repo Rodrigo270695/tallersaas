@@ -38,6 +38,7 @@ const MODULE_LABELS: Record<string, string> = {
     'audit-trail': 'Trazabilidad',
     'plataforma-tenants': 'Talleres',
     'plataforma-planes': 'Planes',
+    'plataforma-unidades-medida': 'Unidades de medida',
     'plataforma-suscripciones': 'Suscripciones',
     'plataforma-cobros': 'Cobros',
     'plataforma-operaciones': 'Operaciones',

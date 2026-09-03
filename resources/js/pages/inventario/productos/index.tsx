@@ -32,6 +32,7 @@ import type {
     ProductoOption,
     ProductoStats,
     SedeOption,
+    UnidadOption,
 } from './types';
 
 type ModalState =
@@ -62,7 +63,7 @@ export default function Index({
     filters: ProductoFilters;
     stats: ProductoStats;
     categoria_options: readonly ProductoOption[];
-    unidad_options: readonly string[];
+    unidad_options: readonly UnidadOption[];
     sede_options: readonly SedeOption[];
 }) {
     const { can } = usePermission();

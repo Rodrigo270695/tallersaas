@@ -9,7 +9,7 @@ import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import productos from '@/routes/inventario/productos';
-import type { Producto, ProductoOption, SedeOption } from '../types';
+import type { Producto, ProductoOption, SedeOption, UnidadOption } from '../types';
 
 type FormData = {
     categoria_id: string;
@@ -42,7 +42,7 @@ export function ProductoFormModal({
     onOpenChange: (open: boolean) => void;
     producto: Producto | null;
     categorias: readonly ProductoOption[];
-    unidades: readonly string[];
+    unidades: readonly UnidadOption[];
     sedes: readonly SedeOption[];
 }) {
     const isEdit = producto !== null;
@@ -118,8 +118,8 @@ export function ProductoFormModal({
     const unidadOptions = useMemo<readonly ComboboxOption[]>(
         () =>
             unidades.map((unidad) => ({
-                value: unidad,
-                label: unidad,
+                value: unidad.codigo,
+                label: `${unidad.codigo} — ${unidad.nombre}`,
             })),
         [unidades],
     );

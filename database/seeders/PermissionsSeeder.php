@@ -83,6 +83,7 @@ class PermissionsSeeder extends Seeder
         // ───── Plataforma (solo superadmin SaaS) ─────
         'plataforma-tenants' => ['view', 'create', 'update', 'suspend', 'resume', 'delete', 'export', 'bulk-delete', 'impersonate'],
         'plataforma-planes' => ['view', 'create', 'update', 'delete', 'export', 'bulk-delete'],
+        'plataforma-unidades-medida' => ['view', 'create', 'update', 'delete'],
         'plataforma-suscripciones' => ['view', 'create', 'update', 'delete', 'export', 'bulk-delete', 'extend-trial', 'change-plan', 'cancel'],
         'plataforma-cobros' => ['view', 'export', 'renew', 'refund', 'resend-invoice', 'add-note'],
         'plataforma-operaciones' => ['view', 'manage'],

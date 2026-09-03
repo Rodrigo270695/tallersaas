@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Producto;
+use App\Models\UnidadMedida;
 use App\Rules\ExistsSedeOfCurrentTenant;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -36,7 +37,12 @@ class ProductoInventarioRequest extends FormRequest
                 Rule::unique('productos', 'sku')->ignore($productoId),
             ],
             'codigo_barras' => ['nullable', 'string', 'max:64'],
-            'unidad' => ['required', 'string', Rule::in(Producto::UNIDADES)],
+            'unidad' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::in($this->codigosUnidadPermitidos($producto)),
+            ],
             'precio_venta' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
             'precio_compra' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
             'stock_minimo' => ['nullable', 'numeric', 'min:0', 'max:999999999.999'],
@@ -112,5 +118,23 @@ class ProductoInventarioRequest extends FormRequest
         $this->merge([
             'stock_inicial_sede_id' => $stockSede === '' ? null : $stockSede,
         ]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function codigosUnidadPermitidos(?Producto $producto): array
+    {
+        $codigos = UnidadMedida::codigosActivos();
+
+        if ($codigos === []) {
+            return Producto::UNIDADES;
+        }
+
+        if ($producto !== null && is_string($producto->unidad) && $producto->unidad !== '') {
+            $codigos[] = $producto->unidad;
+        }
+
+        return array_values(array_unique($codigos));
     }
 }
