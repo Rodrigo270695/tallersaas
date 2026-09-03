@@ -11,6 +11,7 @@ export type Venta = {
     cliente?: { id: string; nombres: string; apellidos: string | null } | null;
     vehiculo?: { id: string; placa: string } | null;
     orden_trabajo?: { id: string; numero: string } | null;
+    sede?: { id: string; nombre: string } | null;
     fel_estado?: 'pendiente' | 'emitido' | 'rechazado' | null;
     tipo_comprobante_sunat?: number | null;
 };

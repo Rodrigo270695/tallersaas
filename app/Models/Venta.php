@@ -113,6 +113,11 @@ class Venta extends Model
         return $this->belongsTo(FelDocument::class, 'fel_document_id');
     }
 
+    public function creadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_id');
+    }
+
     public static function generateNextNumber(): string
     {
         $year = now()->year;

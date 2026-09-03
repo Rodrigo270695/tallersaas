@@ -272,6 +272,10 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
             ->post('ventas', [VentaController::class, 'store'])
             ->name('ventas.store');
         Route::middleware('permission:ventas.view')
+            ->get('ventas/{venta}', [VentaController::class, 'show'])
+            ->whereUuid('venta')
+            ->name('ventas.show');
+        Route::middleware('permission:ventas.view')
             ->get('ventas/{venta}/ticket', [VentaController::class, 'ticket'])
             ->whereUuid('venta')
             ->name('ventas.ticket');

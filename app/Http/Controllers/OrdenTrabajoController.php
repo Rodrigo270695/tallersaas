@@ -167,21 +167,20 @@ class OrdenTrabajoController extends Controller
                     'type' => 'success',
                     'message' => 'Cobro registrado y comprobante '.$doc->numero_completo.' emitido.',
                 ]);
-
-                return back();
             } catch (ValidationException $e) {
                 Inertia::flash('toast', [
                     'type' => 'warning',
                     'message' => 'Cobro registrado. SUNAT: '.($e->validator->errors()->first() ?: $e->getMessage()),
                 ]);
-
-                return back();
             }
+        } else {
+            Inertia::flash('toast', ['type' => 'success', 'message' => 'Cobro registrado. Puedes imprimir el ticket.']);
         }
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Cobro registrado correctamente.']);
-
-        return back();
+        return redirect()->route('caja.ventas.show', [
+            'venta' => $venta,
+            'imprimir' => 1,
+        ]);
     }
 
     public function avisarLista(

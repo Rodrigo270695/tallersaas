@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Filter, Plus, Receipt, RefreshCw, ScreenShare, Wallet } from 'lucide-react';
+import { Eye, Filter, Plus, Receipt, RefreshCw, ScreenShare, Wallet } from 'lucide-react';
 import { useMemo } from 'react';
 import { Can } from '@/components/can';
 import {
@@ -92,11 +92,31 @@ export default function Index({
                 sortable: true,
                 cell: (venta) => (
                     <div className="flex flex-col">
-                        <span className="font-mono text-sm font-medium">{venta.numero}</span>
+                        <Link
+                            href={ventas.show.url(venta.id)}
+                            className="font-mono text-sm font-medium text-brand-700 hover:underline"
+                        >
+                            {venta.numero}
+                        </Link>
                         <span className="text-xs text-muted-foreground">
                             {venta.orden_trabajo?.numero ?? 'Sin OT'}
                         </span>
                     </div>
+                ),
+            },
+            {
+                key: 'fecha_pago',
+                header: 'Fecha',
+                sortable: true,
+                cell: (venta) => (
+                    <span className="text-sm text-muted-foreground">
+                        {venta.fecha_pago
+                            ? new Date(venta.fecha_pago).toLocaleString('es-PE', {
+                                  dateStyle: 'short',
+                                  timeStyle: 'short',
+                              })
+                            : '—'}
+                    </span>
                 ),
             },
             {
@@ -116,6 +136,15 @@ export default function Index({
                 ),
             },
             {
+                key: 'sede',
+                header: 'Sede',
+                cell: (venta) => (
+                    <span className="text-sm text-muted-foreground">
+                        {venta.sede?.nombre ?? '—'}
+                    </span>
+                ),
+            },
+            {
                 key: 'total',
                 header: 'Total',
                 sortable: true,
@@ -125,22 +154,10 @@ export default function Index({
             },
             {
                 key: 'metodo_pago',
-                header: 'Pago',
+                header: 'Método',
                 cell: (venta) => (
                     <span className="text-sm">
                         {METODO_LABEL[venta.metodo_pago] ?? venta.metodo_pago}
-                    </span>
-                ),
-            },
-            {
-                key: 'fecha_pago',
-                header: 'Fecha',
-                sortable: true,
-                cell: (venta) => (
-                    <span className="text-sm text-muted-foreground">
-                        {venta.fecha_pago
-                            ? new Date(venta.fecha_pago).toLocaleString('es-PE')
-                            : '—'}
                     </span>
                 ),
             },
@@ -156,9 +173,9 @@ export default function Index({
                         }`}
                     >
                         {venta.estado === 'pagado'
-                            ? 'Pagada'
+                            ? 'Pagado'
                             : venta.estado === 'anulado'
-                              ? 'Anulada'
+                              ? 'Anulado'
                               : venta.estado === 'parcial'
                                 ? 'Parcial'
                                 : 'Pendiente'}
@@ -167,7 +184,7 @@ export default function Index({
             },
             {
                 key: 'fel',
-                header: 'SUNAT',
+                header: 'SUNAT / CPE',
                 cell: (venta) => {
                     const tipo =
                         venta.tipo_comprobante_sunat === 1
@@ -183,12 +200,13 @@ export default function Index({
                               : venta.fel_estado === 'pendiente'
                                 ? 'Pendiente'
                                 : tipo === 'Ticket'
-                                  ? '—'
+                                  ? 'Sin comprobante'
                                   : 'Sin emitir';
                     const puedeEmitir =
                         canEmitir &&
                         venta.estado === 'pagado' &&
-                        (venta.tipo_comprobante_sunat === 1 || venta.tipo_comprobante_sunat === 2) &&
+                        (venta.tipo_comprobante_sunat === 1 ||
+                            venta.tipo_comprobante_sunat === 2) &&
                         venta.fel_estado !== 'emitido';
 
                     return (
@@ -231,6 +249,23 @@ export default function Index({
                     );
                 },
             },
+            {
+                key: 'detalle',
+                header: 'Detalle',
+                cell: (venta) => (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 cursor-pointer text-brand-700"
+                        asChild
+                    >
+                        <Link href={ventas.show.url(venta.id)} aria-label={`Ver ${venta.numero}`}>
+                            <Eye className="size-4" strokeWidth={2.25} />
+                        </Link>
+                    </Button>
+                ),
+            },
         ],
         [canEmitir],
     );
@@ -242,11 +277,11 @@ export default function Index({
             <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
                 <PageHeader
                     title="Ventas"
-                    description="Cobros de OT y ventas de mostrador (aceite, repuestos, servicios sin taller)."
+                    description="Historial de ventas registradas en caja: totales, cliente y estado de comprobante electrónico (SUNAT)."
                     stats={[
                         { label: 'Total', value: stats.total, variant: 'info', icon: Receipt },
                         { label: 'Pagadas', value: stats.pagadas, variant: 'primary', icon: Wallet },
-                        { label: 'Filtros', value: activeFiltersCount, variant: 'warning', icon: Filter },
+                        { label: 'Anuladas', value: stats.anuladas, variant: 'warning', icon: Filter },
                         {
                             label: 'Coincidencias',
                             value: stats.coincidencias,

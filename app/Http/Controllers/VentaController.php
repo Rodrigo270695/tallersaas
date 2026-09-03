@@ -13,6 +13,8 @@ use App\Models\Venta;
 use App\Services\Fel\FelEmisionVentaService;
 use App\Services\Taller\ServicioKitService;
 use App\Services\Venta\VentaCheckoutFromOrdenService;
+use App\Services\Venta\VentaTicketViewService;
+use App\Support\Caja\TicketAnchoMm;
 use App\Support\Fel\ApisunatCredentialResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -58,6 +60,7 @@ class VentaController extends Controller
                 'cliente:id,nombres,apellidos',
                 'vehiculo:id,placa',
                 'ordenTrabajo:id,numero',
+                'sede:id,nombre',
             ]);
 
         if ($sortValid) {
@@ -253,29 +256,100 @@ class VentaController extends Controller
             ]);
         }
 
-        return redirect()->route('caja.ventas.ticket', $venta);
+        return redirect()->route('caja.ventas.show', [
+            'venta' => $venta,
+            'imprimir' => 1,
+        ]);
     }
 
-    public function ticket(Venta $venta): View
+    public function show(Request $request, Venta $venta): Response
     {
+        $tenantId = tenant_id();
+        abort_if($tenantId === null || $tenantId === '', 403);
+
         $venta->load([
             'cliente:id,nombres,apellidos,tipo_documento,numero_documento',
             'vehiculo:id,placa',
             'ordenTrabajo:id,numero',
+            'sede:id,nombre',
+            'creadoPor:id,name',
             'lineas' => fn ($q) => $q->orderBy('orden'),
             'pagos',
+            'felDocument:id,numero_completo,estado',
         ]);
 
         $setting = TallerSetting::current();
-        $ancho = $setting->ticketAnchoMm();
+        $clienteNombre = $venta->cliente?->nombreCompleto() ?: 'Sin cliente';
+        $esTicketInterno = $venta->tipo_comprobante_sunat === null
+            || (int) $venta->tipo_comprobante_sunat === 0;
 
-        return view('caja.venta-ticket', [
-            'venta' => $venta,
-            'setting' => $setting,
-            'ancho_mm' => $ancho,
-            'taller_nombre' => $setting->nombre_comercial
-                ?: $setting->razon_social
-                ?: 'Taller',
+        return Inertia::render('caja/ventas/show', [
+            'venta' => [
+                'id' => $venta->id,
+                'numero' => $venta->numero,
+                'estado' => $venta->estado,
+                'moneda' => $venta->moneda === 'USD' ? 'USD' : 'PEN',
+                'subtotal' => (string) $venta->subtotal,
+                'igv_monto' => (string) $venta->igv_monto,
+                'descuento_monto' => (string) $venta->descuento_monto,
+                'total' => (string) $venta->total,
+                'metodo_pago' => $venta->metodo_pago,
+                'monto_recibido' => $venta->monto_recibido !== null ? (string) $venta->monto_recibido : null,
+                'vuelto' => $venta->vuelto !== null ? (string) $venta->vuelto : null,
+                'fecha_pago' => $venta->fecha_pago?->toIso8601String(),
+                'created_at' => $venta->created_at?->toIso8601String(),
+                'notas' => $venta->notas,
+                'tipo_comprobante_sunat' => $venta->tipo_comprobante_sunat,
+                'fel_estado' => $venta->fel_estado,
+                'cliente' => $clienteNombre,
+                'cliente_doc' => $venta->cliente && filled($venta->cliente->numero_documento)
+                    ? strtoupper((string) ($venta->cliente->tipo_documento ?: 'DOC')).' '.$venta->cliente->numero_documento
+                    : null,
+                'vehiculo' => $venta->vehiculo?->placa,
+                'orden_trabajo' => $venta->ordenTrabajo?->numero,
+                'sede' => $venta->sede?->nombre ?? '—',
+                'cajero' => $venta->creadoPor?->name ?? '—',
+                'igv_porcentaje' => number_format($setting->igvPorcentajeEfectivo(), 2, '.', ''),
+                'lineas' => $venta->lineas->map(fn ($ln) => [
+                    'id' => $ln->id,
+                    'descripcion' => $ln->descripcion,
+                    'cantidad' => (string) $ln->cantidad,
+                    'precio_unitario' => (string) $ln->precio_unitario,
+                    'subtotal' => (string) $ln->subtotal,
+                ])->values()->all(),
+                'pagos' => $venta->pagos->map(fn ($pago) => [
+                    'id' => $pago->id,
+                    'metodo' => $pago->metodo,
+                    'monto' => (string) $pago->monto,
+                    'monto_recibido' => $pago->monto_recibido !== null ? (string) $pago->monto_recibido : null,
+                    'vuelto' => $pago->vuelto !== null ? (string) $pago->vuelto : null,
+                ])->values()->all(),
+                'fel_document' => $venta->felDocument === null ? null : [
+                    'numero_completo' => $venta->felDocument->numero_completo,
+                ],
+            ],
+            'taller' => [
+                'ticket_ancho_mm' => (string) $setting->ticketAnchoMm(),
+                'emite_comprobantes_sunat' => (bool) $setting->emite_comprobantes_sunat,
+            ],
+            'ticket' => [
+                'puede_imprimir' => $venta->estado === Venta::ESTADO_PAGADO && $esTicketInterno,
+            ],
+            'ui' => [
+                'auto_imprimir' => $request->boolean('imprimir'),
+            ],
         ]);
+    }
+
+    public function ticket(Request $request, Venta $venta, VentaTicketViewService $ticketView): View
+    {
+        $setting = TallerSetting::current();
+        $ancho = TicketAnchoMm::fromRequest($request, (string) $setting->ticketAnchoMm());
+        $autoPrint = $request->boolean('print');
+
+        return view(
+            'caja.venta-ticket',
+            $ticketView->viewData($venta, $setting, $ancho, $autoPrint),
+        );
     }
 }
