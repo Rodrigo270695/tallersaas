@@ -111,6 +111,14 @@ export type OrdenFilters = {
     sort: string | null;
     direction: 'asc' | 'desc' | null;
     estado: OrdenEstadoFilter;
+    fecha_desde: string;
+    fecha_hasta: string;
+};
+
+export type OrdenFiltroUi = {
+    default_desde: string;
+    default_hasta: string;
+    timezone: string;
 };
 
 export type MiSesionAbierta = {

@@ -49,6 +49,8 @@ type UsuariosIndexProps = {
     filters: UserFilters;
     stats: UserStats;
     roles_catalog: readonly UserRoleOption[];
+    /** En tenant demo: no se permiten altas/ediciones/borrados. */
+    mutations_locked?: boolean;
 };
 
 type ModalState =
@@ -66,12 +68,13 @@ export default function Index({
     filters,
     stats,
     roles_catalog,
+    mutations_locked = false,
 }: UsuariosIndexProps) {
     const { can } = usePermission();
-    const canCreate = can('usuarios.create');
-    const canUpdate = can('usuarios.update');
-    const canDelete = can('usuarios.delete');
-    const canBulkDelete = can('usuarios.bulk-delete');
+    const canCreate = !mutations_locked && can('usuarios.create');
+    const canUpdate = !mutations_locked && can('usuarios.update');
+    const canDelete = !mutations_locked && can('usuarios.delete');
+    const canBulkDelete = !mutations_locked && can('usuarios.bulk-delete');
     const showRowActions = canUpdate || canDelete;
 
     const page = usePage<{ auth: Auth }>();
@@ -354,7 +357,11 @@ export default function Index({
             <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
                 <PageHeader
                     title="Usuarios"
-                    description="Administra las cuentas de este taller. Cada usuario tiene un único rol, y los permisos se definen en Configuración → Roles."
+                    description={
+                        mutations_locked
+                            ? 'Taller demo: los usuarios están bloqueados para que nadie altere la cuenta de prueba. Cada noche se restauran los datos.'
+                            : 'Administra las cuentas de este taller. Cada usuario tiene un único rol, y los permisos se definen en Configuración → Roles.'
+                    }
                     stats={[
                         {
                             label: 'Total',

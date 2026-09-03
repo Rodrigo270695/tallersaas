@@ -63,6 +63,21 @@ class OrdenTrabajoController extends Controller
             $estado = 'todas';
         }
 
+        $tz = (string) config('app.timezone', 'America/Lima');
+        $hoy = now($tz)->toDateString();
+        $defaultDesde = $hoy;
+        $defaultHasta = $hoy;
+
+        $fechaDesde = $this->parseDateParam($request->query('fecha_desde'));
+        $fechaHasta = $this->parseDateParam($request->query('fecha_hasta'));
+
+        if ($fechaDesde === null || $fechaHasta === null) {
+            $fechaDesde = $defaultDesde;
+            $fechaHasta = $defaultHasta;
+        } elseif ($fechaDesde > $fechaHasta) {
+            [$fechaDesde, $fechaHasta] = [$fechaHasta, $fechaDesde];
+        }
+
         $query = OrdenTrabajo::query()
             ->with([
                 'cliente:id,nombres,apellidos,telefono,tipo_documento,numero_documento',
@@ -72,7 +87,9 @@ class OrdenTrabajoController extends Controller
                 'sede:id,nombre,codigo',
                 'lineas',
                 'fotos',
-            ]);
+            ])
+            ->whereRaw('DATE(created_at) >= ?', [$fechaDesde])
+            ->whereRaw('DATE(created_at) <= ?', [$fechaHasta]);
 
         if ($sortValid) {
             $query->orderBy($sort, $directionValid ? $direction : 'asc');
@@ -101,7 +118,11 @@ class OrdenTrabajoController extends Controller
 
         $ordenes = $query->paginate($perPage)->withQueryString();
 
-        $counts = OrdenTrabajo::query()
+        $statsBase = OrdenTrabajo::query()
+            ->whereRaw('DATE(created_at) >= ?', [$fechaDesde])
+            ->whereRaw('DATE(created_at) <= ?', [$fechaHasta]);
+
+        $counts = (clone $statsBase)
             ->selectRaw('estado, count(*) as total')
             ->groupBy('estado')
             ->pluck('total', 'estado');
@@ -116,9 +137,16 @@ class OrdenTrabajoController extends Controller
                 'sort' => $sortValid ? $sort : null,
                 'direction' => $sortValid && $directionValid ? $direction : null,
                 'estado' => $estado,
+                'fecha_desde' => $fechaDesde,
+                'fecha_hasta' => $fechaHasta,
+            ],
+            'orden_filtro_ui' => [
+                'default_desde' => $defaultDesde,
+                'default_hasta' => $defaultHasta,
+                'timezone' => $tz,
             ],
             'stats' => [
-                'total' => OrdenTrabajo::count(),
+                'total' => (clone $statsBase)->count(),
                 'abiertas' => (int) ($counts[OrdenTrabajo::ESTADO_ABIERTA] ?? 0),
                 'en_proceso' => (int) ($counts[OrdenTrabajo::ESTADO_EN_PROCESO] ?? 0),
                 'listas' => (int) ($counts[OrdenTrabajo::ESTADO_LISTA] ?? 0),
@@ -441,5 +469,14 @@ class OrdenTrabajoController extends Controller
         $nombre = trim((string) ($settings->nombre_comercial ?: $settings->razon_social ?: ''));
 
         return $nombre !== '' ? $nombre : 'el taller';
+    }
+
+    private function parseDateParam(mixed $value): ?string
+    {
+        if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) !== 1) {
+            return null;
+        }
+
+        return $value;
     }
 }

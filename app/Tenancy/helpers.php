@@ -33,7 +33,7 @@ if (! function_exists('tenant_slug')) {
 if (! function_exists('is_public_demo_tenant')) {
     /**
      * Tenant público de demostración (slug fijo `demo`).
-     * Ahí no se deben editar roles/permisos desde la UI.
+     * Ahí no se deben editar roles/permisos ni usuarios desde la UI.
      */
     function is_public_demo_tenant(): bool
     {

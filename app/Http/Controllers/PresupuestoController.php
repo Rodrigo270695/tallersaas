@@ -57,6 +57,21 @@ class PresupuestoController extends Controller
             $estado = 'todas';
         }
 
+        $tz = (string) config('app.timezone', 'America/Lima');
+        $hoy = now($tz)->toDateString();
+        $defaultDesde = $hoy;
+        $defaultHasta = $hoy;
+
+        $fechaDesde = $this->parseDateParam($request->query('fecha_desde'));
+        $fechaHasta = $this->parseDateParam($request->query('fecha_hasta'));
+
+        if ($fechaDesde === null || $fechaHasta === null) {
+            $fechaDesde = $defaultDesde;
+            $fechaHasta = $defaultHasta;
+        } elseif ($fechaDesde > $fechaHasta) {
+            [$fechaDesde, $fechaHasta] = [$fechaHasta, $fechaDesde];
+        }
+
         $query = Presupuesto::query()
             ->with([
                 'cliente:id,nombres,apellidos,telefono',
@@ -66,7 +81,9 @@ class PresupuestoController extends Controller
                 'sede:id,nombre,codigo',
                 'ordenTrabajo:id,numero,estado',
                 'items',
-            ]);
+            ])
+            ->whereRaw('DATE(created_at) >= ?', [$fechaDesde])
+            ->whereRaw('DATE(created_at) <= ?', [$fechaHasta]);
 
         if ($sortValid) {
             $query->orderBy($sort, $directionValid ? $direction : 'asc');
@@ -94,7 +111,11 @@ class PresupuestoController extends Controller
 
         $presupuestos = $query->paginate($perPage)->withQueryString();
 
-        $counts = Presupuesto::query()
+        $statsBase = Presupuesto::query()
+            ->whereRaw('DATE(created_at) >= ?', [$fechaDesde])
+            ->whereRaw('DATE(created_at) <= ?', [$fechaHasta]);
+
+        $counts = (clone $statsBase)
             ->selectRaw('estado, count(*) as total')
             ->groupBy('estado')
             ->pluck('total', 'estado');
@@ -123,11 +144,18 @@ class PresupuestoController extends Controller
                 'sort' => $sortValid ? $sort : null,
                 'direction' => $sortValid && $directionValid ? $direction : null,
                 'estado' => $estado,
+                'fecha_desde' => $fechaDesde,
+                'fecha_hasta' => $fechaHasta,
+            ],
+            'presupuesto_filtro_ui' => [
+                'default_desde' => $defaultDesde,
+                'default_hasta' => $defaultHasta,
+                'timezone' => $tz,
             ],
             'edit_id' => $editId,
             'open_presupuesto' => $openPresupuesto,
             'stats' => [
-                'total' => Presupuesto::count(),
+                'total' => (clone $statsBase)->count(),
                 'pendientes' => (int) ($counts[Presupuesto::ESTADO_ENVIADO] ?? 0),
                 'aprobados' => (int) ($counts[Presupuesto::ESTADO_APROBADO] ?? 0),
                 'coincidencias' => $presupuestos->total(),
@@ -365,5 +393,14 @@ class PresupuestoController extends Controller
         $nombre = trim((string) ($settings->nombre_comercial ?: $settings->razon_social ?: ''));
 
         return $nombre !== '' ? $nombre : 'el taller';
+    }
+
+    private function parseDateParam(mixed $value): ?string
+    {
+        if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) !== 1) {
+            return null;
+        }
+
+        return $value;
     }
 }

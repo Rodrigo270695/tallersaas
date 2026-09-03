@@ -90,6 +90,14 @@ export type PresupuestoFilters = {
     sort: string | null;
     direction: 'asc' | 'desc' | null;
     estado: PresupuestoEstadoFilter;
+    fecha_desde: string;
+    fecha_hasta: string;
+};
+
+export type PresupuestoFiltroUi = {
+    default_desde: string;
+    default_hasta: string;
+    timezone: string;
 };
 
 export type PresupuestoIgv = {

@@ -101,11 +101,14 @@ class UserController extends Controller
                 'coincidencias' => $users->total(),
             ],
             'roles_catalog' => $rolesCatalog,
+            'mutations_locked' => is_public_demo_tenant(),
         ]);
     }
 
     public function store(UserRequest $request): RedirectResponse
     {
+        $this->abortIfDemoUsersLocked();
+
         $data = $request->validated();
 
         $user = User::query()->create([
@@ -127,6 +130,8 @@ class UserController extends Controller
 
     public function update(UserRequest $request, User $user): RedirectResponse
     {
+        $this->abortIfDemoUsersLocked();
+
         TallerAdminScope::assertUserAccessible($user);
 
         if ($request->user()?->id === $user->id && $request->boolean('is_active') === false) {
@@ -158,6 +163,8 @@ class UserController extends Controller
 
     public function destroy(Request $request, User $user): RedirectResponse
     {
+        $this->abortIfDemoUsersLocked();
+
         TallerAdminScope::assertUserAccessible($user);
 
         if ($request->user()?->id === $user->id) {
@@ -181,6 +188,8 @@ class UserController extends Controller
 
     public function bulkDestroy(Request $request): RedirectResponse
     {
+        $this->abortIfDemoUsersLocked();
+
         $data = $request->validate([
             'ids' => ['required', 'array', 'min:1', 'max:500'],
             'ids.*' => ['uuid'],
@@ -252,5 +261,18 @@ class UserController extends Controller
         }
 
         return $query;
+    }
+
+    /**
+     * En el tenant público `demo` no se permiten altas/edición/borrado de
+     * usuarios: el admin de prueba debe permanecer intacto.
+     */
+    private function abortIfDemoUsersLocked(): void
+    {
+        if (! is_public_demo_tenant()) {
+            return;
+        }
+
+        abort(403, 'En el taller demo no se pueden modificar usuarios.');
     }
 }

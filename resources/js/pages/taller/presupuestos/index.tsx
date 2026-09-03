@@ -12,6 +12,7 @@ import {
     PageHeader,
 } from '@/components/data-page';
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
+import { DateRangeFilter } from '@/components/date-range-filter';
 import { Button } from '@/components/ui/button';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
@@ -28,6 +29,7 @@ import type {
     PresupuestoEstado,
     PresupuestoEstadoFilter,
     PresupuestoFilters,
+    PresupuestoFiltroUi,
     PresupuestoStats,
     ProductoCobroOption,
     SedeOption,
@@ -69,6 +71,7 @@ const money = (value: string | number): string =>
 export default function Index({
     presupuestos: paginated,
     filters,
+    presupuesto_filtro_ui: presupuestoFiltroUi,
     stats,
     sedes,
     clientes,
@@ -82,6 +85,7 @@ export default function Index({
 }: {
     presupuestos: Paginated<Presupuesto>;
     filters: PresupuestoFilters;
+    presupuesto_filtro_ui: PresupuestoFiltroUi;
     stats: PresupuestoStats;
     sedes: readonly SedeOption[];
     clientes: readonly ClienteOption[];
@@ -102,10 +106,14 @@ export default function Index({
     const showRowActions = canUpdate || canDelete || canEnviar || canAprobar;
 
     const { search, setSearch, isLoading, sort, setSort, setPerPage, applyFilter } =
-        useDataTablePage<{ estado: PresupuestoEstadoFilter }>({
+        useDataTablePage<{
+            estado: PresupuestoEstadoFilter;
+            fecha_desde: string;
+            fecha_hasta: string;
+        }>({
             routeUrl: presupuestos.index().url,
             initialFilters: filters,
-            only: ['presupuestos', 'filters', 'stats'],
+            only: ['presupuestos', 'filters', 'stats', 'presupuesto_filtro_ui'],
             errorMessage: 'No se pudo cargar los presupuestos.',
             storageKey: 'tallersaas.presupuestos.prefs',
             defaults: { per_page: DEFAULT_PER_PAGE, sort: null, direction: null },
@@ -137,8 +145,23 @@ export default function Index({
             count += 1;
         }
 
+        if (
+            filters.fecha_desde !== presupuestoFiltroUi.default_desde ||
+            filters.fecha_hasta !== presupuestoFiltroUi.default_hasta
+        ) {
+            count += 1;
+        }
+
         return count;
-    }, [filters.search, filters.estado, filters.sort]);
+    }, [
+        filters.search,
+        filters.estado,
+        filters.sort,
+        filters.fecha_desde,
+        filters.fecha_hasta,
+        presupuestoFiltroUi.default_desde,
+        presupuestoFiltroUi.default_hasta,
+    ]);
 
     const estadoOptions: readonly FilterChip<PresupuestoEstadoFilter>[] = useMemo(
         () => [
@@ -311,12 +334,27 @@ export default function Index({
                             isSearching={isLoading}
                             placeholder="Buscar por número, cliente o placa…"
                         >
-                            <FilterChips
-                                ariaLabel="Filtrar por estado"
-                                value={filters.estado}
-                                onChange={(estado) => applyFilter({ estado })}
-                                options={estadoOptions}
-                            />
+                            <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
+                                <FilterChips
+                                    ariaLabel="Filtrar por estado"
+                                    value={filters.estado}
+                                    onChange={(estado) => applyFilter({ estado })}
+                                    options={estadoOptions}
+                                    disabled={isLoading}
+                                />
+                                <DateRangeFilter
+                                    desde={filters.fecha_desde}
+                                    hasta={filters.fecha_hasta}
+                                    defaultDesde={presupuestoFiltroUi.default_desde}
+                                    defaultHasta={presupuestoFiltroUi.default_hasta}
+                                    timeZone={presupuestoFiltroUi.timezone}
+                                    disabled={isLoading}
+                                    triggerClassName="h-9 min-w-[12rem]"
+                                    onApply={(desde, hasta) =>
+                                        applyFilter({ fecha_desde: desde, fecha_hasta: hasta })
+                                    }
+                                />
+                            </div>
                         </DataToolbar>
                     }
                     footer={
@@ -332,6 +370,8 @@ export default function Index({
                                     filters.estado !== DEFAULT_ESTADO
                                         ? filters.estado
                                         : undefined,
+                                fecha_desde: filters.fecha_desde,
+                                fecha_hasta: filters.fecha_hasta,
                             }}
                         />
                     }

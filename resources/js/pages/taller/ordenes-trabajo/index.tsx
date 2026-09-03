@@ -20,6 +20,7 @@ import {
     PageHeader,
 } from '@/components/data-page';
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
+import { DateRangeFilter } from '@/components/date-range-filter';
 import { Button } from '@/components/ui/button';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
@@ -37,6 +38,7 @@ import type {
     OrdenEstado,
     OrdenEstadoFilter,
     OrdenFilters,
+    OrdenFiltroUi,
     OrdenIgv,
     OrdenStats,
     OrdenTrabajo,
@@ -49,6 +51,7 @@ import type {
 type IndexProps = {
     ordenes: Paginated<OrdenTrabajo>;
     filters: OrdenFilters;
+    orden_filtro_ui: OrdenFiltroUi;
     stats: OrdenStats;
     sedes: readonly SedeOption[];
     clientes: readonly ClienteOption[];
@@ -90,6 +93,7 @@ const estadoClass: Record<OrdenEstado, string> = {
 export default function Index({
     ordenes: paginated,
     filters,
+    orden_filtro_ui: ordenFiltroUi,
     stats,
     sedes,
     clientes,
@@ -107,10 +111,14 @@ export default function Index({
     const showRowActions = canUpdate || canDelete || canPresupuesto;
 
     const { search, setSearch, isLoading, sort, setSort, setPerPage, applyFilter } =
-        useDataTablePage<{ estado: OrdenEstadoFilter }>({
+        useDataTablePage<{
+            estado: OrdenEstadoFilter;
+            fecha_desde: string;
+            fecha_hasta: string;
+        }>({
             routeUrl: ordenesTrabajo.index().url,
             initialFilters: filters,
-            only: ['ordenes', 'filters', 'stats'],
+            only: ['ordenes', 'filters', 'stats', 'orden_filtro_ui'],
             errorMessage: 'No se pudo cargar la lista de órdenes.',
             storageKey: 'tallersaas.ordenes.prefs',
             defaults: { per_page: DEFAULT_PER_PAGE, sort: null, direction: null },
@@ -165,8 +173,24 @@ export default function Index({
             count += 1;
         }
 
+        if (
+            filters.fecha_desde !== ordenFiltroUi.default_desde ||
+            filters.fecha_hasta !== ordenFiltroUi.default_hasta
+        ) {
+            count += 1;
+        }
+
         return count;
-    }, [filters.search, filters.sort, filters.per_page, filters.estado]);
+    }, [
+        filters.search,
+        filters.sort,
+        filters.per_page,
+        filters.estado,
+        filters.fecha_desde,
+        filters.fecha_hasta,
+        ordenFiltroUi.default_desde,
+        ordenFiltroUi.default_hasta,
+    ]);
 
     const columns = useMemo<DataTableColumn<OrdenTrabajo>[]>(() => {
         const base: DataTableColumn<OrdenTrabajo>[] = [
@@ -322,12 +346,27 @@ export default function Index({
                             isSearching={isLoading}
                             placeholder="Buscar por número, placa o cliente…"
                         >
-                            <FilterChips
-                                ariaLabel="Filtrar por estado"
-                                value={filters.estado}
-                                onChange={(estado) => applyFilter({ estado })}
-                                options={estadoOptions}
-                            />
+                            <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
+                                <FilterChips
+                                    ariaLabel="Filtrar por estado"
+                                    value={filters.estado}
+                                    onChange={(estado) => applyFilter({ estado })}
+                                    options={estadoOptions}
+                                    disabled={isLoading}
+                                />
+                                <DateRangeFilter
+                                    desde={filters.fecha_desde}
+                                    hasta={filters.fecha_hasta}
+                                    defaultDesde={ordenFiltroUi.default_desde}
+                                    defaultHasta={ordenFiltroUi.default_hasta}
+                                    timeZone={ordenFiltroUi.timezone}
+                                    disabled={isLoading}
+                                    triggerClassName="h-9 min-w-[12rem]"
+                                    onApply={(desde, hasta) =>
+                                        applyFilter({ fecha_desde: desde, fecha_hasta: hasta })
+                                    }
+                                />
+                            </div>
                         </DataToolbar>
                     }
                     footer={
@@ -340,6 +379,8 @@ export default function Index({
                                 sort: filters.sort ?? undefined,
                                 direction: filters.direction ?? undefined,
                                 estado: filters.estado !== DEFAULT_ESTADO ? filters.estado : undefined,
+                                fecha_desde: filters.fecha_desde,
+                                fecha_hasta: filters.fecha_hasta,
                             }}
                         />
                     }
