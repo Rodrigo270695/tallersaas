@@ -15,6 +15,8 @@ type FormData = {
     activo: boolean;
 };
 
+const isFormValid = (data: FormData): boolean => data.nombre.trim().length > 0;
+
 export function CategoriaFormModal({
     open,
     onOpenChange,
@@ -25,12 +27,14 @@ export function CategoriaFormModal({
     categoria: CategoriaProducto | null;
 }) {
     const isEdit = categoria !== null;
-    const { data, setData, post, put, processing, errors, reset, clearErrors } =
+    const { data, setData, post, put, processing, errors, clearErrors } =
         useForm<FormData>({
             nombre: '',
             descripcion: '',
             activo: true,
         });
+
+    const canSubmit = isFormValid(data) && !processing;
 
     useEffect(() => {
         if (!open) {
@@ -47,6 +51,11 @@ export function CategoriaFormModal({
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
+
+        if (!canSubmit) {
+            return;
+        }
+
         const opts = {
             preserveScroll: true,
             onSuccess: () => onOpenChange(false),
@@ -74,10 +83,15 @@ export function CategoriaFormModal({
                         variant="outline"
                         className="cursor-pointer"
                         onClick={() => onOpenChange(false)}
+                        disabled={processing}
                     >
                         Cancelar
                     </Button>
-                    <Button type="submit" disabled={processing} className="cursor-pointer gap-2">
+                    <Button
+                        type="submit"
+                        disabled={!canSubmit}
+                        className="cursor-pointer gap-2 disabled:cursor-not-allowed"
+                    >
                         {processing && <Loader2 className="size-4 animate-spin" />}
                         {isEdit ? 'Guardar' : 'Crear'}
                     </Button>
