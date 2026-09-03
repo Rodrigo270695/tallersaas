@@ -1,4 +1,4 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
     Banknote,
@@ -11,6 +11,7 @@ import {
     MoreHorizontal,
     Package,
     Plus,
+    Save,
     Trash2,
     Wrench,
 } from 'lucide-react';
@@ -214,7 +215,7 @@ export default function Show({
     const [avisarOpen, setAvisarOpen] = useState(false);
     const [tab, setTab] = useState<TabId>(() => defaultTab(orden.estado));
 
-    const { data, setData, put, processing, errors } = useForm<OrdenFormData>({
+    const { data, setData, put, processing, errors, recentlySuccessful } = useForm<OrdenFormData>({
         sede_id: orden.sede_id,
         cliente_id: orden.cliente_id,
         vehiculo_id: orden.vehiculo_id,
@@ -391,7 +392,10 @@ export default function Show({
             <div
                 className={cn(
                     'flex flex-1 flex-col gap-4 p-4 sm:p-6',
-                    showSaveBar ? 'pb-40 lg:pb-6' : 'pb-24 lg:pb-6',
+                    // Espacio para tabs móviles + barra flotante de guardar (estilo VetSaaS)
+                    showSaveBar
+                        ? 'pb-[calc(10.5rem+env(safe-area-inset-bottom,0px))] lg:pb-28'
+                        : 'pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-6',
                 )}
             >
                 {/* Compact header */}
@@ -950,33 +954,38 @@ export default function Show({
                 ) : null}
             </div>
 
-            {/* Sticky save bar (above mobile tabs) */}
+            {/* Barra flotante de guardar (estilo VetSaaS) */}
             {showSaveBar ? (
                 <div
                     className={cn(
-                        'fixed inset-x-0 z-30 border-t bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80',
-                        'bottom-[calc(3.75rem+env(safe-area-inset-bottom,0px))] lg:bottom-0',
+                        'fixed right-2 z-40 w-[calc(100%-1rem)] max-w-xl rounded-xl border border-border/70 bg-card/95 px-4 py-3 shadow-lg backdrop-blur-md',
+                        'md:w-[calc(100vw-var(--sidebar-width,16rem)-2rem)]',
+                        // Encima de la barra de tabs en móvil
+                        'bottom-[calc(3.75rem+0.5rem+env(safe-area-inset-bottom,0px))] lg:bottom-2',
                     )}
                 >
-                    <div className="mx-auto flex max-w-5xl items-center justify-end gap-2 px-4 py-3 sm:px-6">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="min-h-11 cursor-pointer"
-                            onClick={() => router.visit(ordenesTrabajo.index().url)}
-                        >
-                            Volver
-                        </Button>
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                            <Wrench
+                                className="size-4 shrink-0 text-brand-600/80"
+                                strokeWidth={2.25}
+                            />
+                            <span className="truncate">{orden.numero}</span>
+                        </div>
                         <Button
                             type="submit"
                             form="orden-trabajo-form"
                             disabled={processing}
-                            className="min-h-11 cursor-pointer gap-2 disabled:cursor-not-allowed"
+                            className="h-10 shrink-0 cursor-pointer gap-2 disabled:cursor-not-allowed"
                         >
                             {processing ? (
                                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                            ) : null}
-                            Guardar cambios
+                            ) : recentlySuccessful ? (
+                                <CheckCircle2 className="size-4" strokeWidth={2.5} />
+                            ) : (
+                                <Save className="size-4" strokeWidth={2.5} />
+                            )}
+                            {recentlySuccessful ? 'Guardado' : 'Guardar cambios'}
                         </Button>
                     </div>
                 </div>
