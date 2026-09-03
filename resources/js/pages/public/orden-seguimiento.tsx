@@ -115,7 +115,7 @@ export default function OrdenSeguimientoPublico({ orden, fotos, taller }: Props)
             <Head title={`Seguimiento ${orden.numero}`} />
 
             <div className="min-h-dvh bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-50 via-stone-50 to-stone-100">
-                <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+                <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 md:max-w-7xl md:px-8 lg:max-w-[90rem] lg:px-10 lg:py-10 xl:px-12">
                     {/* Header: apilado en móvil, barra en PC */}
                     <header className="mb-5 rounded-2xl border border-white/80 bg-white/90 p-5 shadow-sm backdrop-blur sm:mb-6 sm:p-6 lg:mb-8">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -163,8 +163,8 @@ export default function OrdenSeguimientoPublico({ orden, fotos, taller }: Props)
                         </div>
                     </header>
 
-                    {/* Móvil: columna · PC: progreso | fotos */}
-                    <div className="grid gap-5 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:gap-6 xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
+                    {/* Móvil: columna · PC: progreso | fotos (fotos ocupan más ancho) */}
+                    <div className="grid gap-5 lg:grid-cols-[minmax(18rem,26rem)_minmax(0,1fr)] lg:gap-8 xl:grid-cols-[minmax(20rem,28rem)_minmax(0,1fr)]">
                         <div className="flex flex-col gap-5 lg:gap-6">
                             <section className="rounded-2xl border border-white/80 bg-white/90 p-5 shadow-sm backdrop-blur sm:p-6">
                                 <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
@@ -301,7 +301,7 @@ export default function OrdenSeguimientoPublico({ orden, fotos, taller }: Props)
                                     </p>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
+                                <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                                     {fotosEtapa.map((foto) => (
                                         <button
                                             key={foto.id}
