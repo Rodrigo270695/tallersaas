@@ -13,13 +13,6 @@ import {
 } from '@/components/data-page';
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
 import { Button } from '@/components/ui/button';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
 import {
@@ -118,6 +111,23 @@ export default function Index({
         { value: 'todas', label: 'Todas' },
         { value: 'pagado', label: 'Pagadas' },
         { value: 'anulado', label: 'Anuladas' },
+    ];
+
+    const tipoComprobanteOptions: FilterChip<VentaFilters['tipo_comprobante']>[] = [
+        { value: 'todos', label: 'Todos' },
+        { value: 'ticket', label: 'Ticket' },
+        { value: 'boleta', label: 'Boleta' },
+        { value: 'factura', label: 'Factura' },
+    ];
+
+    const metodoPagoOptions: FilterChip[] = [
+        { value: 'todos', label: 'Todos' },
+        { value: 'efectivo', label: 'Efectivo' },
+        { value: 'yape', label: 'Yape' },
+        { value: 'plin', label: 'Plin' },
+        { value: 'tarjeta', label: 'Tarjeta' },
+        { value: 'transferencia', label: 'Transferencia' },
+        { value: 'mixto', label: 'Mixto' },
     ];
 
     const columns = useMemo<DataTableColumn<Venta>[]>(
@@ -360,55 +370,24 @@ export default function Index({
                                         applyFilter({ estado: estado as VentaEstado | 'todas' })
                                     }
                                     options={estadoOptions}
+                                    disabled={isLoading}
                                 />
-                                <Select
+                                <FilterChips
+                                    ariaLabel="Tipo de comprobante"
                                     value={filters.tipo_comprobante}
-                                    onValueChange={(value) =>
-                                        applyFilter({
-                                            tipo_comprobante:
-                                                value as VentaFilters['tipo_comprobante'],
-                                        })
+                                    onChange={(tipo_comprobante) =>
+                                        applyFilter({ tipo_comprobante })
                                     }
+                                    options={tipoComprobanteOptions}
                                     disabled={isLoading}
-                                >
-                                    <SelectTrigger
-                                        className="h-9 w-[10.5rem]"
-                                        aria-label="Tipo de comprobante"
-                                    >
-                                        <SelectValue placeholder="Comprobante" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="todos">Todos los comprobantes</SelectItem>
-                                        <SelectItem value="ticket">Ticket</SelectItem>
-                                        <SelectItem value="boleta">Boleta</SelectItem>
-                                        <SelectItem value="factura">Factura</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Select
+                                />
+                                <FilterChips
+                                    ariaLabel="Método de pago"
                                     value={filters.metodo_pago}
-                                    onValueChange={(value) =>
-                                        applyFilter({ metodo_pago: value })
-                                    }
+                                    onChange={(metodo_pago) => applyFilter({ metodo_pago })}
+                                    options={metodoPagoOptions}
                                     disabled={isLoading}
-                                >
-                                    <SelectTrigger
-                                        className="h-9 w-[10.5rem]"
-                                        aria-label="Método de pago"
-                                    >
-                                        <SelectValue placeholder="Método" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="todos">Todos los métodos</SelectItem>
-                                        <SelectItem value="efectivo">Efectivo</SelectItem>
-                                        <SelectItem value="yape">Yape</SelectItem>
-                                        <SelectItem value="plin">Plin</SelectItem>
-                                        <SelectItem value="tarjeta">Tarjeta</SelectItem>
-                                        <SelectItem value="transferencia">
-                                            Transferencia
-                                        </SelectItem>
-                                        <SelectItem value="mixto">Mixto</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                />
                                 <DateRangeFilter
                                     desde={filters.fecha_desde}
                                     hasta={filters.fecha_hasta}
