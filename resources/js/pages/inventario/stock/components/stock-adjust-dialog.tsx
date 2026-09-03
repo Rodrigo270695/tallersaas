@@ -13,6 +13,17 @@ type FormData = {
     cantidad: string;
 };
 
+/** Evita "5.000" en el input: deja "5" o "1.25" si hay decimales. */
+const formatCantidadInput = (value: string | number | null | undefined): string => {
+    const n = Number(value ?? 0);
+
+    if (!Number.isFinite(n)) {
+        return '0';
+    }
+
+    return String(parseFloat(n.toFixed(3)));
+};
+
 export function StockAdjustDialog({
     open,
     onOpenChange,
@@ -41,7 +52,7 @@ export function StockAdjustDialog({
         setData({
             producto_id: producto.id,
             sede_id: sedeId,
-            cantidad: String(producto.cantidad_stock ?? 0),
+            cantidad: formatCantidadInput(producto.cantidad_stock),
         });
     }, [open, producto, sedeId, clearErrors, setData]);
 
