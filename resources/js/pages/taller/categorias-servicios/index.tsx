@@ -131,11 +131,11 @@ export default function Index({
 
     return (
         <>
-            <Head title="Categorías de servicios" />
+            <Head title="Cat. de servicios" />
 
             <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
                 <PageHeader
-                    title="Categorías de servicios"
+                    title="Cat. de servicios"
                     description="Agrupa la mano de obra (mantenimiento, frenos, diagnóstico…)."
                     stats={[
                         { label: 'Total', value: stats.total, variant: 'info', icon: Tags },
@@ -253,6 +253,6 @@ export default function Index({
 Index.layout = {
     breadcrumbs: [
         { title: 'Taller' },
-        { title: 'Categorías de servicios', href: '/taller/categorias-servicios' },
+        { title: 'Cat. de servicios', href: '/taller/categorias-servicios' },
     ],
 };

@@ -12,7 +12,7 @@ const MODULE_LABELS: Record<string, string> = {
     cotizaciones: 'Cotizaciones',
     'checklist-inspeccion': 'Checklist de inspección',
     servicios: 'Servicios',
-    'categorias-servicios': 'Categorías de servicios',
+    'categorias-servicios': 'Cat. de servicios',
     productos: 'Productos',
     'categorias-inventario': 'Categorías inventario',
     stock: 'Stock',

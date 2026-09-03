@@ -108,7 +108,7 @@ function useNavConfig(): { singles: NavItem[]; groups: NavGroup[] } {
                             permission: 'servicios.view',
                         },
                         {
-                            title: 'Categorías de servicios',
+                            title: 'Cat. de servicios',
                             href: categoriasServicios.index(),
                             icon: Tags,
                             permission: 'categorias-servicios.view',
