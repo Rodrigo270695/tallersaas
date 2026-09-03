@@ -405,8 +405,11 @@ export default function Index({
                             onSearchChange={setSearch}
                             isSearching={isLoading}
                             placeholder="Buscar por placa, cliente o motivo…"
+                            className="sm:flex-row sm:items-center sm:gap-3"
+                            searchWrapperClassName="w-full sm:max-w-none sm:min-w-0 sm:flex-1"
+                            filtersClassName="w-full sm:w-auto sm:shrink-0 sm:justify-end"
                         >
-                            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                            <div className="flex flex-wrap items-center gap-2">
                                 {vistaToggle}
                                 <FilterChips
                                     ariaLabel="Filtrar por estado"
@@ -459,8 +462,11 @@ export default function Index({
                                 onSearchChange={setSearch}
                                 isSearching={isLoading}
                                 placeholder="Buscar por placa, cliente o motivo…"
+                                className="sm:flex-row sm:items-center sm:gap-3"
+                                searchWrapperClassName="w-full sm:max-w-none sm:min-w-0 sm:flex-1"
+                                filtersClassName="w-full sm:w-auto sm:shrink-0 sm:justify-end"
                             >
-                                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                                <div className="flex flex-wrap items-center gap-2">
                                     {vistaToggle}
                                     <FilterChips
                                         ariaLabel="Filtrar por rango"
