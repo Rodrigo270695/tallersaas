@@ -51,35 +51,40 @@ class ServicioRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $kit = $this->input('kit');
-        $kitNormalizado = [];
-
-        if (is_array($kit)) {
-            foreach ($kit as $item) {
-                if (! is_array($item)) {
-                    continue;
-                }
-
-                $productoId = isset($item['producto_id']) ? trim((string) $item['producto_id']) : '';
-                $cantidad = $item['cantidad'] ?? '';
-
-                if ($productoId === '' && ($cantidad === '' || $cantidad === null)) {
-                    continue;
-                }
-
-                $kitNormalizado[] = [
-                    'producto_id' => $productoId !== '' ? $productoId : null,
-                    'cantidad' => $cantidad === '' ? null : $cantidad,
-                ];
-            }
-        }
-
-        $this->merge([
+        $merge = [
             'activo' => $this->boolean('activo'),
             'categoria_id' => filled($this->input('categoria_id')) ? $this->input('categoria_id') : null,
             'descripcion' => filled($this->input('descripcion')) ? trim((string) $this->input('descripcion')) : null,
-            'kit' => $kitNormalizado,
-        ]);
+        ];
+
+        if ($this->exists('kit')) {
+            $kit = $this->input('kit');
+            $kitNormalizado = [];
+
+            if (is_array($kit)) {
+                foreach ($kit as $item) {
+                    if (! is_array($item)) {
+                        continue;
+                    }
+
+                    $productoId = isset($item['producto_id']) ? trim((string) $item['producto_id']) : '';
+                    $cantidad = $item['cantidad'] ?? '';
+
+                    if ($productoId === '' && ($cantidad === '' || $cantidad === null)) {
+                        continue;
+                    }
+
+                    $kitNormalizado[] = [
+                        'producto_id' => $productoId !== '' ? $productoId : null,
+                        'cantidad' => $cantidad === '' ? null : $cantidad,
+                    ];
+                }
+            }
+
+            $merge['kit'] = $kitNormalizado;
+        }
+
+        $this->merge($merge);
 
         foreach (['precio', 'duracion_minutos'] as $campo) {
             if ($this->input($campo) === '') {

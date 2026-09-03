@@ -1,4 +1,4 @@
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Package, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -11,6 +11,7 @@ import type { Servicio } from '../types';
 export type ServicioRowActionsProps = {
     servicio: Servicio;
     onEdit: (servicio: Servicio) => void;
+    onKit: (servicio: Servicio) => void;
     onDelete: (servicio: Servicio) => void;
     canUpdate?: boolean;
     canDelete?: boolean;
@@ -19,6 +20,7 @@ export type ServicioRowActionsProps = {
 export function ServicioRowActions({
     servicio,
     onEdit,
+    onKit,
     onDelete,
     canUpdate = true,
     canDelete = true,
@@ -40,7 +42,7 @@ export function ServicioRowActions({
                     <MoreHorizontal className="size-4" strokeWidth={2.5} />
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuContent align="end" className="w-44">
                 {canUpdate && (
                     <DropdownMenuItem
                         onSelect={() => onEdit(servicio)}
@@ -48,6 +50,15 @@ export function ServicioRowActions({
                     >
                         <Pencil className="size-4" strokeWidth={2.25} />
                         Editar
+                    </DropdownMenuItem>
+                )}
+                {canUpdate && (
+                    <DropdownMenuItem
+                        onSelect={() => onKit(servicio)}
+                        className="cursor-pointer gap-2"
+                    >
+                        <Package className="size-4" strokeWidth={2.25} />
+                        Kit
                     </DropdownMenuItem>
                 )}
                 {canDelete && (

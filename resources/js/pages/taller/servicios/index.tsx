@@ -18,6 +18,7 @@ import servicios from '@/routes/taller/servicios';
 import type { Paginated } from '@/types';
 import { ServicioDeleteDialog } from './components/servicio-delete-dialog';
 import { ServicioFormModal } from './components/servicio-form-modal';
+import { ServicioKitModal } from './components/servicio-kit-modal';
 import { ServicioRowActions } from './components/servicio-row-actions';
 import type { CategoriaOption, ProductoOption, Servicio, ServicioFilters, ServicioStats } from './types';
 
@@ -25,6 +26,7 @@ type ModalState =
     | { type: 'idle' }
     | { type: 'create' }
     | { type: 'edit'; servicio: Servicio }
+    | { type: 'kit'; servicio: Servicio }
     | { type: 'delete'; servicio: Servicio };
 
 const ALL_CATEGORIAS = '__todas__';
@@ -72,6 +74,10 @@ export default function Index({
     const closeModal = useCallback(() => setModal({ type: 'idle' }), []);
     const openEdit = useCallback(
         (servicio: Servicio) => setModal({ type: 'edit', servicio }),
+        [],
+    );
+    const openKit = useCallback(
+        (servicio: Servicio) => setModal({ type: 'kit', servicio }),
         [],
     );
     const openDelete = useCallback(
@@ -157,6 +163,7 @@ export default function Index({
                         <ServicioRowActions
                             servicio={row}
                             onEdit={openEdit}
+                            onKit={openKit}
                             onDelete={openDelete}
                             canUpdate={canUpdate}
                             canDelete={canDelete}
@@ -168,7 +175,7 @@ export default function Index({
         }
 
         return base;
-    }, [showRowActions, canUpdate, canDelete, openEdit, openDelete]);
+    }, [showRowActions, canUpdate, canDelete, openEdit, openKit, openDelete]);
 
     const estadoOptions: FilterChip<ServicioFilters['estado']>[] = [
         { value: 'todas', label: 'Todos' },
@@ -311,6 +318,16 @@ export default function Index({
                 }}
                 servicio={modal.type === 'edit' ? modal.servicio : null}
                 categorias={categorias}
+            />
+
+            <ServicioKitModal
+                open={modal.type === 'kit'}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        closeModal();
+                    }
+                }}
+                servicio={modal.type === 'kit' ? modal.servicio : null}
                 productos={productos}
             />
 

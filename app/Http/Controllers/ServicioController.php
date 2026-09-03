@@ -109,6 +109,7 @@ class ServicioController extends Controller
     public function store(ServicioRequest $request, ServicioKitService $kit): RedirectResponse
     {
         $data = $request->validated();
+        $hasKit = array_key_exists('kit', $data);
         $kitPayload = $data['kit'] ?? [];
         unset($data['kit']);
         $userId = Auth::id();
@@ -120,7 +121,9 @@ class ServicioController extends Controller
             'updated_by_id' => $userId,
         ]);
 
-        $kit->sync($servicio, $kitPayload);
+        if ($hasKit) {
+            $kit->sync($servicio, $kitPayload);
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Servicio creado correctamente.']);
 
@@ -130,6 +133,7 @@ class ServicioController extends Controller
     public function update(ServicioRequest $request, Servicio $servicio, ServicioKitService $kit): RedirectResponse
     {
         $data = $request->validated();
+        $hasKit = array_key_exists('kit', $data);
         $kitPayload = $data['kit'] ?? [];
         unset($data['kit']);
 
@@ -139,9 +143,12 @@ class ServicioController extends Controller
             'updated_by_id' => Auth::id(),
         ]);
 
-        $kit->sync($servicio, $kitPayload);
-
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Servicio actualizado correctamente.']);
+        if ($hasKit) {
+            $kit->sync($servicio, $kitPayload);
+            Inertia::flash('toast', ['type' => 'success', 'message' => 'Kit actualizado correctamente.']);
+        } else {
+            Inertia::flash('toast', ['type' => 'success', 'message' => 'Servicio actualizado correctamente.']);
+        }
 
         return back();
     }
