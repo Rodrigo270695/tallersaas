@@ -46,6 +46,21 @@ class CajaSesionController extends Controller
             $estadoFiltro = 'todas';
         }
 
+        $tz = (string) config('app.timezone', 'America/Lima');
+        $hoy = now($tz)->toDateString();
+        $defaultDesde = $hoy;
+        $defaultHasta = $hoy;
+
+        $fechaDesde = $this->parseDateParam($request->query('fecha_desde'));
+        $fechaHasta = $this->parseDateParam($request->query('fecha_hasta'));
+
+        if ($fechaDesde === null || $fechaHasta === null) {
+            $fechaDesde = $defaultDesde;
+            $fechaHasta = $defaultHasta;
+        } elseif ($fechaDesde > $fechaHasta) {
+            [$fechaDesde, $fechaHasta] = [$fechaHasta, $fechaDesde];
+        }
+
         $sedesActivas = Sede::query()
             ->where('tenant_id', $tenantId)
             ->where('activa', true)
@@ -57,7 +72,10 @@ class CajaSesionController extends Controller
             ? $sedeRequested
             : '';
 
-        $query = CajaSesion::query()->with(['abiertaPor:id,name', 'cerradaPor:id,name']);
+        $query = CajaSesion::query()
+            ->with(['abiertaPor:id,name', 'cerradaPor:id,name'])
+            ->whereRaw('DATE(opened_at) >= ?', [$fechaDesde])
+            ->whereRaw('DATE(opened_at) <= ?', [$fechaHasta]);
 
         if ($search !== '') {
             $query->where(function ($q) use ($search): void {
@@ -96,6 +114,8 @@ class CajaSesionController extends Controller
         });
 
         $statsBase = CajaSesion::query()
+            ->whereRaw('DATE(opened_at) >= ?', [$fechaDesde])
+            ->whereRaw('DATE(opened_at) <= ?', [$fechaHasta])
             ->when($sedeFiltro !== '', fn ($q) => $q->where('sede_id', $sedeFiltro));
 
         $miSesionAbierta = CajaSesion::query()
@@ -123,6 +143,13 @@ class CajaSesionController extends Controller
                 'direction' => $sortValid && $directionValid ? $direction : null,
                 'estado' => $estadoFiltro,
                 'sede_id' => $sedeFiltro,
+                'fecha_desde' => $fechaDesde,
+                'fecha_hasta' => $fechaHasta,
+            ],
+            'sesion_filtro_ui' => [
+                'default_desde' => $defaultDesde,
+                'default_hasta' => $defaultHasta,
+                'timezone' => $tz,
             ],
             'stats' => [
                 'total' => (clone $statsBase)->count(),
@@ -253,5 +280,14 @@ class CajaSesionController extends Controller
         }
 
         return $existentes."\n\n--- Cierre ---\n".$nuevas;
+    }
+
+    private function parseDateParam(mixed $value): ?string
+    {
+        if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) !== 1) {
+            return null;
+        }
+
+        return $value;
     }
 }

@@ -58,6 +58,14 @@ export type CajaFilters = {
     direction: 'asc' | 'desc' | null;
     estado: 'todas' | CajaEstado;
     sede_id: string;
+    fecha_desde: string;
+    fecha_hasta: string;
+};
+
+export type CajaFiltroUi = {
+    default_desde: string;
+    default_hasta: string;
+    timezone: string;
 };
 
 export type CajaStats = {

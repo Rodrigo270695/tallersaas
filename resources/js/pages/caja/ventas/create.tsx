@@ -15,7 +15,7 @@ import {
     Package,
     UserPlus,
 } from 'lucide-react';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Combobox } from '@/components/ui/combobox';
@@ -58,6 +58,9 @@ type LineaForm = {
     concepto: string;
     cantidad: string;
     precio_unitario: string;
+    /** Solo UI: stock de la sede de caja. No se envía al backend. */
+    stock_disponible?: number;
+    omitir_stock?: boolean;
 };
 
 type PagoForm = {
@@ -81,6 +84,7 @@ type CreateProps = {
     mi_sesion_abierta: {
         id: string;
         sede_id: string;
+        sede_nombre?: string | null;
         opened_at: string;
         saldo_apertura: string | number;
     } | null;
@@ -96,6 +100,7 @@ type CreateProps = {
         sku: string | null;
         precio_venta: string | number | null;
         unidad: string;
+        stock_sede?: string | number | null;
     }[];
     servicios: readonly {
         id: string;
@@ -119,14 +124,31 @@ const METODOS_PAGO = [
     { value: 'transferencia', label: 'Transferencia', icon: ArrowLeftRight },
 ] as const;
 
-const mapOrdenLineas = (lineas: NonNullable<DesdeOrden>['lineas']): LineaForm[] =>
-    lineas.map((linea) => ({
-        servicio_id: linea.servicio_id ?? '',
-        producto_id: linea.producto_id ?? '',
-        concepto: linea.concepto,
-        cantidad: linea.cantidad,
-        precio_unitario: linea.precio_unitario,
-    }));
+const parseStock = (stockSede: string | number | null | undefined): number => {
+    const n = Number(stockSede ?? 0);
+
+    return Number.isFinite(n) ? n : 0;
+};
+
+const mapOrdenLineas = (
+    lineas: NonNullable<DesdeOrden>['lineas'],
+    stockByProducto: Map<string, number>,
+): LineaForm[] =>
+    lineas.map((linea) => {
+        const productoId = linea.producto_id ?? '';
+        const tieneProducto = productoId !== '';
+        const stock = tieneProducto ? (stockByProducto.get(productoId) ?? 0) : 999999;
+
+        return {
+            servicio_id: linea.servicio_id ?? '',
+            producto_id: productoId,
+            concepto: linea.concepto,
+            cantidad: linea.cantidad,
+            precio_unitario: linea.precio_unitario,
+            stock_disponible: stock,
+            omitir_stock: !tieneProducto,
+        };
+    });
 
 const money = (value: number, currency = 'PEN'): string =>
     value.toLocaleString('es-PE', { style: 'currency', currency });
@@ -146,11 +168,22 @@ function Create({
     const moneda = igv.moneda === 'USD' ? 'USD' : 'PEN';
     const simboloMoneda = moneda === 'USD' ? '$' : 'S/';
 
+    const stockByProducto = useMemo(() => {
+        const map = new Map<string, number>();
+        for (const producto of productos) {
+            map.set(producto.id, parseStock(producto.stock_sede));
+        }
+
+        return map;
+    }, [productos]);
+
     const { data, setData, post, processing, errors, transform } = useForm<FormData>({
         cliente_id: desde_orden?.cliente_id ?? '',
         vehiculo_id: desde_orden?.vehiculo_id ?? '',
         orden_trabajo_id: desde_orden?.id ?? '',
-        lineas: desde_orden?.lineas?.length ? mapOrdenLineas(desde_orden.lineas) : [],
+        lineas: desde_orden?.lineas?.length
+            ? mapOrdenLineas(desde_orden.lineas, stockByProducto)
+            : [],
         pagos: [{ metodo: 'efectivo', monto: '', monto_recibido: '' }],
         notas: '',
         tipo_comprobante_sunat: '0',
@@ -161,6 +194,7 @@ function Create({
     const [searchQuery, setSearchQuery] = useState('');
     const [nuevoClienteOpen, setNuevoClienteOpen] = useState(false);
     const [clientesLocales, setClientesLocales] = useState(clientes);
+    const [pagoMixtoModo, setPagoMixtoModo] = useState(false);
 
     useEffect(() => {
         setClientesLocales(clientes);
@@ -254,12 +288,31 @@ function Create({
         monto_recibido: '',
     };
 
+    const esSoloEfectivo =
+        data.pagos.length === 1 && data.pagos[0]?.metodo === 'efectivo';
+    const esMixto = pagoMixtoModo && data.pagos.length > 1;
+
+    const pagosSuma = useMemo(() => {
+        if (data.pagos.length === 1) {
+            const unico = Number(String(data.pagos[0].monto).replace(',', '.')) || 0;
+
+            return unico > 0 ? unico : totales.total;
+        }
+
+        return data.pagos.reduce(
+            (acc, pago) => acc + (Number(String(pago.monto).replace(',', '.')) || 0),
+            0,
+        );
+    }, [data.pagos, totales.total]);
+
+    const pagosCuadran = Math.abs(pagosSuma - totales.total) <= 0.01;
+
     const vuelto = useMemo(() => {
-        if (pagoPrincipal.metodo !== 'efectivo') {
+        if (!esSoloEfectivo) {
             return null;
         }
 
-        const recibido = Number(pagoPrincipal.monto_recibido) || 0;
+        const recibido = Number(String(pagoPrincipal.monto_recibido).replace(',', '.')) || 0;
 
         if (recibido <= 0) {
             return null;
@@ -268,7 +321,7 @@ function Create({
         const diff = recibido - totales.total;
 
         return diff >= 0 ? diff : null;
-    }, [pagoPrincipal.metodo, pagoPrincipal.monto_recibido, totales.total]);
+    }, [esSoloEfectivo, pagoPrincipal.monto_recibido, totales.total]);
 
     const tieneLineasValidas = data.lineas.some(
         (linea) =>
@@ -290,9 +343,39 @@ function Create({
         if (totales.total < 0.01) {
             return 'El total debe ser mayor a cero.';
         }
+        const lineaSinStock = data.lineas.find(
+            (linea) =>
+                Boolean(linea.producto_id) &&
+                !linea.omitir_stock &&
+                (parseStock(linea.stock_disponible) <= 0 ||
+                    Number(linea.cantidad) > parseStock(linea.stock_disponible) + 0.0001),
+        );
+        if (lineaSinStock) {
+            return `Stock insuficiente para «${lineaSinStock.concepto}».`;
+        }
+        if (esMixto && !pagosCuadran) {
+            return 'La suma de los pagos debe coincidir con el total.';
+        }
+        if (esSoloEfectivo) {
+            const recibido =
+                Number(String(pagoPrincipal.monto_recibido).replace(',', '.')) || 0;
+            if (recibido > 0 && recibido + 0.001 < totales.total) {
+                return 'El efectivo recibido no cubre el total.';
+            }
+        }
 
         return null;
-    }, [mi_sesion_abierta, data.cliente_id, tieneLineasValidas, totales.total]);
+    }, [
+        mi_sesion_abierta,
+        data.cliente_id,
+        tieneLineasValidas,
+        totales.total,
+        esMixto,
+        pagosCuadran,
+        esSoloEfectivo,
+        pagoPrincipal.monto_recibido,
+        data.lineas,
+    ]);
 
     const setLinea = (index: number, patch: Partial<LineaForm>) => {
         setData(
@@ -301,14 +384,106 @@ function Create({
         );
     };
 
-    const setPagoPrincipal = (patch: Partial<PagoForm>) => {
-        setData(
-            'pagos',
-            data.pagos.map((pago, i) => (i === 0 ? { ...pago, ...patch } : pago)),
-        );
-    };
+    const toggleMetodoPago = useCallback(
+        (metodo: string) => {
+            setData((prev) => {
+                if (!pagoMixtoModo) {
+                    if (prev.pagos.length === 1 && prev.pagos[0]?.metodo === metodo) {
+                        return prev;
+                    }
+
+                    return {
+                        ...prev,
+                        pagos: [{ metodo, monto: '', monto_recibido: '' }],
+                    };
+                }
+
+                const exists = prev.pagos.some((pago) => pago.metodo === metodo);
+                let next = exists
+                    ? prev.pagos.filter((pago) => pago.metodo !== metodo)
+                    : [...prev.pagos, { metodo, monto: '', monto_recibido: '' }];
+
+                if (next.length === 0) {
+                    next = [{ metodo: 'efectivo', monto: '', monto_recibido: '' }];
+                }
+                if (next.length === 1) {
+                    next = [{ ...next[0], monto: '', monto_recibido: '' }];
+                }
+
+                return { ...prev, pagos: next };
+            });
+        },
+        [pagoMixtoModo, setData],
+    );
+
+    const activarPagoMixto = useCallback(() => {
+        setPagoMixtoModo(true);
+    }, []);
+
+    const salirPagoMixto = useCallback(() => {
+        setPagoMixtoModo(false);
+        setData((prev) => {
+            const keep = prev.pagos[0] ?? {
+                metodo: 'efectivo',
+                monto: '',
+                monto_recibido: '',
+            };
+
+            return {
+                ...prev,
+                pagos: [{ metodo: keep.metodo, monto: '', monto_recibido: '' }],
+            };
+        });
+    }, [setData]);
+
+    const setPagoField = useCallback(
+        (metodo: string, field: 'monto' | 'monto_recibido', value: string) => {
+            setData((prev) => ({
+                ...prev,
+                pagos: prev.pagos.map((pago) =>
+                    pago.metodo === metodo ? { ...pago, [field]: value } : pago,
+                ),
+            }));
+        },
+        [setData],
+    );
 
     const addProducto = (producto: (typeof productos)[number]) => {
+        const stock = parseStock(producto.stock_sede);
+
+        if (stock <= 0) {
+            toastManager.error({
+                title: 'Sin stock en esta sede',
+                description: `«${producto.nombre}» no tiene existencias en la sede de tu caja.`,
+            });
+
+            return;
+        }
+
+        const existingIndex = data.lineas.findIndex(
+            (linea) => linea.producto_id === producto.id && !linea.servicio_id,
+        );
+
+        if (existingIndex >= 0) {
+            const linea = data.lineas[existingIndex]!;
+            const actual = Number(linea.cantidad) || 0;
+            const disponible = parseStock(linea.stock_disponible ?? stock);
+
+            if (actual + 1 > disponible + 0.0001) {
+                toastManager.warning({
+                    title: 'Stock insuficiente',
+                    description: `Solo hay ${disponible} de «${producto.nombre}» en esta sede.`,
+                });
+
+                return;
+            }
+
+            setLinea(existingIndex, { cantidad: String(Number((actual + 1).toFixed(3))) });
+            setSearchQuery('');
+
+            return;
+        }
+
         setData('lineas', [
             ...data.lineas,
             {
@@ -318,12 +493,28 @@ function Create({
                 cantidad: '1',
                 precio_unitario:
                     producto.precio_venta != null ? String(producto.precio_venta) : '',
+                stock_disponible: stock,
+                omitir_stock: false,
             },
         ]);
         setSearchQuery('');
     };
 
     const addServicio = (servicio: (typeof servicios)[number]) => {
+        for (const item of servicio.kit ?? []) {
+            const stock = stockByProducto.get(item.producto_id) ?? 0;
+            const qtyKit = Math.max(Number(item.cantidad) || 0, 0);
+
+            if (qtyKit > 0 && stock + 0.0001 < qtyKit) {
+                toastManager.error({
+                    title: 'Sin stock para el kit',
+                    description: `«${item.nombre}» no tiene stock suficiente en esta sede (disponible: ${stock}).`,
+                });
+
+                return;
+            }
+        }
+
         const expanded = expandServicioConKit({
             servicioId: servicio.id,
             servicioNombre: servicio.nombre,
@@ -342,6 +533,8 @@ function Create({
                 concepto: label,
                 cantidad,
                 precio_unitario,
+                stock_disponible: 999999,
+                omitir_stock: true,
             }),
             buildProductoLine: ({
                 servicio_id,
@@ -355,6 +548,8 @@ function Create({
                 concepto: label,
                 cantidad,
                 precio_unitario,
+                stock_disponible: stockByProducto.get(producto_id) ?? 0,
+                omitir_stock: false,
             }),
         });
 
@@ -365,7 +560,19 @@ function Create({
     const adjustQty = (index: number, delta: number) => {
         const linea = data.lineas[index];
         const current = Number(linea.cantidad) || 1;
-        const next = Math.max(0.001, current + delta);
+        let next = Math.max(0.001, current + delta);
+
+        if (!linea.omitir_stock && linea.producto_id) {
+            const max = parseStock(linea.stock_disponible);
+
+            if (delta > 0 && next > max + 0.0001) {
+                toastManager.warning({
+                    title: 'Stock insuficiente',
+                    description: `Solo hay ${max} disponible de «${linea.concepto}».`,
+                });
+                next = Math.max(0.001, max);
+            }
+        }
 
         setLinea(index, { cantidad: String(Number(next.toFixed(3))) });
     };
@@ -390,33 +597,49 @@ function Create({
             return;
         }
 
-        const totalStr = totales.total.toFixed(2);
+        transform((formData) => {
+            const pagosRaw =
+                formData.pagos.length > 0
+                    ? formData.pagos
+                    : [{ metodo: 'efectivo', monto: '', monto_recibido: '' }];
+            const esUnico = pagosRaw.length === 1;
 
-        transform((formData) => ({
-            ...formData,
-            tipo_comprobante_sunat: emite_comprobantes_sunat
-                ? Number(formData.tipo_comprobante_sunat)
-                : 0,
-            orden_trabajo_id: formData.orden_trabajo_id || null,
-            cliente_id: formData.cliente_id,
-            vehiculo_id: formData.vehiculo_id || null,
-            caja_sesion_id: formData.caja_sesion_id || mi_sesion_abierta?.id || null,
-            pagos: (formData.pagos.length > 0
-                ? formData.pagos
-                : [{ metodo: 'efectivo', monto: '', monto_recibido: '' }]
-            ).map((pago, index) =>
-                index === 0
-                    ? {
-                          ...pago,
-                          metodo: pago.metodo || 'efectivo',
-                          monto:
-                              typeof pago.monto === 'string' && pago.monto.trim() !== ''
-                                  ? pago.monto
-                                  : totalStr,
-                      }
-                    : pago,
-            ),
-        }));
+            const pagos = pagosRaw.map((pago) => {
+                const montoNum = Number(String(pago.monto).replace(',', '.')) || 0;
+                const monto =
+                    esUnico && (String(pago.monto).trim() === '' || montoNum <= 0)
+                        ? totales.total
+                        : montoNum;
+                const montoFixed = Number(monto.toFixed(2));
+
+                return {
+                    metodo: pago.metodo || 'efectivo',
+                    monto: montoFixed,
+                    monto_recibido:
+                        pago.metodo === 'efectivo' && esUnico
+                            ? Number(String(pago.monto_recibido || '').replace(',', '.')) ||
+                              montoFixed
+                            : pago.metodo === 'efectivo'
+                              ? montoFixed
+                              : null,
+                };
+            });
+
+            return {
+                ...formData,
+                tipo_comprobante_sunat: emite_comprobantes_sunat
+                    ? Number(formData.tipo_comprobante_sunat)
+                    : 0,
+                orden_trabajo_id: formData.orden_trabajo_id || null,
+                cliente_id: formData.cliente_id,
+                vehiculo_id: formData.vehiculo_id || null,
+                caja_sesion_id: formData.caja_sesion_id || mi_sesion_abierta?.id || null,
+                lineas: formData.lineas.map(
+                    ({ stock_disponible: _s, omitir_stock: _o, ...linea }) => linea,
+                ),
+                pagos,
+            };
+        });
 
         post(ventas.store.url(), {
             preserveScroll: true,
@@ -706,6 +929,13 @@ function Create({
                                     />
                                 </div>
 
+                                {catalogTab === 'productos' && mi_sesion_abierta?.sede_nombre && (
+                                    <p className="mt-1.5 text-[11px] text-muted-foreground">
+                                        Stock e inventario de la sede «
+                                        {mi_sesion_abierta.sede_nombre}».
+                                    </p>
+                                )}
+
                                 {!searchReady && searchQuery.trim().length > 0 && (
                                     <p className="mt-2 text-xs text-muted-foreground">
                                         Escribe al menos 2 caracteres para buscar.
@@ -716,35 +946,83 @@ function Create({
                                     <ul className="mt-3 max-h-56 divide-y divide-border/60 overflow-y-auto rounded-lg border border-border/60">
                                         {catalogTab === 'productos' ? (
                                             productosFiltrados.length > 0 ? (
-                                                productosFiltrados.map((producto) => (
-                                                    <li key={producto.id}>
-                                                        <button
-                                                            type="button"
-                                                            className="flex w-full cursor-pointer items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-brand-50/60"
-                                                            onClick={() => addProducto(producto)}
+                                                productosFiltrados.map((producto) => {
+                                                    const stock = parseStock(producto.stock_sede);
+                                                    const sinStock = stock <= 0;
+
+                                                    return (
+                                                        <li
+                                                            key={producto.id}
+                                                            className={cn(
+                                                                sinStock && 'bg-destructive/5',
+                                                            )}
                                                         >
-                                                            <div className="min-w-0">
-                                                                <p className="truncate text-sm font-medium">
-                                                                    {producto.nombre}
-                                                                </p>
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    {producto.sku
-                                                                        ? `SKU ${producto.sku} · `
-                                                                        : ''}
-                                                                    {producto.unidad}
-                                                                </p>
-                                                            </div>
-                                                            <span className="shrink-0 text-sm font-medium tabular-nums text-brand-600">
-                                                                {producto.precio_venta != null
-                                                                    ? money(
-                                                                          Number(producto.precio_venta),
-                                                                          moneda,
-                                                                      )
-                                                                    : '—'}
-                                                            </span>
-                                                        </button>
-                                                    </li>
-                                                ))
+                                                            <button
+                                                                type="button"
+                                                                disabled={sinStock}
+                                                                className={cn(
+                                                                    'flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors',
+                                                                    sinStock
+                                                                        ? 'cursor-not-allowed text-destructive'
+                                                                        : 'cursor-pointer hover:bg-brand-50/60',
+                                                                )}
+                                                                onClick={() =>
+                                                                    addProducto(producto)
+                                                                }
+                                                            >
+                                                                <div className="min-w-0">
+                                                                    <p className="truncate text-sm font-medium">
+                                                                        {producto.nombre}
+                                                                    </p>
+                                                                    <p
+                                                                        className={cn(
+                                                                            'text-xs',
+                                                                            sinStock
+                                                                                ? 'text-destructive'
+                                                                                : 'text-muted-foreground',
+                                                                        )}
+                                                                    >
+                                                                        {producto.sku
+                                                                            ? `SKU ${producto.sku} · `
+                                                                            : ''}
+                                                                        {producto.unidad}
+                                                                    </p>
+                                                                </div>
+                                                                <span
+                                                                    className={cn(
+                                                                        'flex shrink-0 flex-col items-end gap-0 text-xs tabular-nums',
+                                                                        sinStock
+                                                                            ? 'text-destructive'
+                                                                            : 'text-muted-foreground',
+                                                                    )}
+                                                                >
+                                                                    <span
+                                                                        className={cn(
+                                                                            'text-sm font-medium',
+                                                                            !sinStock &&
+                                                                                'text-brand-600',
+                                                                        )}
+                                                                    >
+                                                                        {producto.precio_venta !=
+                                                                        null
+                                                                            ? money(
+                                                                                  Number(
+                                                                                      producto.precio_venta,
+                                                                                  ),
+                                                                                  moneda,
+                                                                              )
+                                                                            : '—'}
+                                                                    </span>
+                                                                    <span>
+                                                                        {sinStock
+                                                                            ? 'Sin stock en esta sede'
+                                                                            : `Stock: ${stock}`}
+                                                                    </span>
+                                                                </span>
+                                                            </button>
+                                                        </li>
+                                                    );
+                                                })
                                             ) : (
                                                 <li className="px-3 py-4 text-center text-sm text-muted-foreground">
                                                     Sin resultados.
@@ -770,7 +1048,10 @@ function Create({
                                                         </div>
                                                         <span className="shrink-0 text-sm font-medium tabular-nums text-brand-600">
                                                             {servicio.precio != null
-                                                                ? money(Number(servicio.precio), moneda)
+                                                                ? money(
+                                                                      Number(servicio.precio),
+                                                                      moneda,
+                                                                  )
                                                                 : '—'}
                                                         </span>
                                                     </button>
@@ -805,7 +1086,19 @@ function Create({
                                 </div>
                             ) : (
                                 <ul className="divide-y divide-border/60">
-                                    {data.lineas.map((linea, index) => (
+                                    {data.lineas.map((linea, index) => {
+                                        const stockMax = parseStock(linea.stock_disponible);
+                                        const qty = Number(linea.cantidad) || 0;
+                                        const sinStockLinea =
+                                            Boolean(linea.producto_id) &&
+                                            !linea.omitir_stock &&
+                                            (stockMax <= 0 || qty > stockMax + 0.0001);
+                                        const atMaxStock =
+                                            Boolean(linea.producto_id) &&
+                                            !linea.omitir_stock &&
+                                            qty >= stockMax - 0.0001;
+
+                                        return (
                                         <li key={index} className="py-3 first:pt-0 last:pb-0">
                                             <div className="flex items-start gap-3">
                                                 <div className="min-w-0 flex-1 space-y-2">
@@ -819,6 +1112,15 @@ function Create({
                                                         className="h-8 border-transparent bg-transparent px-0 font-medium shadow-none focus-visible:border-border"
                                                         placeholder="Concepto"
                                                     />
+                                                    {sinStockLinea && (
+                                                        <p className="text-xs text-destructive">
+                                                            Stock insuficiente
+                                                            {stockMax > 0
+                                                                ? ` (disponible: ${stockMax})`
+                                                                : ' en esta sede'}
+                                                            .
+                                                        </p>
+                                                    )}
                                                     {(errors[`lineas.${index}.concepto`] ||
                                                         errors[`lineas.${index}.cantidad`] ||
                                                         errors[`lineas.${index}.precio_unitario`]) && (
@@ -843,12 +1145,28 @@ function Create({
                                                                 type="number"
                                                                 min="0.001"
                                                                 step="0.001"
-                                                                value={linea.cantidad}
-                                                                onChange={(e) =>
-                                                                    setLinea(index, {
-                                                                        cantidad: e.target.value,
-                                                                    })
+                                                                max={
+                                                                    !linea.omitir_stock &&
+                                                                    linea.producto_id
+                                                                        ? stockMax
+                                                                        : undefined
                                                                 }
+                                                                value={linea.cantidad}
+                                                                onChange={(e) => {
+                                                                    let value = e.target.value;
+                                                                    const n = Number(value);
+                                                                    if (
+                                                                        !linea.omitir_stock &&
+                                                                        linea.producto_id &&
+                                                                        Number.isFinite(n) &&
+                                                                        n > stockMax
+                                                                    ) {
+                                                                        value = String(stockMax);
+                                                                    }
+                                                                    setLinea(index, {
+                                                                        cantidad: value,
+                                                                    });
+                                                                }}
                                                                 className="h-8 w-16 border-0 text-center shadow-none focus-visible:ring-0"
                                                             />
                                                             <Button
@@ -856,6 +1174,7 @@ function Create({
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 className="size-8 cursor-pointer rounded-l-none"
+                                                                disabled={atMaxStock}
                                                                 onClick={() => adjustQty(index, 1)}
                                                             >
                                                                 <Plus className="size-3.5" />
@@ -901,7 +1220,8 @@ function Create({
                                                 </Button>
                                             </div>
                                         </li>
-                                    ))}
+                                        );
+                                    })}
                                 </ul>
                             )}
 
@@ -926,11 +1246,18 @@ function Create({
                                         >
                                             *
                                         </span>
+                                        {pagoMixtoModo && (
+                                            <span className="ml-1 font-normal text-muted-foreground">
+                                                (elige varios)
+                                            </span>
+                                        )}
                                     </Label>
                                     <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-3">
                                         {METODOS_PAGO.map((metodo) => {
                                             const Icon = metodo.icon;
-                                            const active = pagoPrincipal.metodo === metodo.value;
+                                            const active = data.pagos.some(
+                                                (pago) => pago.metodo === metodo.value,
+                                            );
 
                                             return (
                                                 <button
@@ -942,15 +1269,32 @@ function Create({
                                                             ? 'border-brand-400 bg-brand-50 text-brand-700'
                                                             : 'border-border/60 bg-white text-muted-foreground hover:border-brand-200 hover:bg-brand-50/40',
                                                     )}
-                                                    onClick={() =>
-                                                        setPagoPrincipal({ metodo: metodo.value })
-                                                    }
+                                                    onClick={() => toggleMetodoPago(metodo.value)}
                                                 >
                                                     <Icon className="size-4" strokeWidth={2} />
                                                     {metodo.label}
                                                 </button>
                                             );
                                         })}
+                                    </div>
+                                    <div className="mt-1.5">
+                                        {pagoMixtoModo ? (
+                                            <button
+                                                type="button"
+                                                onClick={salirPagoMixto}
+                                                className="cursor-pointer text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                                            >
+                                                Un solo método
+                                            </button>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={activarPagoMixto}
+                                                className="cursor-pointer text-xs font-medium text-brand-700 underline-offset-2 hover:underline"
+                                            >
+                                                Dividir pago
+                                            </button>
+                                        )}
                                     </div>
                                     {errors['pagos.0.metodo'] && (
                                         <p className="mt-1 text-sm text-destructive">
@@ -959,7 +1303,94 @@ function Create({
                                     )}
                                 </div>
 
-                                {pagoPrincipal.metodo === 'efectivo' && (
+                                {esMixto && (
+                                    <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3">
+                                        {data.pagos.map((pago) => {
+                                            const label =
+                                                METODOS_PAGO.find((m) => m.value === pago.metodo)
+                                                    ?.label ?? pago.metodo;
+                                            const restante = Math.max(
+                                                0,
+                                                Number(
+                                                    (
+                                                        totales.total -
+                                                        data.pagos
+                                                            .filter((p) => p.metodo !== pago.metodo)
+                                                            .reduce(
+                                                                (acc, p) =>
+                                                                    acc +
+                                                                    (Number(
+                                                                        String(p.monto).replace(
+                                                                            ',',
+                                                                            '.',
+                                                                        ),
+                                                                    ) || 0),
+                                                                0,
+                                                            )
+                                                    ).toFixed(2),
+                                                ),
+                                            );
+
+                                            return (
+                                                <div
+                                                    key={pago.metodo}
+                                                    className="flex items-center gap-2"
+                                                >
+                                                    <span className="w-24 shrink-0 truncate text-xs font-medium">
+                                                        {label}
+                                                    </span>
+                                                    <Input
+                                                        className="h-8 flex-1 tabular-nums"
+                                                        inputMode="decimal"
+                                                        placeholder={
+                                                            restante > 0
+                                                                ? String(restante)
+                                                                : '0.00'
+                                                        }
+                                                        value={pago.monto}
+                                                        onChange={(e) =>
+                                                            setPagoField(
+                                                                pago.metodo,
+                                                                'monto',
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className="cursor-pointer rounded-md border border-border/60 px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                                                        disabled={restante <= 0}
+                                                        onClick={() =>
+                                                            setPagoField(
+                                                                pago.metodo,
+                                                                'monto',
+                                                                String(restante),
+                                                            )
+                                                        }
+                                                    >
+                                                        Resto
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                        <div
+                                            className={cn(
+                                                'flex justify-between text-xs tabular-nums',
+                                                pagosCuadran
+                                                    ? 'text-muted-foreground'
+                                                    : 'font-semibold text-destructive',
+                                            )}
+                                        >
+                                            <span>Suma de pagos</span>
+                                            <span>
+                                                {money(pagosSuma, moneda)} /{' '}
+                                                {money(totales.total, moneda)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {esSoloEfectivo && (
                                     <div className="space-y-2">
                                         <Label htmlFor="pago-recibido">Monto recibido</Label>
                                         <Input
@@ -969,9 +1400,11 @@ function Create({
                                             step="0.01"
                                             value={pagoPrincipal.monto_recibido}
                                             onChange={(e) =>
-                                                setPagoPrincipal({
-                                                    monto_recibido: e.target.value,
-                                                })
+                                                setPagoField(
+                                                    'efectivo',
+                                                    'monto_recibido',
+                                                    e.target.value,
+                                                )
                                             }
                                             placeholder={money(totales.total, moneda)}
                                         />

@@ -19,6 +19,7 @@ import {
     PageHeader,
 } from '@/components/data-page';
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
+import { DateRangeFilter } from '@/components/date-range-filter';
 import { Button } from '@/components/ui/button';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
@@ -30,6 +31,7 @@ import { SesionEgresoModal } from './components/sesion-egreso-modal';
 import type {
     CajaEstado,
     CajaFilters,
+    CajaFiltroUi,
     CajaSesion,
     CajaStats,
     SedeOpcion,
@@ -40,6 +42,7 @@ type IndexProps = {
     sedes_opciones: readonly SedeOpcion[];
     mi_sesion_abierta: CajaSesion | null;
     filters: CajaFilters;
+    sesion_filtro_ui: CajaFiltroUi;
     stats: CajaStats;
     sin_sedes: boolean;
 };
@@ -64,6 +67,7 @@ export default function Index({
     sedes_opciones: sedes,
     mi_sesion_abierta: miSesion,
     filters,
+    sesion_filtro_ui: sesionFiltroUi,
     stats,
     sin_sedes: sinSedes,
 }: IndexProps) {
@@ -73,10 +77,15 @@ export default function Index({
     const canEgreso = can('caja-sesiones.egreso');
 
     const { search, setSearch, isLoading, sort, setSort, setPerPage, applyFilter } =
-        useDataTablePage<{ estado: CajaFilters['estado'] }>({
+        useDataTablePage<{
+            estado: CajaFilters['estado'];
+            fecha_desde: string;
+            fecha_hasta: string;
+            sede_id: string;
+        }>({
             routeUrl: sesiones.index().url,
             initialFilters: filters,
-            only: ['sesiones', 'filters', 'stats', 'mi_sesion_abierta'],
+            only: ['sesiones', 'filters', 'stats', 'mi_sesion_abierta', 'sesion_filtro_ui'],
             errorMessage: 'No se pudo cargar las sesiones de caja.',
             storageKey: 'tallersaas.caja-sesiones.prefs',
             defaults: { per_page: DEFAULT_PER_PAGE, sort: null, direction: null },
@@ -96,9 +105,23 @@ export default function Index({
         if (filters.sort) {
             count += 1;
         }
+        if (
+            filters.fecha_desde !== sesionFiltroUi.default_desde ||
+            filters.fecha_hasta !== sesionFiltroUi.default_hasta
+        ) {
+            count += 1;
+        }
 
         return count;
-    }, [filters.search, filters.estado, filters.sort]);
+    }, [
+        filters.search,
+        filters.estado,
+        filters.sort,
+        filters.fecha_desde,
+        filters.fecha_hasta,
+        sesionFiltroUi.default_desde,
+        sesionFiltroUi.default_hasta,
+    ]);
 
     const estadoOptions: FilterChip[] = [
         { value: 'todas', label: 'Todas' },
@@ -179,9 +202,8 @@ export default function Index({
                         <div className="flex justify-end">
                             <Button
                                 type="button"
-                                variant="outline"
                                 size="sm"
-                                className="cursor-pointer gap-1.5"
+                                className="cursor-pointer gap-1.5 bg-amber-600 text-white hover:bg-amber-700"
                                 onClick={() => setModal({ type: 'cerrar', sesion })}
                             >
                                 <Lock className="size-3.5" strokeWidth={2.25} />
@@ -205,8 +227,18 @@ export default function Index({
                     description="Abre y cierra el turno de caja por sede antes de cobrar órdenes."
                     stats={[
                         { label: 'Total', value: stats.total, variant: 'info', icon: Wallet },
-                        { label: 'Abiertas', value: stats.abiertas, variant: 'warning', icon: Banknote },
-                        { label: 'Filtros', value: activeFiltersCount, variant: 'warning', icon: Filter },
+                        {
+                            label: 'Abiertas',
+                            value: stats.abiertas,
+                            variant: 'warning',
+                            icon: Banknote,
+                        },
+                        {
+                            label: 'Filtros',
+                            value: activeFiltersCount,
+                            variant: 'warning',
+                            icon: Filter,
+                        },
                         {
                             label: 'Coincidencias',
                             value: stats.coincidencias,
@@ -221,7 +253,7 @@ export default function Index({
                                     type="button"
                                     onClick={() => setModal({ type: 'abrir' })}
                                     disabled={sinSedes}
-                                    className="cursor-pointer gap-2"
+                                    className="cursor-pointer gap-2 bg-brand-600 text-white hover:bg-brand-700"
                                 >
                                     <Plus className="size-4" strokeWidth={2.5} />
                                     Abrir caja
@@ -234,12 +266,12 @@ export default function Index({
                                         type="button"
                                         variant="outline"
                                         onClick={() => setModal({ type: 'egreso' })}
-                                        className="cursor-pointer gap-2"
+                                        className="cursor-pointer gap-2 border-rose-500/40 text-rose-700 hover:bg-rose-500/10 hover:text-rose-800"
                                     >
                                         <ArrowDownLeft className="size-4" strokeWidth={2.5} />
                                         Egreso
                                         {Number(miSesion.egresos_total ?? 0) > 0 ? (
-                                            <span className="tabular-nums text-xs text-muted-foreground">
+                                            <span className="tabular-nums text-xs text-rose-600/80">
                                                 {money(miSesion.egresos_total)}
                                             </span>
                                         ) : null}
@@ -248,11 +280,10 @@ export default function Index({
                                 {canClose ? (
                                     <Button
                                         type="button"
-                                        variant="outline"
                                         onClick={() =>
                                             setModal({ type: 'cerrar', sesion: miSesion })
                                         }
-                                        className="cursor-pointer gap-2"
+                                        className="cursor-pointer gap-2 bg-amber-600 text-white hover:bg-amber-700"
                                     >
                                         <Lock className="size-4" strokeWidth={2.5} />
                                         Cerrar mi caja
@@ -278,14 +309,29 @@ export default function Index({
                             isSearching={isLoading}
                             placeholder="Buscar en notas…"
                         >
-                            <FilterChips
-                                ariaLabel="Filtrar por estado"
-                                value={filters.estado}
-                                onChange={(estado) =>
-                                    applyFilter({ estado: estado as CajaEstado | 'todas' })
-                                }
-                                options={estadoOptions}
-                            />
+                            <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
+                                <FilterChips
+                                    ariaLabel="Filtrar por estado"
+                                    value={filters.estado}
+                                    onChange={(estado) =>
+                                        applyFilter({ estado: estado as CajaEstado | 'todas' })
+                                    }
+                                    options={estadoOptions}
+                                    disabled={isLoading}
+                                />
+                                <DateRangeFilter
+                                    desde={filters.fecha_desde}
+                                    hasta={filters.fecha_hasta}
+                                    defaultDesde={sesionFiltroUi.default_desde}
+                                    defaultHasta={sesionFiltroUi.default_hasta}
+                                    timeZone={sesionFiltroUi.timezone}
+                                    disabled={isLoading}
+                                    triggerClassName="h-9 min-w-[12rem]"
+                                    onApply={(desde, hasta) =>
+                                        applyFilter({ fecha_desde: desde, fecha_hasta: hasta })
+                                    }
+                                />
+                            </div>
                         </DataToolbar>
                     }
                     footer={
@@ -301,6 +347,8 @@ export default function Index({
                                     filters.estado !== DEFAULT_ESTADO
                                         ? filters.estado
                                         : undefined,
+                                fecha_desde: filters.fecha_desde,
+                                fecha_hasta: filters.fecha_hasta,
                             }}
                         />
                     }

@@ -9,6 +9,7 @@ use App\Models\Cliente;
 use App\Models\FelSerie;
 use App\Models\OrdenTrabajo;
 use App\Models\Producto;
+use App\Models\Sede;
 use App\Models\TallerSetting;
 use App\Models\Vehiculo;
 use App\Models\Venta;
@@ -22,6 +23,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Inertia\Inertia;
@@ -241,11 +243,55 @@ class VentaController extends Controller
             ];
         }
 
+        $miSesion = CajaSesion::query()
+            ->where('estado', CajaSesion::ESTADO_ABIERTA)
+            ->where('opened_by_id', Auth::id())
+            ->first(['id', 'sede_id', 'opened_at', 'saldo_apertura']);
+
+        $sedeId = $miSesion !== null ? (string) $miSesion->sede_id : '';
+        $sedeNombre = $sedeId !== ''
+            ? Sede::query()->whereKey($sedeId)->value('nombre')
+            : null;
+
+        $productosQuery = Producto::query()
+            ->where('productos.activo', true)
+            ->orderBy('productos.nombre')
+            ->limit(400);
+
+        if ($sedeId !== '') {
+            $productosQuery
+                ->leftJoin('existencias_sede as es', function ($join) use ($sedeId): void {
+                    $join->on('es.producto_id', '=', 'productos.id')
+                        ->where('es.sede_id', '=', $sedeId);
+                })
+                ->select([
+                    'productos.id',
+                    'productos.nombre',
+                    'productos.sku',
+                    'productos.precio_venta',
+                    'productos.unidad',
+                ])
+                ->addSelect(DB::raw('COALESCE(es.cantidad, 0) as stock_sede'));
+        } else {
+            $productosQuery
+                ->select([
+                    'productos.id',
+                    'productos.nombre',
+                    'productos.sku',
+                    'productos.precio_venta',
+                    'productos.unidad',
+                ])
+                ->selectRaw('0 as stock_sede');
+        }
+
         return Inertia::render('caja/ventas/create', [
-            'mi_sesion_abierta' => CajaSesion::query()
-                ->where('estado', CajaSesion::ESTADO_ABIERTA)
-                ->where('opened_by_id', Auth::id())
-                ->first(['id', 'sede_id', 'opened_at', 'saldo_apertura']),
+            'mi_sesion_abierta' => $miSesion === null ? null : [
+                'id' => $miSesion->id,
+                'sede_id' => $miSesion->sede_id,
+                'sede_nombre' => $sedeNombre,
+                'opened_at' => $miSesion->opened_at,
+                'saldo_apertura' => $miSesion->saldo_apertura,
+            ],
             'igv' => [
                 'igv_porcentaje' => $igvPct,
                 'igv_afectacion' => $setting->igvAfectacion(),
@@ -271,11 +317,16 @@ class VentaController extends Controller
                     'cliente_id' => $vehiculo->cliente_id,
                     'label' => trim($vehiculo->placa.' '.$vehiculo->marca?->nombre.' '.$vehiculo->modelo?->nombre),
                 ]),
-            'productos' => Producto::query()
-                ->where('activo', true)
-                ->orderBy('nombre')
-                ->limit(400)
-                ->get(['id', 'nombre', 'sku', 'precio_venta', 'unidad']),
+            'productos' => $productosQuery
+                ->get()
+                ->map(fn (Producto $producto) => [
+                    'id' => $producto->id,
+                    'nombre' => $producto->nombre,
+                    'sku' => $producto->sku,
+                    'precio_venta' => $producto->precio_venta,
+                    'unidad' => $producto->unidad,
+                    'stock_sede' => (string) ($producto->getAttribute('stock_sede') ?? '0'),
+                ]),
             'servicios' => app(ServicioKitService::class)->catalogoActivos(),
         ]);
     }
