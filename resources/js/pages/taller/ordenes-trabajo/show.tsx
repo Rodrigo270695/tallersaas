@@ -102,11 +102,11 @@ const ESTADOS: { value: OrdenEstado; label: string }[] = [
 ];
 
 const ESTADO_CLASS: Record<OrdenEstado, string> = {
-    abierta: 'bg-sky-50 text-sky-800 border-sky-200',
-    en_proceso: 'bg-amber-50 text-amber-800 border-amber-200',
-    lista: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-    entregada: 'bg-stone-100 text-stone-600 border-stone-200',
-    anulada: 'bg-rose-50 text-rose-800 border-rose-200',
+    abierta: 'bg-sky-100 text-sky-900 border-sky-300',
+    en_proceso: 'bg-amber-100 text-amber-950 border-amber-300',
+    lista: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+    entregada: 'bg-violet-100 text-violet-900 border-violet-300',
+    anulada: 'bg-rose-100 text-rose-900 border-rose-300',
 };
 
 const TABS: {

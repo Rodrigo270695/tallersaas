@@ -230,6 +230,7 @@ export function PresupuestoFormModal({
     const transformPayload = (formData: FormData) => ({
         ...formData,
         orden_trabajo_id: formData.orden_trabajo_id || null,
+        vehiculo_id: formData.vehiculo_id || null,
     });
 
     const onSubmit = (event: FormEvent) => {
@@ -259,14 +260,14 @@ export function PresupuestoFormModal({
     };
 
     const canSubmit =
-        data.sede_id !== '' && data.cliente_id !== '' && data.vehiculo_id !== '' && !processing;
+        data.sede_id !== '' && data.cliente_id !== '' && !processing;
 
     return (
         <FormModal
             open={open}
             onOpenChange={onOpenChange}
             title={isEdit ? `Editar ${presupuesto?.numero}` : 'Nuevo presupuesto'}
-            description="El cliente podrá aprobar o rechazar desde el enlace que envíes por WhatsApp."
+            description="Cotiza servicios o repuestos. El vehículo es opcional si es solo una cotización de mostrador."
             size="xl"
             onSubmit={onSubmit}
             footer={
@@ -282,8 +283,13 @@ export function PresupuestoFormModal({
             }
         >
             <div className="flex flex-col gap-5">
-                <FormSection index={0} title="Cliente y vehículo" columns={2}>
-                    <FormField id="pre-orden" label="Orden de trabajo (opcional)" className="sm:col-span-2">
+                <FormSection
+                    index={0}
+                    title="Cliente"
+                    description="Vincula una OT si viene del taller. El vehículo es opcional."
+                    columns={2}
+                >
+                    <FormField id="pre-orden" label="Orden de trabajo" className="sm:col-span-2">
                         <Select
                             value={data.orden_trabajo_id || NONE}
                             onValueChange={onOrdenChange}
@@ -293,7 +299,7 @@ export function PresupuestoFormModal({
                                 <SelectValue placeholder="Sin OT vinculada" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value={NONE}>Sin OT vinculada</SelectItem>
+                                <SelectItem value={NONE}>Sin OT (cotización libre)</SelectItem>
                                 {ordenes.map((orden) => (
                                     <SelectItem key={orden.id} value={orden.id}>
                                         {orden.numero}
@@ -344,16 +350,25 @@ export function PresupuestoFormModal({
                             </SelectContent>
                         </Select>
                     </FormField>
-                    <FormField id="pre-vehiculo" label="Vehículo" required error={errors.vehiculo_id}>
+                    <FormField id="pre-vehiculo" label="Vehículo (opcional)" error={errors.vehiculo_id}>
                         <Select
-                            value={data.vehiculo_id}
-                            onValueChange={(value) => setData('vehiculo_id', value)}
+                            value={data.vehiculo_id || NONE}
+                            onValueChange={(value) =>
+                                setData('vehiculo_id', value === NONE ? '' : value)
+                            }
                             disabled={data.cliente_id === ''}
                         >
                             <SelectTrigger id="pre-vehiculo">
-                                <SelectValue placeholder="Selecciona vehículo" />
+                                <SelectValue
+                                    placeholder={
+                                        data.cliente_id
+                                            ? 'Sin vehículo / solo productos'
+                                            : 'Primero el cliente'
+                                    }
+                                />
                             </SelectTrigger>
                             <SelectContent>
+                                <SelectItem value={NONE}>Sin vehículo</SelectItem>
                                 {vehiculosFiltrados.map((vehiculo) => (
                                     <SelectItem key={vehiculo.id} value={vehiculo.id}>
                                         {vehiculo.label}

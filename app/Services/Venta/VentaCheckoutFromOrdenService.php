@@ -147,6 +147,129 @@ final class VentaCheckoutFromOrdenService
         });
     }
 
+    /**
+     * Venta de mostrador (sin OT): repuestos/servicios sueltos.
+     *
+     * @param  array{
+     *     cliente_id?: string|null,
+     *     vehiculo_id?: string|null,
+     *     lineas: list<array{concepto: string, cantidad: float|int|string, precio_unitario: float|int|string, producto_id?: string|null, servicio_id?: string|null}>,
+     *     pagos: list<array{metodo: string, monto: float|int|string, monto_recibido?: float|int|string|null}>,
+     *     caja_sesion_id?: string|null,
+     *     notas?: string|null,
+     *     tipo_comprobante_sunat?: int|string|null
+     * }  $payload
+     */
+    public function cobrarDirecto(array $payload, Authenticatable $user): Venta
+    {
+        return DB::transaction(function () use ($payload, $user): Venta {
+            $sesion = $this->resolveSesion($payload['caja_sesion_id'] ?? null, $user);
+
+            $settings = TallerSetting::current();
+            $igvPct = (float) $settings->igv_porcentaje;
+            $incluyeIgv = (bool) $settings->precio_incluye_igv;
+            $moneda = $settings->moneda === 'USD' ? 'USD' : 'PEN';
+
+            $lineasCalc = $this->calcularLineas($payload['lineas'], $incluyeIgv);
+            $totales = $this->calcularTotales($lineasCalc, $igvPct, $incluyeIgv);
+            $total = $totales['total'];
+
+            if ($total < 0.01) {
+                throw ValidationException::withMessages([
+                    'lineas' => 'El total a cobrar debe ser mayor a cero.',
+                ]);
+            }
+
+            $clienteId = isset($payload['cliente_id']) && is_string($payload['cliente_id']) && $payload['cliente_id'] !== ''
+                ? $payload['cliente_id']
+                : null;
+            $vehiculoId = isset($payload['vehiculo_id']) && is_string($payload['vehiculo_id']) && $payload['vehiculo_id'] !== ''
+                ? $payload['vehiculo_id']
+                : null;
+
+            if ($vehiculoId !== null && $clienteId === null) {
+                throw ValidationException::withMessages([
+                    'cliente_id' => 'Selecciona el cliente del vehículo.',
+                ]);
+            }
+
+            $pagos = $this->normalizarPagos($payload['pagos'], $total);
+            $metodo = count($pagos) === 1 ? $pagos[0]['metodo'] : 'mixto';
+            $efectivoSnap = $this->efectivoSnapshot($pagos);
+
+            $venta = Venta::query()->create([
+                'numero' => Venta::generateNextNumber(),
+                'sede_id' => $sesion->sede_id,
+                'caja_sesion_id' => $sesion->id,
+                'cliente_id' => $clienteId,
+                'vehiculo_id' => $vehiculoId,
+                'orden_trabajo_id' => null,
+                'moneda' => $moneda,
+                'estado' => Venta::ESTADO_PAGADO,
+                'subtotal' => number_format($totales['subtotal'], 2, '.', ''),
+                'igv_monto' => number_format($totales['igv'], 2, '.', ''),
+                'descuento_monto' => '0.00',
+                'total' => number_format($total, 2, '.', ''),
+                'metodo_pago' => $metodo,
+                'monto_recibido' => $efectivoSnap['monto_recibido'] !== null
+                    ? number_format($efectivoSnap['monto_recibido'], 2, '.', '')
+                    : null,
+                'vuelto' => $efectivoSnap['vuelto'] !== null
+                    ? number_format($efectivoSnap['vuelto'], 2, '.', '')
+                    : null,
+                'fecha_pago' => now(),
+                'notas' => isset($payload['notas']) ? trim((string) $payload['notas']) ?: null : null,
+                'created_by_id' => $user->getAuthIdentifier(),
+                'tipo_comprobante_sunat' => $this->tipoComprobanteSunat($payload['tipo_comprobante_sunat'] ?? null),
+            ]);
+
+            $stock = $this->stock;
+
+            foreach ($lineasCalc as $i => $linea) {
+                VentaLinea::query()->create([
+                    'venta_id' => $venta->id,
+                    'producto_id' => $linea['producto_id'],
+                    'servicio_id' => $linea['servicio_id'],
+                    'tipo_linea' => $linea['producto_id'] !== null ? 'producto' : 'servicio',
+                    'descripcion' => $linea['concepto'],
+                    'cantidad' => number_format($linea['cantidad'], 3, '.', ''),
+                    'precio_unitario' => number_format($linea['precio_unitario'], 4, '.', ''),
+                    'descuento_importe' => '0.00',
+                    'subtotal' => number_format($linea['subtotal'], 2, '.', ''),
+                    'orden' => $i,
+                ]);
+
+                if ($linea['producto_id'] !== null) {
+                    $stock->registrarSalida(
+                        $linea['producto_id'],
+                        (string) $sesion->sede_id,
+                        (string) $linea['cantidad'],
+                        'Salida por venta '.$venta->numero,
+                        (string) $user->getAuthIdentifier(),
+                        (string) $venta->id,
+                    );
+                }
+            }
+
+            foreach ($pagos as $i => $pago) {
+                VentaPago::query()->create([
+                    'venta_id' => $venta->id,
+                    'metodo' => $pago['metodo'],
+                    'monto' => number_format($pago['monto'], 2, '.', ''),
+                    'monto_recibido' => $pago['monto_recibido'] !== null
+                        ? number_format($pago['monto_recibido'], 2, '.', '')
+                        : null,
+                    'vuelto' => $pago['vuelto'] !== null
+                        ? number_format($pago['vuelto'], 2, '.', '')
+                        : null,
+                    'orden' => $i,
+                ]);
+            }
+
+            return $venta->fresh(['lineas', 'pagos']) ?? $venta;
+        });
+    }
+
     private function resolveSesion(?string $sesionId, Authenticatable $user): CajaSesion
     {
         $query = CajaSesion::query()

@@ -115,7 +115,7 @@ export default function OrdenSeguimientoPublico({ orden, fotos, taller }: Props)
             <Head title={`Seguimiento ${orden.numero}`} />
 
             <div className="min-h-dvh bg-stone-100">
-                <div className="mx-auto w-full max-w-screen-2xl px-4 py-5 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
+                <div className="mx-auto w-full max-w-[1600px] px-4 py-5 sm:px-6 sm:py-8 lg:px-10 lg:py-10 xl:px-12">
                     <header className="mb-5 rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:mb-6 sm:p-6">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-start gap-3 sm:items-center sm:gap-4">

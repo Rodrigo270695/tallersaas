@@ -265,6 +265,12 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
         Route::middleware('permission:ventas.view')
             ->get('ventas', [VentaController::class, 'index'])
             ->name('ventas.index');
+        Route::middleware('permission:ventas.create')
+            ->get('ventas/create', [VentaController::class, 'create'])
+            ->name('ventas.create');
+        Route::middleware('permission:ventas.create')
+            ->post('ventas', [VentaController::class, 'store'])
+            ->name('ventas.store');
     });
 
 Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])

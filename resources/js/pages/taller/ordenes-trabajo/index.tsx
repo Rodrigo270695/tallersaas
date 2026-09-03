@@ -80,11 +80,11 @@ const ESTADO_LABEL: Record<OrdenEstado, string> = {
 };
 
 const estadoClass: Record<OrdenEstado, string> = {
-    abierta: 'bg-sky-50 text-sky-800',
-    en_proceso: 'bg-amber-50 text-amber-800',
-    lista: 'bg-emerald-50 text-emerald-800',
-    entregada: 'bg-stone-100 text-stone-600',
-    anulada: 'bg-rose-50 text-rose-800',
+    abierta: 'bg-sky-100 text-sky-900 ring-1 ring-sky-300/80',
+    en_proceso: 'bg-amber-100 text-amber-950 ring-1 ring-amber-300/80',
+    lista: 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300/80',
+    entregada: 'bg-violet-100 text-violet-900 ring-1 ring-violet-300/80',
+    anulada: 'bg-rose-100 text-rose-900 ring-1 ring-rose-300/80',
 };
 
 export default function Index({

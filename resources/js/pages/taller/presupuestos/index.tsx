@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import { ClipboardList, Filter, Plus, ScreenShare } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Can } from '@/components/can';
 import {
@@ -55,12 +55,12 @@ const ESTADO_LABEL: Record<PresupuestoEstado, string> = {
 };
 
 const estadoClass: Record<PresupuestoEstado, string> = {
-    borrador: 'bg-stone-100 text-stone-700',
-    enviado: 'bg-sky-50 text-sky-800',
-    aprobado: 'bg-emerald-50 text-emerald-800',
-    rechazado: 'bg-rose-50 text-rose-800',
-    vencido: 'bg-amber-50 text-amber-800',
-    convertido: 'bg-violet-50 text-violet-800',
+    borrador: 'bg-stone-100 text-stone-800 ring-1 ring-stone-300/80',
+    enviado: 'bg-sky-100 text-sky-900 ring-1 ring-sky-300/80',
+    aprobado: 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300/80',
+    rechazado: 'bg-rose-100 text-rose-900 ring-1 ring-rose-300/80',
+    vencido: 'bg-amber-100 text-amber-950 ring-1 ring-amber-300/80',
+    convertido: 'bg-violet-100 text-violet-900 ring-1 ring-violet-300/80',
 };
 
 const money = (value: string | number): string =>
@@ -77,6 +77,8 @@ export default function Index({
     taller_nombre: tallerNombre = 'el taller',
     productos = [],
     servicios = [],
+    edit_id: editId = null,
+    open_presupuesto: openPresupuesto = null,
 }: {
     presupuestos: Paginated<Presupuesto>;
     filters: PresupuestoFilters;
@@ -88,6 +90,8 @@ export default function Index({
     taller_nombre?: string;
     productos: readonly ProductoCobroOption[];
     servicios: readonly ServicioCobroOption[];
+    edit_id?: string | null;
+    open_presupuesto?: Presupuesto | null;
 }) {
     const { can } = usePermission();
     const canCreate = can('cotizaciones.create');
@@ -109,6 +113,14 @@ export default function Index({
 
     const [modal, setModal] = useState<ModalState>({ type: 'idle' });
     const closeModal = useCallback(() => setModal({ type: 'idle' }), []);
+
+    useEffect(() => {
+        if (!openPresupuesto) {
+            return;
+        }
+
+        setModal({ type: 'edit', presupuesto: openPresupuesto });
+    }, [openPresupuesto?.id]);
 
     const activeFiltersCount = useMemo(() => {
         let count = 0;

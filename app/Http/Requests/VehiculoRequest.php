@@ -32,6 +32,7 @@ class VehiculoRequest extends FormRequest
                     ->where(fn ($query) => $query->whereNull('deleted_at'))
                     ->ignore($vehiculoId),
             ],
+            'tipo' => ['required', 'string', Rule::in(['auto', 'moto', 'mototaxi', 'camioneta', 'otro'])],
             'marca_id' => ['nullable', 'uuid', 'exists:marcas,id'],
             'modelo_id' => ['nullable', 'uuid', 'exists:modelos,id'],
             'color' => ['nullable', 'string', 'max:40'],
@@ -99,6 +100,7 @@ class VehiculoRequest extends FormRequest
         return [
             'cliente_id' => 'cliente',
             'placa' => 'placa',
+            'tipo' => 'tipo de vehículo',
             'marca_id' => 'marca',
             'modelo_id' => 'modelo',
             'color' => 'color',

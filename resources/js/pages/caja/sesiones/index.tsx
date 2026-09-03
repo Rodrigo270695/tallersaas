@@ -129,10 +129,10 @@ export default function Index({
                 sortable: true,
                 cell: (sesion) => (
                     <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                             sesion.estado === 'abierta'
-                                ? 'bg-emerald-50 text-emerald-800'
-                                : 'bg-stone-100 text-stone-600'
+                                ? 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300/80'
+                                : 'bg-stone-100 text-stone-700 ring-1 ring-stone-300/80'
                         }`}
                     >
                         {sesion.estado === 'abierta' ? 'Abierta' : 'Cerrada'}

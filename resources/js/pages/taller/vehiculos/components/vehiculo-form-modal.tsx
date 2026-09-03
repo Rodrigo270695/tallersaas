@@ -35,6 +35,7 @@ export type VehiculoFormModalProps = {
 type VehiculoFormData = {
     cliente_id: string;
     placa: string;
+    tipo: string;
     marca_id: string;
     modelo_id: string;
     color: string;
@@ -49,6 +50,7 @@ type VehiculoFormData = {
 const emptyForm: VehiculoFormData = {
     cliente_id: '',
     placa: '',
+    tipo: 'auto',
     marca_id: '',
     modelo_id: '',
     color: '',
@@ -63,6 +65,7 @@ const emptyForm: VehiculoFormData = {
 const buildInitialData = (vehiculo: Vehiculo | null): VehiculoFormData => ({
     cliente_id: vehiculo?.cliente_id ?? '',
     placa: vehiculo?.placa ?? '',
+    tipo: vehiculo?.tipo ?? 'auto',
     marca_id: vehiculo?.marca_id ?? '',
     modelo_id: vehiculo?.modelo_id ?? '',
     color: vehiculo?.color ?? '',
@@ -113,6 +116,7 @@ export function VehiculoFormModal({
             const next: Record<string, unknown> = {
                 cliente_id: raw.cliente_id,
                 placa: raw.placa,
+                tipo: raw.tipo || 'auto',
                 marca_id: raw.marca_id || null,
                 modelo_id: raw.modelo_id || null,
                 color: raw.color.trim() || null,
@@ -390,6 +394,27 @@ export function VehiculoFormModal({
                             autoComplete="off"
                             maxLength={10}
                         />
+                    </FormField>
+
+                    <FormField
+                        id="vehiculo-tipo"
+                        label="Tipo"
+                        required
+                        error={errors.tipo}
+                        hint="Auto, moto, mototaxi, etc."
+                    >
+                        <select
+                            id="vehiculo-tipo"
+                            value={data.tipo}
+                            onChange={(e) => setData('tipo', e.target.value)}
+                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                        >
+                            <option value="auto">Auto</option>
+                            <option value="moto">Moto</option>
+                            <option value="mototaxi">Mototaxi</option>
+                            <option value="camioneta">Camioneta / pickup</option>
+                            <option value="otro">Otro</option>
+                        </select>
                     </FormField>
 
                     <FormField id="vehiculo-color" label="Color" error={errors.color}>

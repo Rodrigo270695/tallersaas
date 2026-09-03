@@ -99,6 +99,22 @@ class PresupuestoController extends Controller
             ->groupBy('estado')
             ->pluck('total', 'estado');
 
+        $editId = $request->string('edit')->toString() ?: null;
+        $openPresupuesto = null;
+        if (is_string($editId) && $editId !== '') {
+            $openPresupuesto = Presupuesto::query()
+                ->with([
+                    'cliente:id,nombres,apellidos,telefono',
+                    'vehiculo:id,placa,marca_id,modelo_id',
+                    'vehiculo.marca:id,nombre',
+                    'vehiculo.modelo:id,nombre',
+                    'sede:id,nombre,codigo',
+                    'ordenTrabajo:id,numero,estado',
+                    'items',
+                ])
+                ->find($editId);
+        }
+
         return Inertia::render('taller/presupuestos/index', [
             'presupuestos' => $presupuestos,
             'filters' => [
@@ -108,6 +124,8 @@ class PresupuestoController extends Controller
                 'direction' => $sortValid && $directionValid ? $direction : null,
                 'estado' => $estado,
             ],
+            'edit_id' => $editId,
+            'open_presupuesto' => $openPresupuesto,
             'stats' => [
                 'total' => Presupuesto::count(),
                 'pendientes' => (int) ($counts[Presupuesto::ESTADO_ENVIADO] ?? 0),
@@ -274,14 +292,16 @@ class PresupuestoController extends Controller
         OrdenTrabajo $orden_trabajo,
         CrearPresupuestoDesdeOrdenService $crear,
     ): RedirectResponse {
-        $crear->crear($orden_trabajo);
+        $presupuesto = $crear->crear($orden_trabajo);
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => 'Presupuesto creado desde la orden de trabajo.',
+            'message' => "Presupuesto {$presupuesto->numero} creado. Puedes editarlo y enviarlo al cliente.",
         ]);
 
-        return back();
+        return redirect()->route('taller.presupuestos.index', [
+            'edit' => $presupuesto->id,
+        ]);
     }
 
     /**

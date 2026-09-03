@@ -19,7 +19,7 @@ class PresupuestoRequest extends FormRequest
             'sede_id' => ['required', 'uuid', new ExistsSedeOfCurrentTenant],
             'cliente_id' => ['required', 'uuid', 'exists:clientes,id'],
             'vehiculo_id' => [
-                'required',
+                'nullable',
                 'uuid',
                 Rule::exists('vehiculos', 'id')->where(fn ($query) => $query
                     ->where('cliente_id', $this->input('cliente_id'))
@@ -44,7 +44,7 @@ class PresupuestoRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $nullable = ['orden_trabajo_id', 'diagnostico', 'notas_internas', 'valido_hasta'];
+        $nullable = ['orden_trabajo_id', 'diagnostico', 'notas_internas', 'valido_hasta', 'vehiculo_id'];
 
         $merged = [];
         foreach ($nullable as $field) {

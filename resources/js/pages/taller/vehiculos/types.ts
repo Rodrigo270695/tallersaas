@@ -13,6 +13,7 @@ export type Vehiculo = {
     id: string;
     cliente_id: string;
     placa: string;
+    tipo?: string | null;
     marca_id: string | null;
     modelo_id: string | null;
     color: string | null;

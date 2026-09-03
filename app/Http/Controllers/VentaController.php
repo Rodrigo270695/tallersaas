@@ -2,8 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreVentaDirectaRequest;
+use App\Models\CajaSesion;
+use App\Models\Cliente;
+use App\Models\Producto;
+use App\Models\TallerSetting;
+use App\Models\Vehiculo;
 use App\Models\Venta;
+use App\Services\Fel\FelEmisionVentaService;
+use App\Services\Taller\ServicioKitService;
+use App\Services\Venta\VentaCheckoutFromOrdenService;
+use App\Support\Fel\ApisunatCredentialResolver;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -91,6 +104,81 @@ class VentaController extends Controller
                 'anuladas' => (int) ($counts[Venta::ESTADO_ANULADO] ?? 0),
                 'coincidencias' => $ventas->total(),
             ],
+            'mi_sesion_abierta' => CajaSesion::query()
+                ->where('estado', CajaSesion::ESTADO_ABIERTA)
+                ->where('opened_by_id', Auth::id())
+                ->first(['id', 'sede_id', 'opened_at', 'saldo_apertura']),
         ]);
+    }
+
+    public function create(): Response
+    {
+        $tenantId = tenant_id();
+        abort_if($tenantId === null || $tenantId === '', 403);
+
+        $setting = TallerSetting::current();
+
+        return Inertia::render('caja/ventas/create', [
+            'mi_sesion_abierta' => CajaSesion::query()
+                ->where('estado', CajaSesion::ESTADO_ABIERTA)
+                ->where('opened_by_id', Auth::id())
+                ->first(['id', 'sede_id', 'opened_at', 'saldo_apertura']),
+            'igv' => $setting->only(['igv_porcentaje', 'precio_incluye_igv', 'moneda']),
+            'fel_ready' => (bool) $setting->emite_comprobantes_sunat
+                && ApisunatCredentialResolver::estaConfigurado($setting),
+            'clientes' => Cliente::query()
+                ->orderBy('nombres')
+                ->get(['id', 'nombres', 'apellidos'])
+                ->map(fn (Cliente $cliente) => [
+                    'id' => $cliente->id,
+                    'nombre' => $cliente->nombreCompleto(),
+                ]),
+            'vehiculos' => Vehiculo::query()
+                ->with(['marca:id,nombre', 'modelo:id,nombre'])
+                ->orderBy('placa')
+                ->get(['id', 'cliente_id', 'placa', 'marca_id', 'modelo_id'])
+                ->map(fn (Vehiculo $vehiculo) => [
+                    'id' => $vehiculo->id,
+                    'cliente_id' => $vehiculo->cliente_id,
+                    'label' => trim($vehiculo->placa.' '.$vehiculo->marca?->nombre.' '.$vehiculo->modelo?->nombre),
+                ]),
+            'productos' => Producto::query()
+                ->where('activo', true)
+                ->orderBy('nombre')
+                ->limit(400)
+                ->get(['id', 'nombre', 'sku', 'precio_venta', 'unidad']),
+            'servicios' => app(ServicioKitService::class)->catalogoActivos(),
+        ]);
+    }
+
+    public function store(
+        StoreVentaDirectaRequest $request,
+        VentaCheckoutFromOrdenService $checkout,
+        FelEmisionVentaService $fel,
+    ): RedirectResponse {
+        $venta = $checkout->cobrarDirecto($request->validated(), $request->user());
+
+        if ($fel->puedeEmitir(TallerSetting::current(), $venta)) {
+            try {
+                $doc = $fel->emitir($venta);
+                Inertia::flash('toast', [
+                    'type' => 'success',
+                    'message' => 'Venta registrada y comprobante '.$doc->numero_completo.' emitido.',
+                ]);
+
+                return redirect()->route('caja.ventas.index');
+            } catch (ValidationException $e) {
+                Inertia::flash('toast', [
+                    'type' => 'warning',
+                    'message' => 'Venta registrada. SUNAT: '.($e->validator->errors()->first() ?: $e->getMessage()),
+                ]);
+
+                return redirect()->route('caja.ventas.index');
+            }
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Venta registrada correctamente.']);
+
+        return redirect()->route('caja.ventas.index');
     }
 }

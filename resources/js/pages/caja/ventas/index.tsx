@@ -1,5 +1,5 @@
-import { Head, router } from '@inertiajs/react';
-import { Filter, Receipt, RefreshCw, ScreenShare, Wallet } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import { Filter, Plus, Receipt, RefreshCw, ScreenShare, Wallet } from 'lucide-react';
 import { useMemo } from 'react';
 import { Can } from '@/components/can';
 import {
@@ -14,6 +14,11 @@ import type { DataTableColumn, FilterChip } from '@/components/data-page';
 import { Button } from '@/components/ui/button';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
+import {
+    felEstadoBadgeClass,
+    statusPillClass,
+    ventaEstadoBadgeClass,
+} from '@/lib/status-badge';
 import ventas from '@/routes/caja/ventas';
 import documentos from '@/routes/facturacion/documentos';
 import type { Paginated } from '@/types';
@@ -23,6 +28,7 @@ type IndexProps = {
     ventas: Paginated<Venta>;
     filters: VentaFilters;
     stats: VentaStats;
+    mi_sesion_abierta?: { id: string } | null;
 };
 
 const DEFAULT_PER_PAGE = 10;
@@ -44,9 +50,11 @@ export default function Index({
     ventas: paginated,
     filters,
     stats,
+    mi_sesion_abierta: miSesion = null,
 }: IndexProps) {
     const { can } = usePermission();
     const canEmitir = can('documentos.create');
+    const canCreate = can('ventas.create');
 
     const { search, setSearch, isLoading, sort, setSort, setPerPage, applyFilter } =
         useDataTablePage<{ estado: VentaFilters['estado'] }>({
@@ -142,19 +150,18 @@ export default function Index({
                 sortable: true,
                 cell: (venta) => (
                     <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                            venta.estado === 'pagado'
-                                ? 'bg-emerald-50 text-emerald-800'
-                                : venta.estado === 'anulado'
-                                  ? 'bg-rose-50 text-rose-800'
-                                  : 'bg-amber-50 text-amber-800'
+                        className={`${statusPillClass} ${
+                            ventaEstadoBadgeClass[venta.estado] ??
+                            ventaEstadoBadgeClass.pendiente
                         }`}
                     >
                         {venta.estado === 'pagado'
                             ? 'Pagada'
                             : venta.estado === 'anulado'
                               ? 'Anulada'
-                              : venta.estado}
+                              : venta.estado === 'parcial'
+                                ? 'Parcial'
+                                : 'Pendiente'}
                     </span>
                 ),
             },
@@ -188,12 +195,14 @@ export default function Index({
                         <div className="flex flex-col gap-1">
                             <span className="text-xs text-muted-foreground">{tipo}</span>
                             <span
-                                className={`inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium ${
+                                className={`${statusPillClass} ${
                                     venta.fel_estado === 'emitido'
-                                        ? 'bg-emerald-50 text-emerald-800'
+                                        ? felEstadoBadgeClass.emitido
                                         : venta.fel_estado === 'rechazado'
-                                          ? 'bg-rose-50 text-rose-800'
-                                          : 'bg-stone-100 text-stone-600'
+                                          ? felEstadoBadgeClass.rechazado
+                                          : venta.fel_estado === 'pendiente'
+                                            ? felEstadoBadgeClass.pendiente
+                                            : felEstadoBadgeClass.default
                                 }`}
                             >
                                 {fel}
@@ -233,7 +242,7 @@ export default function Index({
             <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
                 <PageHeader
                     title="Ventas"
-                    description="Cobros registrados desde las órdenes de trabajo."
+                    description="Cobros de OT y ventas de mostrador (aceite, repuestos, servicios sin taller)."
                     stats={[
                         { label: 'Total', value: stats.total, variant: 'info', icon: Receipt },
                         { label: 'Pagadas', value: stats.pagadas, variant: 'primary', icon: Wallet },
@@ -245,6 +254,16 @@ export default function Index({
                             icon: ScreenShare,
                         },
                     ]}
+                    action={
+                        canCreate ? (
+                            <Button asChild className="cursor-pointer gap-2">
+                                <Link href={ventas.create().url}>
+                                    <Plus className="size-4" strokeWidth={2.5} />
+                                    Nueva venta
+                                </Link>
+                            </Button>
+                        ) : undefined
+                    }
                 />
 
                 <DataTable
@@ -294,7 +313,23 @@ export default function Index({
                             title={
                                 activeFiltersCount > 0 ? 'Sin resultados' : 'Aún no hay ventas'
                             }
-                            description="Cobra una orden de trabajo para registrar la primera venta."
+                            description={
+                                activeFiltersCount > 0
+                                    ? 'Prueba con otros filtros.'
+                                    : miSesion
+                                      ? 'Usa «Nueva venta» para una compra de mostrador, o cobra desde una OT.'
+                                      : 'Abre una sesión de caja y luego registra una venta.'
+                            }
+                            action={
+                                canCreate ? (
+                                    <Button asChild className="cursor-pointer gap-2">
+                                        <Link href={ventas.create().url}>
+                                            <Plus className="size-4" />
+                                            Nueva venta
+                                        </Link>
+                                    </Button>
+                                ) : undefined
+                            }
                         />
                     }
                 />
