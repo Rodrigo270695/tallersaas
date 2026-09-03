@@ -18,6 +18,7 @@ import categorias from '@/routes/taller/categorias-servicios';
 import type { Paginated } from '@/types';
 import { CategoriaDeleteDialog } from './components/categoria-delete-dialog';
 import { CategoriaFormModal } from './components/categoria-form-modal';
+import { CategoriaRowActions } from './components/categoria-row-actions';
 import type { CategoriaFilters, CategoriaServicio, CategoriaStats } from './types';
 
 type ModalState =
@@ -52,6 +53,16 @@ export default function Index({
 
     const [modal, setModal] = useState<ModalState>({ type: 'idle' });
     const closeModal = useCallback(() => setModal({ type: 'idle' }), []);
+    const openEdit = useCallback(
+        (categoria: CategoriaServicio) => setModal({ type: 'edit', categoria }),
+        [],
+    );
+    const openDelete = useCallback(
+        (categoria: CategoriaServicio) => setModal({ type: 'delete', categoria }),
+        [],
+    );
+
+    const showRowActions = canUpdate || canDelete;
 
     const columns = useMemo<DataTableColumn<CategoriaServicio>[]>(() => {
         const base: DataTableColumn<CategoriaServicio>[] = [
@@ -86,44 +97,30 @@ export default function Index({
             },
         ];
 
-        if (canUpdate || canDelete) {
+        if (showRowActions) {
             base.push({
                 key: 'acciones',
                 header: <span className="md:sr-only">Acciones</span>,
                 align: 'right',
                 cell: (row) => (
-                    <div className="flex justify-end gap-1">
-                        {canUpdate && (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="cursor-pointer"
-                                onClick={() => setModal({ type: 'edit', categoria: row })}
-                            >
-                                Editar
-                            </Button>
-                        )}
-                        {canDelete && (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="cursor-pointer text-destructive"
-                                onClick={() => setModal({ type: 'delete', categoria: row })}
-                            >
-                                Eliminar
-                            </Button>
-                        )}
+                    <div className="flex justify-end">
+                        <CategoriaRowActions
+                            categoria={row}
+                            onEdit={openEdit}
+                            onDelete={openDelete}
+                            canUpdate={canUpdate}
+                            canDelete={canDelete}
+                        />
                     </div>
                 ),
+                className: 'w-12',
             });
         }
 
         return base;
-    }, [canUpdate, canDelete]);
+    }, [showRowActions, canUpdate, canDelete, openEdit, openDelete]);
 
-    const estadoOptions: FilterChip[] = [
+    const estadoOptions: FilterChip<CategoriaFilters['estado']>[] = [
         { value: 'todas', label: 'Todas' },
         { value: 'activa', label: 'Activas' },
         { value: 'inactiva', label: 'Inactivas' },
