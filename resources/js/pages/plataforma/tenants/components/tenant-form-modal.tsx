@@ -243,7 +243,7 @@ export function TenantFormModal({
                                 createForm.setData('plan_slug', value)
                             }
                         >
-                            <SelectTrigger id="t-plan">
+                            <SelectTrigger id="t-plan" className="h-9 w-full">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

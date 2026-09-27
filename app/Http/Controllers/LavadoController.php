@@ -16,6 +16,7 @@ use App\Services\Fel\ApisunatCredentialResolver;
 use App\Services\Fel\FelEmisionVentaService;
 use App\Services\Taller\ServicioKitService;
 use App\Services\Venta\VentaCheckoutFromOrdenService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -72,7 +73,61 @@ class LavadoController extends Controller
                 'cobrados' => Lavado::query()->where('estado', Lavado::ESTADO_COBRADO)->count(),
                 'coincidencias' => $lavados->total(),
             ],
-            ...$this->catalogo($tenantId),
+            'sedes' => $this->sedesActivas($tenantId),
+        ]);
+    }
+
+    public function opciones(Request $request): JsonResponse
+    {
+        abort_if(tenant_id() === null || tenant_id() === '', 403);
+
+        $q = trim((string) $request->string('q', ''));
+        $clienteId = trim((string) $request->string('cliente_id', ''));
+        $seleccion = trim((string) $request->string('seleccion', ''));
+        $vehiculoQ = trim((string) $request->string('vehiculo_q', ''));
+
+        $clientes = Cliente::query()
+            ->when($q !== '', function ($query) use ($q): void {
+                $query->where(function ($match) use ($q): void {
+                    $match->where('nombres', 'ilike', '%'.$q.'%')
+                        ->orWhere('apellidos', 'ilike', '%'.$q.'%')
+                        ->orWhere('numero_documento', 'ilike', '%'.$q.'%')
+                        ->orWhere('telefono', 'ilike', '%'.$q.'%');
+                });
+            })
+            ->orderBy('nombres')
+            ->limit(100)
+            ->get(['id', 'nombres', 'apellidos', 'tipo_documento', 'numero_documento']);
+
+        if ($seleccion !== '' && $clientes->doesntContain('id', $seleccion)) {
+            $elegido = Cliente::query()->whereKey($seleccion)->first([
+                'id', 'nombres', 'apellidos', 'tipo_documento', 'numero_documento',
+            ]);
+            if ($elegido !== null) {
+                $clientes->prepend($elegido);
+            }
+        }
+
+        $vehiculos = $clienteId === ''
+            ? collect()
+            : Vehiculo::query()
+                ->where('cliente_id', $clienteId)
+                ->when($vehiculoQ !== '', fn ($query) => $query->where('placa', 'ilike', '%'.$vehiculoQ.'%'))
+                ->orderBy('placa')
+                ->limit(100)
+                ->get(['id', 'cliente_id', 'placa']);
+
+        return response()->json([
+            'clientes' => $clientes->map(fn (Cliente $cliente): array => [
+                'id' => $cliente->id,
+                'nombre' => $cliente->nombreCompleto(),
+                'documento' => trim(($cliente->tipo_documento ?? '').' '.($cliente->numero_documento ?? '')),
+            ])->values(),
+            'vehiculos' => $vehiculos->map(fn (Vehiculo $vehiculo): array => [
+                'id' => $vehiculo->id,
+                'cliente_id' => $vehiculo->cliente_id,
+                'placa' => $vehiculo->placa,
+            ])->values(),
         ]);
     }
 
@@ -246,32 +301,12 @@ class LavadoController extends Controller
         }
     }
 
-    /**
-     * @return array{sedes: mixed, clientes: mixed, vehiculos: mixed}
-     */
-    private function catalogo(string $tenantId): array
+    private function sedesActivas(string $tenantId): mixed
     {
-        return [
-            'sedes' => Sede::query()
-                ->where('tenant_id', $tenantId)
-                ->where('activa', true)
-                ->orderBy('nombre')
-                ->get(['id', 'nombre', 'codigo']),
-            'clientes' => Cliente::query()
-                ->orderBy('nombres')
-                ->get(['id', 'nombres', 'apellidos'])
-                ->map(fn (Cliente $cliente) => [
-                    'id' => $cliente->id,
-                    'nombre' => $cliente->nombreCompleto(),
-                ]),
-            'vehiculos' => Vehiculo::query()
-                ->orderBy('placa')
-                ->get(['id', 'cliente_id', 'placa'])
-                ->map(fn (Vehiculo $vehiculo) => [
-                    'id' => $vehiculo->id,
-                    'cliente_id' => $vehiculo->cliente_id,
-                    'placa' => $vehiculo->placa,
-                ]),
-        ];
+        return Sede::query()
+            ->where('tenant_id', $tenantId)
+            ->where('activa', true)
+            ->orderBy('nombre')
+            ->get(['id', 'nombre', 'codigo']);
     }
 }

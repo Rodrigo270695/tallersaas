@@ -198,6 +198,9 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
         Route::middleware('permission:lavados.view')
             ->get('lavados', [LavadoController::class, 'index'])
             ->name('lavados.index');
+        Route::middleware('permission:lavados.create')
+            ->get('lavados/opciones', [LavadoController::class, 'opciones'])
+            ->name('lavados.opciones');
         Route::middleware('permission:lavados.view')
             ->get('lavados/{lavado}', [LavadoController::class, 'show'])
             ->name('lavados.show');

@@ -319,7 +319,7 @@ export function OrdenCobroModal({
                                             });
                                         }}
                                     >
-                                        <SelectTrigger id={`linea-catalogo-${index}`}>
+                                        <SelectTrigger id={`linea-catalogo-${index}`} className="h-9 w-full">
                                             <SelectValue placeholder="Texto libre" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -458,7 +458,7 @@ export function OrdenCobroModal({
                                 setData('tipo_comprobante_sunat', value)
                             }
                         >
-                            <SelectTrigger id="tipo-comprobante">
+                            <SelectTrigger id="tipo-comprobante" className="h-9 w-full">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -500,7 +500,7 @@ export function OrdenCobroModal({
                                         setPago(index, { metodo: value })
                                     }
                                 >
-                                    <SelectTrigger id={`pago-metodo-${index}`}>
+                                    <SelectTrigger id={`pago-metodo-${index}`} className="h-9 w-full">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>

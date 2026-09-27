@@ -251,7 +251,7 @@ export default function Index({
                 <div className="flex flex-col gap-4">
                     <FormField id="serie-sede" label="Sede" error={errors.sede_id}>
                         <Select value={data.sede_id} onValueChange={(value) => setData('sede_id', value)}>
-                            <SelectTrigger id="serie-sede">
+                            <SelectTrigger id="serie-sede" className="h-9 w-full">
                                 <SelectValue placeholder="Elige una sede" />
                             </SelectTrigger>
                             <SelectContent>
@@ -271,7 +271,7 @@ export default function Index({
                                 setData('serie', value === '1' ? 'F001' : 'B001');
                             }}
                         >
-                            <SelectTrigger id="serie-tipo">
+                            <SelectTrigger id="serie-tipo" className="h-9 w-full">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

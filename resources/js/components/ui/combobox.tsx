@@ -20,7 +20,34 @@ import { cn } from '@/lib/utils';
 export type ComboboxOption = {
     value: string;
     label: string;
+    /** Texto extra para filtrar (documento, teléfono, placa) sin cambiar el label. */
+    keywords?: string;
 };
+
+function normalizeForSearch(value: string): string {
+    return value
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/\p{M}/gu, '');
+}
+
+/** Cada palabra debe aparecer en el texto, en cualquier orden. Recorre toda la lista. */
+function optionMatches(option: ComboboxOption, search: string): boolean {
+    const tokens = normalizeForSearch(search)
+        .trim()
+        .split(/\s+/)
+        .filter((token) => token.length > 0);
+
+    if (tokens.length === 0) {
+        return true;
+    }
+
+    const hay = normalizeForSearch(
+        `${option.label} ${option.keywords ?? ''} ${option.value}`,
+    );
+
+    return tokens.every((token) => hay.includes(token));
+}
 
 export type ComboboxProps = {
     options: readonly ComboboxOption[];
@@ -38,6 +65,8 @@ export type ComboboxProps = {
     id?: string;
     name?: string;
     className?: string;
+    /** Se dispara al escribir. Sirve para buscar en el servidor más allá de la página cargada. */
+    onSearchChange?: (query: string) => void;
     'aria-invalid'?: boolean;
     'aria-describedby'?: string;
 };
@@ -58,6 +87,7 @@ export function Combobox({
     id,
     name,
     className,
+    onSearchChange,
     'aria-invalid': ariaInvalid,
     'aria-describedby': ariaDescribedBy,
 }: ComboboxProps) {
@@ -71,6 +101,10 @@ export function Combobox({
     );
 
     const trimmedSearch = search.trim();
+    const visibleOptions = React.useMemo(
+        () => options.filter((option) => optionMatches(option, trimmedSearch)),
+        [options, trimmedSearch],
+    );
     const canCreate =
         trimmedSearch.length > 0 &&
         !options.some(
@@ -87,8 +121,9 @@ export function Combobox({
     React.useEffect(() => {
         if (!open) {
             setSearch('');
+            onSearchChange?.('');
         }
-    }, [open]);
+    }, [open, onSearchChange]);
 
     React.useEffect(() => {
         if (!open) {
@@ -178,11 +213,14 @@ export function Combobox({
                 onWheel={(e) => e.stopPropagation()}
                 onTouchMove={(e) => e.stopPropagation()}
             >
-                <Command>
+                <Command shouldFilter={false}>
                     <CommandInput
                         placeholder={searchPlaceholder}
                         value={search}
-                        onValueChange={setSearch}
+                        onValueChange={(next) => {
+                            setSearch(next);
+                            onSearchChange?.(next);
+                        }}
                     />
                     <CommandList ref={listRef}>
                         <CommandEmpty>{emptyMessage}</CommandEmpty>
@@ -208,10 +246,10 @@ export function Combobox({
                             </CommandGroup>
                         ) : null}
                         <CommandGroup>
-                            {options.map((opt) => (
+                            {visibleOptions.map((opt) => (
                                 <CommandItem
                                     key={opt.value}
-                                    value={opt.label}
+                                    value={opt.value}
                                     onSelect={() => {
                                         onChange(
                                             opt.value === value

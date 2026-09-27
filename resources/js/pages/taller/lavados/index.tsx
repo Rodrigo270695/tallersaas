@@ -1,26 +1,15 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Droplets, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Can } from '@/components/can';
 import { DataPagination, DataTable, DataToolbar, EmptyState, FilterChips, PageHeader } from '@/components/data-page';
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
-import { FormField, FormModal, FormSection } from '@/components/forms';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import type { Paginated } from '@/types';
+import { LavadoFormModal } from './components/lavado-form-modal';
 
 type SedeOption = { id: string; nombre: string; codigo: string };
-type ClienteOption = { id: string; nombre: string };
-type VehiculoOption = { id: string; cliente_id: string; placa: string };
 
 type LavadoRow = {
     id: string;
@@ -37,8 +26,6 @@ type Props = {
     filters: { search: string; estado: string; per_page: number };
     stats: { total: number; abiertos: number; cobrados: number; coincidencias: number };
     sedes: SedeOption[];
-    clientes: ClienteOption[];
-    vehiculos: VehiculoOption[];
 };
 
 const money = (value: number): string =>
@@ -57,16 +44,9 @@ function precuenta(lavado: LavadoRow): number {
     );
 }
 
-export default function Index({ lavados, filters, stats, sedes, clientes, vehiculos }: Props) {
+export default function Index({ lavados, filters, stats, sedes }: Props) {
     const [search, setSearch] = useState(filters.search);
     const [open, setOpen] = useState(false);
-    const form = useForm({
-        sede_id: sedes[0]?.id ?? '',
-        cliente_id: '',
-        vehiculo_id: '',
-        placa: '',
-        notas: '',
-    });
 
     useEffect(() => {
         const handle = window.setTimeout(() => {
@@ -82,11 +62,6 @@ export default function Index({ lavados, filters, stats, sedes, clientes, vehicu
 
         return () => window.clearTimeout(handle);
     }, [search, filters.search, filters.estado]);
-
-    const vehiculosCliente = useMemo(
-        () => vehiculos.filter((vehiculo) => vehiculo.cliente_id === form.data.cliente_id),
-        [vehiculos, form.data.cliente_id],
-    );
 
     const columns = useMemo<DataTableColumn<LavadoRow>[]>(
         () => [
@@ -138,10 +113,6 @@ export default function Index({ lavados, filters, stats, sedes, clientes, vehicu
         { value: 'cobrado', label: 'Cobrados' },
         { value: 'anulado', label: 'Anulados' },
     ];
-
-    const submit = () => {
-        form.post('/taller/lavados', { preserveScroll: true });
-    };
 
     return (
         <>
@@ -204,106 +175,7 @@ export default function Index({ lavados, filters, stats, sedes, clientes, vehicu
                 />
             </div>
 
-            <FormModal
-                open={open}
-                onOpenChange={setOpen}
-                title="Nuevo lavado"
-                description="Cliente y placa. Los cargos se agregan en la precuenta."
-                onSubmit={(event) => {
-                    event.preventDefault();
-                    submit();
-                }}
-                footer={
-                    <>
-                        <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                            Cancelar
-                        </Button>
-                        <Button type="submit" disabled={form.processing}>
-                            Crear lavado
-                        </Button>
-                    </>
-                }
-            >
-                <FormSection title="Recepción" columns={2}>
-                    <FormField id="lavado-sede" label="Sede" required error={form.errors.sede_id}>
-                        <Select
-                            value={form.data.sede_id || undefined}
-                            onValueChange={(value) => form.setData('sede_id', value)}
-                        >
-                            <SelectTrigger id="lavado-sede">
-                                <SelectValue placeholder="Selecciona sede" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {sedes.map((sede) => (
-                                    <SelectItem key={sede.id} value={sede.id}>
-                                        {sede.nombre} ({sede.codigo})
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </FormField>
-                    <FormField id="lavado-cliente" label="Cliente" required error={form.errors.cliente_id}>
-                        <Select
-                            value={form.data.cliente_id || undefined}
-                            onValueChange={(value) =>
-                                form.setData({ ...form.data, cliente_id: value, vehiculo_id: '', placa: '' })
-                            }
-                        >
-                            <SelectTrigger id="lavado-cliente">
-                                <SelectValue placeholder="Selecciona cliente" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {clientes.map((cliente) => (
-                                    <SelectItem key={cliente.id} value={cliente.id}>
-                                        {cliente.nombre}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </FormField>
-                    <FormField id="lavado-vehiculo" label="Vehículo" error={form.errors.vehiculo_id}>
-                        <Select
-                            value={form.data.vehiculo_id || '__ninguno__'}
-                            onValueChange={(value) => {
-                                const vehiculo = vehiculosCliente.find((item) => item.id === value);
-                                form.setData({
-                                    ...form.data,
-                                    vehiculo_id: value === '__ninguno__' ? '' : value,
-                                    placa: vehiculo?.placa ?? form.data.placa,
-                                });
-                            }}
-                            disabled={!form.data.cliente_id}
-                        >
-                            <SelectTrigger id="lavado-vehiculo">
-                                <SelectValue placeholder="Opcional" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="__ninguno__">Sin vehículo</SelectItem>
-                                {vehiculosCliente.map((vehiculo) => (
-                                    <SelectItem key={vehiculo.id} value={vehiculo.id}>
-                                        {vehiculo.placa}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </FormField>
-                    <FormField id="lavado-placa" label="Placa" required error={form.errors.placa}>
-                        <Input
-                            id="lavado-placa"
-                            value={form.data.placa}
-                            onChange={(event) => form.setData('placa', event.target.value.toUpperCase())}
-                            placeholder="ABC-123"
-                        />
-                    </FormField>
-                    <FormField id="lavado-notas" label="Notas" error={form.errors.notas} className="sm:col-span-2">
-                        <Textarea
-                            id="lavado-notas"
-                            value={form.data.notas}
-                            onChange={(event) => form.setData('notas', event.target.value)}
-                        />
-                    </FormField>
-                </FormSection>
-            </FormModal>
+            <LavadoFormModal open={open} onOpenChange={setOpen} sedes={sedes} />
         </>
     );
 }

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef  } from 'react';
 import type {FormEvent} from 'react';
 import { FormField, FormModal, FormSection } from '@/components/forms';
 import { Button } from '@/components/ui/button';
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -187,6 +188,18 @@ export function OrdenFormModal({
         () => vehiculos.filter((v) => v.cliente_id === data.cliente_id),
         [vehiculos, data.cliente_id],
     );
+    const sedeOptions = useMemo<ComboboxOption[]>(
+        () => sedes.map((sede) => ({ value: sede.id, label: `${sede.nombre} (${sede.codigo})` })),
+        [sedes],
+    );
+    const clienteOptions = useMemo<ComboboxOption[]>(
+        () => clientes.map((cliente) => ({ value: cliente.id, label: cliente.nombre })),
+        [clientes],
+    );
+    const vehiculoOptions = useMemo<ComboboxOption[]>(
+        () => vehiculosFiltrados.map((vehiculo) => ({ value: vehiculo.id, label: vehiculo.label })),
+        [vehiculosFiltrados],
+    );
 
     const isDirty = useMemo(() => {
         const initial = initialSnapshotRef.current;
@@ -356,22 +369,18 @@ export function OrdenFormModal({
                     description="La orden queda ligada a un vehículo del cliente."
                     columns={2}
                 >
-                    <FormField id="ot-sede" label="Sede" required error={errors.sede_id}>
-                        <Select
-                            value={data.sede_id || undefined}
-                            onValueChange={(value) => setData('sede_id', value)}
-                        >
-                            <SelectTrigger id="ot-sede" className="w-full">
-                                <SelectValue placeholder="Selecciona sede" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {sedes.map((sede) => (
-                                    <SelectItem key={sede.id} value={sede.id}>
-                                        {sede.nombre} ({sede.codigo})
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                    <FormField id="ot-sede" label="Sede" required error={errors.sede_id} className="min-w-0">
+                        <Combobox
+                            id="ot-sede"
+                            className="h-9 w-full"
+                            options={sedeOptions}
+                            value={data.sede_id || null}
+                            onChange={(value) => setData('sede_id', value ?? '')}
+                            placeholder="Selecciona sede"
+                            searchPlaceholder="Buscar sede…"
+                            emptyMessage="Sin sedes."
+                            aria-invalid={Boolean(errors.sede_id)}
+                        />
                     </FormField>
 
                     <FormField
@@ -379,25 +388,22 @@ export function OrdenFormModal({
                         label="Cliente"
                         required
                         error={errors.cliente_id}
+                        className="min-w-0"
                     >
-                        <Select
-                            value={data.cliente_id || undefined}
-                            onValueChange={(value) => {
-                                setData('cliente_id', value);
+                        <Combobox
+                            id="ot-cliente"
+                            className="h-9 w-full"
+                            options={clienteOptions}
+                            value={data.cliente_id || null}
+                            onChange={(value) => {
+                                setData('cliente_id', value ?? '');
                                 setData('vehiculo_id', '');
                             }}
-                        >
-                            <SelectTrigger id="ot-cliente" className="w-full">
-                                <SelectValue placeholder="Selecciona cliente" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {clientes.map((cliente) => (
-                                    <SelectItem key={cliente.id} value={cliente.id}>
-                                        {cliente.nombre}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            placeholder="Buscar cliente…"
+                            searchPlaceholder="Nombre del cliente…"
+                            emptyMessage="Sin coincidencias."
+                            aria-invalid={Boolean(errors.cliente_id)}
+                        />
                     </FormField>
 
                     <FormField
@@ -405,30 +411,22 @@ export function OrdenFormModal({
                         label="Vehículo"
                         required
                         error={errors.vehiculo_id}
-                        className="sm:col-span-2"
+                        className="min-w-0 sm:col-span-2"
                     >
-                        <Select
-                            value={data.vehiculo_id || undefined}
-                            onValueChange={(value) => setData('vehiculo_id', value)}
+                        <Combobox
+                            id="ot-vehiculo"
+                            className="h-9 w-full"
+                            options={vehiculoOptions}
+                            value={data.vehiculo_id || null}
+                            onChange={(value) => setData('vehiculo_id', value ?? '')}
+                            placeholder={data.cliente_id ? 'Buscar vehículo…' : 'Primero el cliente'}
+                            searchPlaceholder="Placa o modelo…"
+                            emptyMessage={
+                                data.cliente_id ? 'Este cliente no tiene vehículos.' : 'Selecciona un cliente primero.'
+                            }
                             disabled={!data.cliente_id}
-                        >
-                            <SelectTrigger id="ot-vehiculo" className="w-full">
-                                <SelectValue
-                                    placeholder={
-                                        data.cliente_id
-                                            ? 'Selecciona vehículo'
-                                            : 'Primero el cliente'
-                                    }
-                                />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {vehiculosFiltrados.map((vehiculo) => (
-                                    <SelectItem key={vehiculo.id} value={vehiculo.id}>
-                                        {vehiculo.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            aria-invalid={Boolean(errors.vehiculo_id)}
+                        />
                     </FormField>
                 </FormSection>
 
@@ -572,7 +570,7 @@ export function OrdenFormModal({
                                         value={catalogValue(linea)}
                                         onValueChange={(value) => applyCatalog(index, value)}
                                     >
-                                        <SelectTrigger id={`ot-linea-cat-${index}`}>
+                                        <SelectTrigger id={`ot-linea-cat-${index}`} className="h-9 w-full">
                                             <SelectValue placeholder="Libre / catálogo" />
                                         </SelectTrigger>
                                         <SelectContent>

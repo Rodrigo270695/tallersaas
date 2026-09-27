@@ -214,7 +214,7 @@ export default function Index({ puestos, filters, stats, sedes }: Props) {
                             value={form.data.sede_id || undefined}
                             onValueChange={(value) => form.setData('sede_id', value)}
                         >
-                            <SelectTrigger id="puesto-sede">
+                            <SelectTrigger id="puesto-sede" className="h-9 w-full">
                                 <SelectValue placeholder="Sede" />
                             </SelectTrigger>
                             <SelectContent>

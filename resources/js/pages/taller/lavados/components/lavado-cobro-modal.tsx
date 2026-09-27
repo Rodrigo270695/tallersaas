@@ -141,7 +141,7 @@ export function LavadoCobroModal({
                             form.setData('pagos', [{ ...form.data.pagos[0], metodo: value }])
                         }
                     >
-                        <SelectTrigger id="cw-metodo">
+                        <SelectTrigger id="cw-metodo" className="h-9 w-full">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -180,7 +180,7 @@ export function LavadoCobroModal({
                             value={form.data.tipo_comprobante_sunat}
                             onValueChange={(value) => form.setData('tipo_comprobante_sunat', value)}
                         >
-                            <SelectTrigger id="cw-comp">
+                            <SelectTrigger id="cw-comp" className="h-9 w-full">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

@@ -134,7 +134,7 @@ export default function Show({ lavado, mi_sesion_abierta, igv, fel_ready, servic
                                             }}
                                             disabled={!abierto}
                                         >
-                                            <SelectTrigger id={`cw-srv-${index}`}>
+                                            <SelectTrigger id={`cw-srv-${index}`} className="h-9 w-full">
                                                 <SelectValue placeholder="Texto libre" />
                                             </SelectTrigger>
                                             <SelectContent>
