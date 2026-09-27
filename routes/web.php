@@ -561,6 +561,9 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.none'])
         Route::middleware('permission:plataforma-suscripciones.view')
             ->get('suscripciones', [SubscriptionController::class, 'index'])
             ->name('suscripciones.index');
+        Route::middleware('permission:plataforma-suscripciones.update')
+            ->match(['put', 'patch'], 'suscripciones/{subscription}', [SubscriptionController::class, 'update'])
+            ->name('suscripciones.update');
     });
 
 Route::middleware(['auth', 'verified', 'tenant.match-user'])

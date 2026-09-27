@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\SubscriptionUpdateRequest;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Models\Tenant;
+use App\Tenancy\TenantManager;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -99,6 +104,63 @@ class SubscriptionController extends Controller
             ],
             'plans_catalog' => $plansCatalog,
         ]);
+    }
+
+    public function update(
+        SubscriptionUpdateRequest $request,
+        Subscription $subscription,
+        TenantManager $tenants,
+    ): RedirectResponse {
+        $data = $request->validated();
+        $estado = (string) $data['estado'];
+        $trialEnds = $this->endOfDay($data['trial_ends_at'] ?? null);
+        $periodEnd = $this->endOfDay($data['current_period_end'] ?? null);
+        $graceEnds = $this->endOfDay($data['grace_ends_at'] ?? null);
+
+        $subscription->update([
+            'plan_id' => $data['plan_id'],
+            'estado' => $estado,
+            'ciclo' => $data['ciclo'],
+            'precio_pactado' => $data['precio_pactado'],
+            'trial_ends_at' => $trialEnds,
+            'current_period_end' => $periodEnd,
+            'grace_ends_at' => $graceEnds,
+            'proximo_cobro_at' => $periodEnd,
+            'cancelled_at' => $estado === Subscription::STATUS_CANCELLED ? ($subscription->cancelled_at ?? now()) : null,
+        ]);
+
+        $tenant = Tenant::query()->whereKey($subscription->tenant_id)->first();
+        if ($tenant !== null) {
+            $tenantEstado = match ($estado) {
+                Subscription::STATUS_ACTIVE, Subscription::STATUS_GRACE => 'active',
+                Subscription::STATUS_PAST_DUE => 'suspended',
+                Subscription::STATUS_CANCELLED => 'cancelled',
+                default => 'trial',
+            };
+
+            $tenant->update([
+                'estado' => $tenantEstado,
+                'trial_ends_at' => $trialEnds,
+                'suspended_at' => $tenantEstado === 'suspended' ? ($tenant->suspended_at ?? now()) : null,
+                'suspension_reason' => $tenantEstado === 'suspended' ? ($tenant->suspension_reason ?: 'Ajuste manual de suscripción') : null,
+                'cancelled_at' => $tenantEstado === 'cancelled' ? ($tenant->cancelled_at ?? now()) : null,
+            ]);
+
+            $tenants->flushCacheFor($tenant);
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Suscripción actualizada correctamente.']);
+
+        return back();
+    }
+
+    private function endOfDay(mixed $date): ?Carbon
+    {
+        if (! is_string($date) || $date === '') {
+            return null;
+        }
+
+        return Carbon::parse($date, 'America/Lima')->endOfDay();
     }
 
     /**

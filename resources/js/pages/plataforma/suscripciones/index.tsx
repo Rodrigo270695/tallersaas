@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { CreditCard, Filter, ScreenShare } from 'lucide-react';
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { Can } from '@/components/can';
 import {
     DataPagination,
     DataTable,
@@ -10,9 +11,15 @@ import {
     PageHeader,
 } from '@/components/data-page';
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
+import { Button } from '@/components/ui/button';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
+import { usePermission } from '@/hooks/use-permission';
 import suscripciones from '@/routes/plataforma/suscripciones';
 import type { Paginated } from '@/types';
+import {
+    SubscriptionFormModal,
+    type SubscriptionPlanOption,
+} from './components/subscription-form-modal';
 
 type Subscription = {
     id: string;
@@ -21,6 +28,7 @@ type Subscription = {
     precio_pactado: string | number;
     trial_ends_at: string | null;
     current_period_end: string | null;
+    grace_ends_at: string | null;
     tenant?: {
         id: string;
         slug: string;
@@ -56,15 +64,29 @@ const ESTADO_LABEL: Record<string, string> = {
     cancelled: 'Cancelada',
 };
 
+const formatDay = (value: string | null): string => {
+    if (!value) {
+        return '—';
+    }
+
+    return new Date(value).toLocaleDateString('es-PE', { timeZone: 'America/Lima' });
+};
+
 export default function Index({
     subscriptions: paginated,
     filters,
     stats,
+    plans_catalog: plans = [],
 }: {
     subscriptions: Paginated<Subscription>;
     filters: Filters;
     stats: Stats;
+    plans_catalog: readonly SubscriptionPlanOption[];
 }) {
+    const { can } = usePermission();
+    const canUpdate = can('plataforma-suscripciones.update');
+    const [editing, setEditing] = useState<Subscription | null>(null);
+    const closeEdit = useCallback(() => setEditing(null), []);
     const { search, setSearch, isLoading, sort, setSort, setPerPage, applyFilter } =
         useDataTablePage<{ estado: string }>({
             routeUrl: suscripciones.index().url,
@@ -116,16 +138,38 @@ export default function Index({
                 cell: (row) => ESTADO_LABEL[row.estado] ?? row.estado,
             },
             {
+                key: 'trial_ends_at',
+                header: 'Prueba hasta',
+                sortable: true,
+                cell: (row) => formatDay(row.trial_ends_at),
+            },
+            {
                 key: 'current_period_end',
                 header: 'Periodo hasta',
                 sortable: true,
+                cell: (row) => formatDay(row.current_period_end),
+            },
+            {
+                key: 'acciones',
+                header: <span className="md:sr-only">Acciones</span>,
+                align: 'right',
                 cell: (row) =>
-                    row.current_period_end
-                        ? new Date(row.current_period_end).toLocaleDateString('es-PE')
-                        : '—',
+                    canUpdate ? (
+                        <div className="flex justify-end">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="cursor-pointer"
+                                onClick={() => setEditing(row)}
+                            >
+                                Editar
+                            </Button>
+                        </div>
+                    ) : null,
             },
         ],
-        [],
+        [canUpdate],
     );
 
     const estadoOptions: FilterChip[] = [
@@ -204,6 +248,19 @@ export default function Index({
                     }
                 />
             </div>
+
+            <Can permission="plataforma-suscripciones.update">
+                <SubscriptionFormModal
+                    open={editing !== null}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            closeEdit();
+                        }
+                    }}
+                    subscription={editing}
+                    plans={plans}
+                />
+            </Can>
         </>
     );
 }
