@@ -1,8 +1,15 @@
 import { Link } from '@inertiajs/react';
-import type { PropsWithChildren } from 'react';
+import { Menu } from 'lucide-react';
+import { useState, type PropsWithChildren } from 'react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
+import { useSidebar } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { cn, toUrl } from '@/lib/utils';
 import { edit as editAppearance } from '@/routes/appearance';
@@ -12,17 +19,17 @@ import type { NavItem } from '@/types';
 
 const sidebarNavItems: NavItem[] = [
     {
-        title: 'Profile',
+        title: 'Perfil',
         href: edit(),
         icon: null,
     },
     {
-        title: 'Security',
+        title: 'Seguridad',
         href: editSecurity(),
         icon: null,
     },
     {
-        title: 'Appearance',
+        title: 'Apariencia',
         href: editAppearance(),
         icon: null,
     },
@@ -30,47 +37,75 @@ const sidebarNavItems: NavItem[] = [
 
 export default function SettingsLayout({ children }: PropsWithChildren) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
+    const { isMobile, setOpenMobile } = useSidebar();
+    const [sectionsOpen, setSectionsOpen] = useState(false);
+
+    const closeMobileSidebar = () => {
+        setSectionsOpen(false);
+
+        if (isMobile) {
+            setOpenMobile(false);
+        }
+    };
+
+    const nav = (keyPrefix: string) => (
+        <nav className="flex flex-col space-y-1" aria-label="Configuración">
+            {sidebarNavItems.map((item, index) => (
+                <Button
+                    key={`${keyPrefix}-${toUrl(item.href)}-${index}`}
+                    size="sm"
+                    variant="ghost"
+                    asChild
+                    className={cn('w-full justify-start', {
+                        'bg-muted': isCurrentOrParentUrl(item.href),
+                    })}
+                >
+                    <Link href={item.href} onClick={closeMobileSidebar}>
+                        {item.icon && <item.icon className="h-4 w-4" />}
+                        {item.title}
+                    </Link>
+                </Button>
+            ))}
+        </nav>
+    );
+
+    const activeItem = sidebarNavItems.find((item) =>
+        isCurrentOrParentUrl(item.href),
+    );
 
     return (
         <div className="px-4 py-6">
             <Heading
-                title="Settings"
-                description="Manage your profile and account settings"
+                title="Configuración"
+                description="Administra tu perfil y los datos de la cuenta"
             />
 
             <div className="flex flex-col lg:flex-row lg:space-x-12">
-                <aside className="w-full max-w-xl lg:w-48">
-                    <nav
-                        className="flex flex-col space-y-1 space-x-0"
-                        aria-label="Settings"
+                <div className="mb-4 lg:hidden">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="cursor-pointer gap-2"
+                        onClick={() => setSectionsOpen(true)}
                     >
-                        {sidebarNavItems.map((item, index) => (
-                            <Button
-                                key={`${toUrl(item.href)}-${index}`}
-                                size="sm"
-                                variant="ghost"
-                                asChild
-                                className={cn('w-full justify-start', {
-                                    'bg-muted': isCurrentOrParentUrl(item.href),
-                                })}
-                            >
-                                <Link href={item.href}>
-                                    {item.icon && (
-                                        <item.icon className="h-4 w-4" />
-                                    )}
-                                    {item.title}
-                                </Link>
-                            </Button>
-                        ))}
-                    </nav>
-                </aside>
+                        <Menu className="size-4" />
+                        {activeItem?.title ?? 'Secciones'}
+                    </Button>
+                    <Sheet open={sectionsOpen} onOpenChange={setSectionsOpen}>
+                        <SheetContent side="left" className="w-72">
+                            <SheetHeader>
+                                <SheetTitle>Configuración</SheetTitle>
+                            </SheetHeader>
+                            {nav('sheet')}
+                        </SheetContent>
+                    </Sheet>
+                </div>
 
-                <Separator className="my-6 lg:hidden" />
+                <aside className="hidden w-48 lg:block">{nav('aside')}</aside>
 
                 <div className="flex-1 md:max-w-2xl">
-                    <section className="max-w-xl space-y-12">
-                        {children}
-                    </section>
+                    <section className="max-w-xl space-y-12">{children}</section>
                 </div>
             </div>
         </div>
