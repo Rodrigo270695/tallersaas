@@ -193,6 +193,10 @@ class CitaController extends Controller
                     'cliente_id' => $vehiculo->cliente_id,
                     'label' => trim($vehiculo->placa.' '.$vehiculo->marca?->nombre.' '.$vehiculo->modelo?->nombre),
                 ]),
+            'puestos' => \App\Models\Puesto::query()
+                ->where('activo', true)
+                ->orderBy('nombre')
+                ->get(['id', 'nombre', 'sede_id']),
             'mecanicos' => User::query()
                 ->where('tenant_id', $tenantId)
                 ->where('is_active', true)

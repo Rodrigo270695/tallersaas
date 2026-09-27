@@ -59,6 +59,7 @@ class Cita extends Model
 
     protected $fillable = [
         'sede_id',
+        'puesto_id',
         'cliente_id',
         'vehiculo_id',
         'assigned_user_id',
@@ -101,6 +102,11 @@ class Cita extends Model
     public function sede(): BelongsTo
     {
         return $this->belongsTo(Sede::class);
+    }
+
+    public function puesto(): BelongsTo
+    {
+        return $this->belongsTo(Puesto::class);
     }
 
     public function asignadoA(): BelongsTo

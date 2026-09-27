@@ -349,6 +349,12 @@ class VentaController extends Controller
         if (is_string($ordenId) && $ordenId !== '') {
             $orden = OrdenTrabajo::query()->findOrFail($ordenId);
             $venta = $checkout->cobrar($orden, $data, $request->user());
+            $aviso = app(\App\Services\Taller\AvisarCobroService::class)->avisar($orden, $venta);
+            if ($aviso['enviado']) {
+                Inertia::flash('toast', ['type' => 'info', 'message' => 'El cliente fue avisado del cobro por WhatsApp.']);
+            } elseif (is_string($aviso['wa_url'])) {
+                Inertia::flash('whatsapp_url', $aviso['wa_url']);
+            }
         } else {
             $venta = $checkout->cobrarDirecto($data, $request->user());
         }

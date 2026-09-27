@@ -37,6 +37,7 @@ import { cn } from '@/lib/utils';
 import ventas from '@/routes/caja/ventas';
 import ordenesTrabajo from '@/routes/taller/ordenes-trabajo';
 import { OrdenAvisarListaModal } from './components/orden-avisar-lista-modal';
+import { OrdenEquipoPanel } from './components/orden-equipo-panel';
 import { OrdenFotosSection } from './components/orden-fotos-section';
 import type {
     ClienteOption,
@@ -87,9 +88,12 @@ type ShowProps = {
     taller_nombre?: string;
     productos: readonly ProductoCobroOption[];
     servicios: readonly ServicioCobroOption[];
+    checklist_catalogo: readonly { clave: string; label: string }[];
+    puestos: readonly { id: string; nombre: string }[];
+    mecanicos: readonly { id: string; name: string }[];
 };
 
-type TabId = 'recepcion' | 'cargos' | 'fotos' | 'mas';
+type TabId = 'recepcion' | 'equipo' | 'cargos' | 'fotos' | 'mas';
 
 const LIBRE = '__libre__';
 
@@ -115,6 +119,7 @@ const TABS: {
     icon: typeof ClipboardList;
 }[] = [
     { id: 'recepcion', label: 'Recepción', icon: ClipboardList },
+    { id: 'equipo', label: 'Equipo', icon: Wrench },
     { id: 'cargos', label: 'Cargos', icon: Package },
     { id: 'fotos', label: 'Fotos', icon: Camera },
     { id: 'mas', label: 'Más', icon: MoreHorizontal },
@@ -205,9 +210,13 @@ export default function Show({
     taller_nombre: tallerNombre = 'el taller',
     productos = [],
     servicios = [],
+    checklist_catalogo: checklistCatalogo = [],
+    puestos = [],
+    mecanicos = [],
 }: ShowProps) {
     const { can } = usePermission();
     const canUpdate = can('ordenes-trabajo.update');
+    const canChecklist = can('checklist-inspeccion.update');
     const canCobrar = can('ventas.create');
     const [avisarOpen, setAvisarOpen] = useState(false);
     const [tab, setTab] = useState<TabId>(() => defaultTab(orden.estado));
@@ -816,6 +825,26 @@ export default function Show({
                         </FormSection>
                     </div>
                 </form>
+
+                {tab === 'equipo' ? (
+                    <div role="tabpanel">
+                        <OrdenEquipoPanel
+                            ordenId={orden.id}
+                            puestoId={orden.puesto_id ?? null}
+                            puestos={puestos}
+                            personas={mecanicos}
+                            responsableId={
+                                orden.mecanicos?.find((fila) => fila.rol === 'responsable')?.user_id ?? ''
+                            }
+                            apoyoId={orden.mecanicos?.find((fila) => fila.rol === 'apoyo')?.user_id ?? ''}
+                            checklistGuardado={orden.checklist_items ?? []}
+                            catalogo={checklistCatalogo}
+                            kilometrajes={orden.vehiculo?.kilometrajes ?? []}
+                            canEquipo={canUpdate}
+                            canChecklist={canChecklist}
+                        />
+                    </div>
+                ) : null}
 
                 {/* Fotos */}
                 {tab === 'fotos' ? (

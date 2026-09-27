@@ -49,6 +49,7 @@ type IndexProps = {
     clientes: readonly ClienteOption[];
     vehiculos: readonly VehiculoOption[];
     mecanicos: readonly MecanicoOption[];
+    puestos?: readonly { id: string; nombre: string; sede_id: string }[];
 };
 
 type ModalState =
@@ -111,6 +112,7 @@ export default function Index({
     clientes,
     vehiculos,
     mecanicos,
+    puestos = [],
 }: IndexProps) {
     const { can } = usePermission();
     const canCreate = can('citas.create');
@@ -552,6 +554,7 @@ export default function Index({
                 clientes={clientes}
                 vehiculos={vehiculos}
                 mecanicos={mecanicos}
+                puestos={puestos}
                 onConvert={openConvert}
                 canConvert={canConvert}
             />

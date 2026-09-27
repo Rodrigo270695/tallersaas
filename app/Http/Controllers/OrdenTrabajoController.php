@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\AvisarOrdenListaRequest;
 use App\Http\Requests\CobrarOrdenTrabajoRequest;
+use App\Http\Requests\OrdenEquipoRequest;
 use App\Http\Requests\OrdenTrabajoRequest;
 use App\Models\CajaSesion;
 use App\Models\Cliente;
@@ -14,8 +15,11 @@ use App\Models\Sede;
 use App\Models\TallerSetting;
 use App\Models\Vehiculo;
 use App\Services\Fel\FelEmisionVentaService;
+use App\Services\Taller\AvisarCobroService;
 use App\Services\Taller\AvisarOrdenListaService;
+use App\Services\Taller\OrdenEquipoService;
 use App\Services\Taller\OrdenTrabajoLineasService;
+use App\Services\Taller\VehiculoKilometrajeRecorder;
 use App\Services\Taller\ServicioKitService;
 use App\Services\Venta\VentaCheckoutFromOrdenService;
 use App\Support\Fel\ApisunatCredentialResolver;
@@ -163,10 +167,14 @@ class OrdenTrabajoController extends Controller
 
         $orden_trabajo->load([
             'cliente:id,nombres,apellidos,telefono,tipo_documento,numero_documento',
-            'vehiculo:id,placa,marca_id,modelo_id,cliente_id',
+            'vehiculo:id,placa,marca_id,modelo_id,cliente_id,kilometraje',
             'vehiculo.marca:id,nombre',
             'vehiculo.modelo:id,nombre',
+            'vehiculo.kilometrajes' => fn ($q) => $q->orderByDesc('recorded_at')->limit(12),
             'sede:id,nombre,codigo',
+            'puesto:id,nombre,sede_id',
+            'mecanicos.user:id,name',
+            'checklistItems',
             'lineas',
             'fotos',
             'cita:id,motivo,inicia_at',
@@ -176,6 +184,17 @@ class OrdenTrabajoController extends Controller
 
         return Inertia::render('taller/ordenes-trabajo/show', [
             'orden' => $orden_trabajo,
+            'checklist_catalogo' => \App\Support\Taller\InspeccionChecklist::ITEMS,
+            'puestos' => \App\Models\Puesto::query()
+                ->where('sede_id', $orden_trabajo->sede_id)
+                ->where('activo', true)
+                ->orderBy('nombre')
+                ->get(['id', 'nombre', 'sede_id']),
+            'mecanicos' => \App\Models\User::query()
+                ->where('tenant_id', $tenantId)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name']),
             ...$this->ordenCatalogProps($tenantId, $setting),
         ]);
     }
@@ -187,6 +206,7 @@ class OrdenTrabajoController extends Controller
         FelEmisionVentaService $fel,
     ): RedirectResponse {
         $venta = $checkout->cobrar($orden_trabajo, $request->validated(), $request->user());
+        $this->flashCobroWhatsApp(app(AvisarCobroService::class)->avisar($orden_trabajo, $venta));
 
         if ($fel->puedeEmitir(TallerSetting::current(), $venta)) {
             try {
@@ -265,6 +285,14 @@ class OrdenTrabajoController extends Controller
             $lineas->sync($orden, $payloadLineas);
         }
 
+        app(VehiculoKilometrajeRecorder::class)->record(
+            $orden->km_ingreso,
+            (string) $orden->vehiculo_id,
+            (string) $orden->id,
+            \App\Models\VehiculoKilometraje::ORIGEN_INGRESO,
+            Auth::id() !== null ? (string) Auth::id() : null,
+        );
+
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Orden de trabajo creada correctamente.']);
 
         return redirect()->route('taller.ordenes-trabajo.show', $orden);
@@ -298,12 +326,53 @@ class OrdenTrabajoController extends Controller
         }
 
         $orden_trabajo->update($data);
+        $orden_trabajo->refresh();
+
+        $recorder = app(VehiculoKilometrajeRecorder::class);
+        $userId = Auth::id() !== null ? (string) Auth::id() : null;
+        $recorder->record(
+            $orden_trabajo->km_ingreso,
+            (string) $orden_trabajo->vehiculo_id,
+            (string) $orden_trabajo->id,
+            \App\Models\VehiculoKilometraje::ORIGEN_INGRESO,
+            $userId,
+        );
+        $recorder->record(
+            $orden_trabajo->km_salida,
+            (string) $orden_trabajo->vehiculo_id,
+            (string) $orden_trabajo->id,
+            \App\Models\VehiculoKilometraje::ORIGEN_SALIDA,
+            $userId,
+        );
 
         if (is_array($payloadLineas) && ($this->lineasTienenContenido($payloadLineas) || $orden_trabajo->lineas()->exists())) {
             $lineas->sync($orden_trabajo, $payloadLineas);
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Orden de trabajo actualizada correctamente.']);
+
+        return back();
+    }
+
+    public function syncEquipo(
+        OrdenEquipoRequest $request,
+        OrdenTrabajo $orden_trabajo,
+        OrdenEquipoService $equipo,
+    ): RedirectResponse {
+        $data = $request->validated();
+        $user = $request->user();
+
+        $equipo->sync(
+            $orden_trabajo,
+            $data['puesto_id'] ?? null,
+            $data['mecanicos'] ?? [],
+            $data['checklist'] ?? [],
+            (bool) $user?->can('ordenes-trabajo.update'),
+            (bool) $user?->can('checklist-inspeccion.update'),
+            $user?->getAuthIdentifier() !== null ? (string) $user->getAuthIdentifier() : null,
+        );
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Equipo e inspección actualizados.']);
 
         return back();
     }
@@ -469,6 +538,22 @@ class OrdenTrabajoController extends Controller
         $nombre = trim((string) ($settings->nombre_comercial ?: $settings->razon_social ?: ''));
 
         return $nombre !== '' ? $nombre : 'el taller';
+    }
+
+    /**
+     * @param  array{wa_url: ?string, enviado: bool, encolado: bool}  $aviso
+     */
+    private function flashCobroWhatsApp(array $aviso): void
+    {
+        if ($aviso['enviado']) {
+            Inertia::flash('toast', ['type' => 'success', 'message' => 'Cobro avisado por WhatsApp.']);
+
+            return;
+        }
+
+        if (is_string($aviso['wa_url'])) {
+            Inertia::flash('whatsapp_url', $aviso['wa_url']);
+        }
     }
 
     private function parseDateParam(mixed $value): ?string

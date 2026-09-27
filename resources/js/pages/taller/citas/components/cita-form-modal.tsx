@@ -41,6 +41,7 @@ type FormData = {
     cliente_id: string;
     vehiculo_id: string;
     assigned_user_id: string;
+    puesto_id: string;
     inicia_at: string;
     duracion_minutos: string;
     estado: CitaEstado;
@@ -80,6 +81,7 @@ export function CitaFormModal({
     clientes,
     vehiculos,
     mecanicos,
+    puestos = [],
     prefill,
     onConvert,
     canConvert = false,
@@ -91,6 +93,7 @@ export function CitaFormModal({
     clientes: readonly ClienteOption[];
     vehiculos: readonly VehiculoOption[];
     mecanicos: readonly MecanicoOption[];
+    puestos?: readonly { id: string; nombre: string; sede_id: string }[];
     prefill?: { fecha?: string; hora?: string } | null;
     onConvert?: (cita: Cita) => void;
     canConvert?: boolean;
@@ -112,6 +115,7 @@ export function CitaFormModal({
         cliente_id: '',
         vehiculo_id: '',
         assigned_user_id: '',
+        puesto_id: '',
         inicia_at: '',
         duracion_minutos: DURACION_DEFAULT,
         estado: 'programada',
@@ -170,6 +174,7 @@ export function CitaFormModal({
             cliente_id: cita?.cliente_id ?? '',
             vehiculo_id: cita?.vehiculo_id ?? '',
             assigned_user_id: cita?.assigned_user_id ?? defaultMecanicoId,
+            puesto_id: cita?.puesto_id ?? '',
             inicia_at: cita ? toDatetimeLocal(cita.inicia_at) : iniciaDefault,
             duracion_minutos: String(cita?.duracion_minutos ?? Number(DURACION_DEFAULT)),
             estado: cita?.estado === 'convertida' ? 'programada' : (cita?.estado ?? 'programada'),
@@ -276,7 +281,16 @@ export function CitaFormModal({
                     >
                         <Select
                             value={data.sede_id || undefined}
-                            onValueChange={(value) => setData('sede_id', value)}
+                            onValueChange={(value) => {
+                                const puestoSigue = puestos.some(
+                                    (puesto) => puesto.id === data.puesto_id && puesto.sede_id === value,
+                                );
+                                setData({
+                                    ...data,
+                                    sede_id: value,
+                                    puesto_id: puestoSigue ? data.puesto_id : '',
+                                });
+                            }}
                             disabled={locked || processing}
                         >
                             <SelectTrigger id="cita-sede" className="w-full">
@@ -386,6 +400,28 @@ export function CitaFormModal({
                                         {mecanico.name}
                                     </SelectItem>
                                 ))}
+                            </SelectContent>
+                        </Select>
+                    </FormField>
+
+                    <FormField id="cita-puesto" label="Puesto" error={errors.puesto_id} className="min-w-0">
+                        <Select
+                            value={data.puesto_id || NONE}
+                            onValueChange={(value) => setData('puesto_id', value === NONE ? '' : value)}
+                            disabled={locked || processing}
+                        >
+                            <SelectTrigger id="cita-puesto" className="w-full">
+                                <SelectValue placeholder="Sin puesto" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={NONE}>Sin puesto</SelectItem>
+                                {puestos
+                                    .filter((puesto) => puesto.sede_id === data.sede_id)
+                                    .map((puesto) => (
+                                        <SelectItem key={puesto.id} value={puesto.id}>
+                                            {puesto.nombre}
+                                        </SelectItem>
+                                    ))}
                             </SelectContent>
                         </Select>
                     </FormField>

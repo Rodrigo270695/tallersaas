@@ -51,6 +51,7 @@ class OrdenTrabajo extends Model
         'vehiculo_id',
         'cita_id',
         'presupuesto_id',
+        'puesto_id',
         'estado',
         'ingreso_at',
         'en_proceso_at',
@@ -117,6 +118,26 @@ class OrdenTrabajo extends Model
     public function sede(): BelongsTo
     {
         return $this->belongsTo(Sede::class);
+    }
+
+    public function puesto(): BelongsTo
+    {
+        return $this->belongsTo(Puesto::class);
+    }
+
+    public function mecanicos(): HasMany
+    {
+        return $this->hasMany(OrdenTrabajoMecanico::class, 'orden_trabajo_id');
+    }
+
+    public function checklistItems(): HasMany
+    {
+        return $this->hasMany(OrdenTrabajoChecklist::class, 'orden_trabajo_id');
+    }
+
+    public function kilometrajes(): HasMany
+    {
+        return $this->hasMany(VehiculoKilometraje::class, 'orden_trabajo_id');
     }
 
     public function cita(): BelongsTo

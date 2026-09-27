@@ -21,6 +21,7 @@ class CitaRequest extends FormRequest
 
         return [
             'sede_id' => ['required', 'uuid', new ExistsSedeOfCurrentTenant],
+            'puesto_id' => ['nullable', 'uuid', 'exists:puestos,id'],
             'cliente_id' => ['required', 'uuid', 'exists:clientes,id'],
             'vehiculo_id' => [
                 'required',
@@ -51,7 +52,7 @@ class CitaRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $nullable = ['assigned_user_id', 'motivo', 'notas', 'estado'];
+        $nullable = ['assigned_user_id', 'puesto_id', 'motivo', 'notas', 'estado'];
         $merged = [];
 
         foreach ($nullable as $field) {

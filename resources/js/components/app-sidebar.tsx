@@ -28,6 +28,7 @@ import {
     UserCog,
     Users,
     Wallet,
+    SquareParking,
     Warehouse,
     Wrench,
 } from 'lucide-react';
@@ -118,6 +119,12 @@ function useNavConfig(): { singles: NavItem[]; groups: NavGroup[] } {
                             href: citasTaller.index(),
                             icon: CalendarDays,
                             permission: 'citas.view',
+                        },
+                        {
+                            title: 'Puestos',
+                            href: '/taller/puestos',
+                            icon: SquareParking,
+                            permission: 'puestos.view',
                         },
                         {
                             title: 'Órdenes de trabajo',

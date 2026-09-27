@@ -100,6 +100,9 @@ final class DemoDataSeeder extends Seeder
         $safe = str_replace('"', '', $schemaName);
         $tables = [
             'orden_trabajo_fotos',
+            'orden_trabajo_checklist',
+            'orden_trabajo_mecanicos',
+            'vehiculo_kilometrajes',
             'servicio_kit_items',
             'compra_lineas',
             'compras',
@@ -110,6 +113,7 @@ final class DemoDataSeeder extends Seeder
             'presupuestos',
             'notifications_queue',
             'citas',
+            'puestos',
             'orden_trabajo_lineas',
             'ordenes_trabajo',
             'venta_pagos',

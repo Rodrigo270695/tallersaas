@@ -19,6 +19,7 @@ export type OrdenVehiculoRef = {
     placa: string;
     marca: { id: string; nombre: string } | null;
     modelo: { id: string; nombre: string } | null;
+    kilometrajes?: { id: string; km: number; origen: string }[];
 } | null;
 
 export type OrdenSedeRef = {
@@ -63,6 +64,9 @@ export type OrdenTrabajo = {
     sede: OrdenSedeRef;
     lineas?: OrdenLinea[];
     fotos?: OrdenFoto[];
+    puesto_id?: string | null;
+    mecanicos?: { user_id: string; rol: 'responsable' | 'apoyo' }[];
+    checklist_items?: { clave: string; estado: 'ok' | 'observacion' | 'na'; nota: string | null }[];
     created_at: string;
     updated_at: string;
 };

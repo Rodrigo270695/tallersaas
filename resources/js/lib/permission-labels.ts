@@ -11,6 +11,7 @@ const MODULE_LABELS: Record<string, string> = {
     'ordenes-trabajo': 'Órdenes de trabajo',
     cotizaciones: 'Cotizaciones',
     'checklist-inspeccion': 'Checklist de inspección',
+    puestos: 'Puestos',
     servicios: 'Servicios',
     'categorias-servicios': 'Cat. de servicios',
     productos: 'Productos',

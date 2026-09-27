@@ -21,6 +21,7 @@ use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PresupuestoController;
 use App\Http\Controllers\PresupuestoPublicController;
 use App\Http\Controllers\ProductoInventarioController;
+use App\Http\Controllers\PuestoController;
 use App\Http\Controllers\ProveedorInventarioController;
 use App\Http\Controllers\ReporteFinancieroController;
 use App\Http\Controllers\ReporteOrdenesController;
@@ -180,6 +181,19 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
             ->post('citas/{cita}/convertir', [CitaController::class, 'convertir'])
             ->name('citas.convertir');
 
+        Route::middleware('permission:puestos.view')
+            ->get('puestos', [PuestoController::class, 'index'])
+            ->name('puestos.index');
+        Route::middleware('permission:puestos.create')
+            ->post('puestos', [PuestoController::class, 'store'])
+            ->name('puestos.store');
+        Route::middleware('permission:puestos.update')
+            ->match(['put', 'patch'], 'puestos/{puesto}', [PuestoController::class, 'update'])
+            ->name('puestos.update');
+        Route::middleware('permission:puestos.delete')
+            ->delete('puestos/{puesto}', [PuestoController::class, 'destroy'])
+            ->name('puestos.destroy');
+
         Route::middleware('permission:ordenes-trabajo.view')
             ->get('ordenes-trabajo', [OrdenTrabajoController::class, 'index'])
             ->name('ordenes-trabajo.index');
@@ -195,6 +209,9 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
         Route::middleware('permission:ordenes-trabajo.update')
             ->post('ordenes-trabajo/{orden_trabajo}/avisar-lista', [OrdenTrabajoController::class, 'avisarLista'])
             ->name('ordenes-trabajo.avisar-lista');
+        Route::middleware('permission:ordenes-trabajo.update|checklist-inspeccion.update')
+            ->post('ordenes-trabajo/{orden_trabajo}/equipo', [OrdenTrabajoController::class, 'syncEquipo'])
+            ->name('ordenes-trabajo.equipo');
         Route::middleware('permission:ordenes-trabajo.update')
             ->post('ordenes-trabajo/{orden_trabajo}/fotos', [OrdenTrabajoController::class, 'storeFoto'])
             ->name('ordenes-trabajo.fotos.store');

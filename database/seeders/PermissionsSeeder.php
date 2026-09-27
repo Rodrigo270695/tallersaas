@@ -38,6 +38,7 @@ class PermissionsSeeder extends Seeder
         'citas' => ['view', 'create', 'update', 'delete', 'convert'],
         'cotizaciones' => ['view', 'create', 'update', 'delete', 'aprobar'],
         'checklist-inspeccion' => ['view', 'create', 'update'],
+        'puestos' => ['view', 'create', 'update', 'delete'],
         'servicios' => ['view', 'create', 'update', 'delete'],
         'categorias-servicios' => ['view', 'create', 'update', 'delete'],
 

@@ -43,6 +43,7 @@ export type CitaOrdenRef = {
 export type Cita = {
     id: string;
     sede_id: string;
+    puesto_id?: string | null;
     cliente_id: string;
     vehiculo_id: string;
     assigned_user_id: string | null;
