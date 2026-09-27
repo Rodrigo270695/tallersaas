@@ -182,7 +182,7 @@ export function FilterChips<TValue extends string>({
             <SelectPrimitive.Trigger
                 aria-label={ariaLabel}
                 className={cn(
-                    'border-input flex h-9 w-full min-w-[11rem] cursor-pointer items-center justify-between gap-2 rounded-lg border bg-white px-2.5 text-sm shadow-xs outline-none transition-[color,border-color]',
+                    'border-input flex h-8 w-full min-w-[11rem] cursor-pointer items-center justify-between gap-2 rounded-lg border bg-white px-2.5 text-xs shadow-xs outline-none transition-[color,border-color]',
                     'hover:border-brand-300 hover:bg-white focus-visible:border-brand-400 focus-visible:ring-0',
                     'data-[state=open]:border-brand-400 data-[state=open]:ring-0',
                     'disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto dark:bg-card',
@@ -234,7 +234,7 @@ export function FilterChips<TValue extends string>({
                                     key={opt.value}
                                     value={opt.value}
                                     className={cn(
-                                        'relative flex w-full cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1.5 pr-7 text-sm outline-hidden select-none',
+                                        'relative flex w-full cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1.5 pr-7 text-xs outline-hidden select-none',
                                         'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
                                         'focus:bg-brand-50/70 dark:focus:bg-brand-950/30',
                                         'data-[state=checked]:bg-brand-50 data-[state=checked]:dark:bg-brand-950/40',
@@ -270,7 +270,7 @@ export function FilterChips<TValue extends string>({
                                         </span>
                                     ) : (
                                         <SelectPrimitive.ItemText asChild>
-                                            <span className="whitespace-nowrap text-sm font-normal text-foreground">
+                                            <span className="whitespace-nowrap text-xs font-normal text-foreground">
                                                 {labelWithCount(opt.label, opt.count)}
                                             </span>
                                         </SelectPrimitive.ItemText>

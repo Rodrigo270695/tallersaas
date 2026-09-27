@@ -36,13 +36,13 @@ export function DataToolbar({
             <div className={cn('relative w-full sm:max-w-sm', searchWrapperClassName)}>
                 {isSearching ? (
                     <Loader2
-                        className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 animate-spin text-primary"
+                        className="pointer-events-none absolute top-1/2 left-2.5 z-10 size-3.5 -translate-y-1/2 animate-spin text-primary"
                         aria-hidden="true"
                         strokeWidth={2.25}
                     />
                 ) : (
                     <Search
-                        className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-muted-foreground/90"
+                        className="pointer-events-none absolute top-1/2 left-2.5 z-10 size-3.5 -translate-y-1/2 text-muted-foreground/90"
                         aria-hidden="true"
                         strokeWidth={2.25}
                     />
@@ -52,7 +52,7 @@ export function DataToolbar({
                     value={search}
                     onChange={(event) => onSearchChange(event.target.value)}
                     placeholder={placeholder}
-                    className="h-10 pr-10 pl-10 [&::-webkit-search-cancel-button]:hidden"
+                    className="h-8 pr-10 pl-9 text-xs md:text-xs [&::-webkit-search-cancel-button]:hidden"
                 />
                 {search.length > 0 && (
                     <button

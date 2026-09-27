@@ -131,7 +131,7 @@ export function DataPagination<T>({
             )}
         >
             <div className="order-2 flex flex-col items-start gap-2 sm:order-1 sm:flex-row sm:items-center sm:gap-4">
-                <p className="text-xs text-muted-foreground sm:text-sm">
+                <p className="text-xs text-muted-foreground">
                     Mostrando{' '}
                     <span className="font-semibold text-foreground tabular-nums">
                         {meta.from ?? 0}
@@ -151,7 +151,7 @@ export function DataPagination<T>({
                     <div className="flex items-center gap-2">
                         <label
                             htmlFor="per-page-select"
-                            className="text-xs text-muted-foreground sm:text-sm"
+                            className="text-xs text-muted-foreground"
                         >
                             Por página
                         </label>

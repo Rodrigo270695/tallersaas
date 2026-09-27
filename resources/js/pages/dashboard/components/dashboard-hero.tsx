@@ -43,7 +43,7 @@ export function DashboardHero({
                             {greeting}
                             {firstName !== '' ? `, ${firstName}` : ''}
                         </p>
-                        <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">
+                        <h1 className="mt-1 text-xl font-semibold tracking-tight md:text-2xl">
                             {tallerLabel}
                         </h1>
                         {hoyLabel !== '' && (

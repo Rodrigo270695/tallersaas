@@ -87,7 +87,7 @@ export function TenantImpersonationBanner() {
 
     return (
         <>
-            <div className="hidden shrink-0 border-b border-destructive/40 bg-destructive/15 px-3 py-1.5 md:block">
+            <div className="hidden shrink-0 border-b border-destructive/30 bg-destructive/10 px-4 py-1.5 md:block">
                 <div className="mx-auto flex max-w-6xl items-center gap-2">
                     <ShieldAlert className="size-3.5 shrink-0 text-destructive" aria-hidden />
                     <p className="min-w-0 flex-1 truncate text-xs text-destructive">

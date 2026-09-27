@@ -35,12 +35,12 @@ export function PageHeader({
             )}
         >
             <div className="flex min-w-0 flex-col gap-2">
-                <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+                <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
                     {title}
                 </h1>
 
                 {description && (
-                    <p className="text-sm leading-relaxed text-muted-foreground">
+                    <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
                         {description}
                     </p>
                 )}
@@ -55,7 +55,7 @@ export function PageHeader({
             </div>
 
             {action && (
-                <div className="flex shrink-0 items-center gap-2 sm:self-start">
+                <div className="flex shrink-0 items-center gap-2 sm:self-start [&_button]:h-8 [&_button]:px-3 [&_button]:text-xs">
                     {action}
                 </div>
             )}

@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { Filter, Layers, Plus, ScreenShare, SlidersHorizontal } from 'lucide-react';
+import { Filter, Layers, Plus, ScreenShare } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { Can } from '@/components/can';
 import {
@@ -18,6 +18,7 @@ import planes from '@/routes/plataforma/planes';
 import type { Paginated } from '@/types';
 import { PlanFeaturesModal } from './components/plan-features-modal';
 import { PlanFormModal } from './components/plan-form-modal';
+import { PlanRowActions } from './components/plan-row-actions';
 import type {
     FeatureCatalogItem,
     Plan,
@@ -71,9 +72,9 @@ export default function Index({
                 header: 'Plan',
                 sortable: true,
                 cell: (plan) => (
-                    <div className="flex flex-col">
+                    <div className="flex flex-col leading-tight">
                         <span className="font-medium">{plan.nombre}</span>
-                        <span className="font-mono text-xs text-muted-foreground">
+                        <span className="font-mono text-[11px] text-muted-foreground">
                             {plan.codigo}
                         </span>
                     </div>
@@ -84,14 +85,14 @@ export default function Index({
                 header: 'Mensual',
                 sortable: true,
                 cell: (plan) => (
-                    <span className="tabular-nums">{money(plan.precio_mensual)}</span>
+                    <span className="font-mono tabular-nums">{money(plan.precio_mensual)}</span>
                 ),
             },
             {
                 key: 'trial_days',
                 header: 'Prueba',
                 cell: (plan) => (
-                    <span className="text-sm">{plan.trial_days} días</span>
+                    <span>{plan.trial_days} días</span>
                 ),
             },
             {
@@ -113,29 +114,17 @@ export default function Index({
                 key: 'acciones',
                 header: <span className="md:sr-only">Acciones</span>,
                 align: 'right',
-                cell: (plan) =>
-                    canUpdate ? (
-                        <div className="flex justify-end gap-1">
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="cursor-pointer"
-                                onClick={() => setModal({ type: 'features', plan })}
-                            >
-                                <SlidersHorizontal className="size-4" />
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="cursor-pointer"
-                                onClick={() => setModal({ type: 'edit', plan })}
-                            >
-                                Editar
-                            </Button>
-                        </div>
-                    ) : null,
+                className: 'w-12',
+                cell: (plan) => (
+                    <div className="flex justify-end">
+                        <PlanRowActions
+                            plan={plan}
+                            canUpdate={canUpdate}
+                            onEdit={(item) => setModal({ type: 'edit', plan: item })}
+                            onFeatures={(item) => setModal({ type: 'features', plan: item })}
+                        />
+                    </div>
+                ),
             },
         ],
         [canUpdate],

@@ -63,7 +63,7 @@ export function DashboardKpiGrid({ items }: { items: DashboardKpiItem[] }) {
                                 <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
                                 <p
                                     className={cn(
-                                        'mt-1.5 text-2xl font-bold tracking-tight tabular-nums',
+                                        'mt-1.5 text-xl font-bold tracking-tight tabular-nums',
                                         styles.value,
                                     )}
                                 >

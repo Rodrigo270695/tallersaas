@@ -23,7 +23,7 @@ export default function DashboardCentral({ stats }: DashboardCentralProps) {
                             <LayoutDashboard className="size-3.5" aria-hidden />
                             Plataforma
                         </div>
-                        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">TallerSaaS</h1>
+                        <h1 className="text-xl font-semibold tracking-tight md:text-2xl">TallerSaaS</h1>
                         <p className="max-w-xl text-sm text-brand-50/85">
                             Panel central: talleres, planes y suscripciones.
                         </p>

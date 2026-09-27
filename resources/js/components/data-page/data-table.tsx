@@ -231,7 +231,7 @@ export function DataTable<T>({
                 <div className="overflow-x-auto">
                     <table
                         className={cn(
-                            'w-full min-w-0 border-collapse text-sm',
+                            'w-full min-w-0 border-collapse text-xs [&_.text-sm]:text-xs',
                             tableLayoutFixed && 'table-fixed',
                         )}
                     >
@@ -322,7 +322,7 @@ export function DataTable<T>({
                                                 <td
                                                     key={col.key}
                                                     className={cn(
-                                                        'min-w-0 px-4 py-2 align-middle text-sm text-foreground',
+                                                        'min-w-0 px-4 py-2 align-middle text-xs text-foreground',
                                                         col.align === 'right' &&
                                                             'text-right',
                                                         col.align === 'center' &&
@@ -383,7 +383,7 @@ export function DataTable<T>({
                                     {mobileCard ? (
                                         mobileCard(row)
                                     ) : (
-                                        <dl className="space-y-1.5">
+                                        <dl className="space-y-1.5 text-xs [&_.text-sm]:text-xs">
                                             {mobileColumns.map((col) => (
                                                 <div
                                                     key={col.key}
@@ -392,7 +392,7 @@ export function DataTable<T>({
                                                     <dt className="text-xs font-medium tracking-wide text-muted-foreground">
                                                         {col.header}
                                                     </dt>
-                                                    <dd className="min-w-0 text-right text-sm text-foreground">
+                                                    <dd className="min-w-0 text-right text-xs text-foreground">
                                                         {col.cell(row)}
                                                     </dd>
                                                 </div>
