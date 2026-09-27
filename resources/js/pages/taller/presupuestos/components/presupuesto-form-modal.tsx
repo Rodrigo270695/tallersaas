@@ -267,7 +267,7 @@ export function PresupuestoFormModal({
             open={open}
             onOpenChange={onOpenChange}
             title={isEdit ? `Editar ${presupuesto?.numero}` : 'Nuevo presupuesto'}
-            description="Cotiza servicios o repuestos. El vehùculo es opcional si es solo una cotizaciùn de mostrador."
+            description="Cotiza servicios o repuestos. El veh√≠culo es opcional si es solo una cotizaci√≥n de mostrador."
             size="xl"
             onSubmit={onSubmit}
             footer={
@@ -286,7 +286,7 @@ export function PresupuestoFormModal({
                 <FormSection
                     index={0}
                     title="Cliente"
-                    description="Vincula una OT si viene del taller. El vehùculo es opcional."
+                    description="Vincula una OT si viene del taller. El veh√≠culo es opcional."
                     columns={2}
                 >
                     <FormField id="pre-orden" label="Orden de trabajo" className="sm:col-span-2">
@@ -299,7 +299,7 @@ export function PresupuestoFormModal({
                                 <SelectValue placeholder="Sin OT vinculada" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value={NONE}>Sin OT (cotizaciùn libre)</SelectItem>
+                                <SelectItem value={NONE}>Sin OT (cotizaci√≥n libre)</SelectItem>
                                 {ordenes.map((orden) => (
                                     <SelectItem key={orden.id} value={orden.id}>
                                         {orden.numero}
@@ -322,7 +322,7 @@ export function PresupuestoFormModal({
                             </SelectContent>
                         </Select>
                     </FormField>
-                    <FormField id="pre-valido" label="Vùlido hasta" error={errors.valido_hasta}>
+                    <FormField id="pre-valido" label="V√°lido hasta" error={errors.valido_hasta}>
                         <Input
                             id="pre-valido"
                             type="date"
@@ -350,7 +350,7 @@ export function PresupuestoFormModal({
                             </SelectContent>
                         </Select>
                     </FormField>
-                    <FormField id="pre-vehiculo" label="Vehùculo (opcional)" error={errors.vehiculo_id}>
+                    <FormField id="pre-vehiculo" label="Veh√≠culo (opcional)" error={errors.vehiculo_id}>
                         <Select
                             value={data.vehiculo_id || NONE}
                             onValueChange={(value) =>
@@ -362,13 +362,13 @@ export function PresupuestoFormModal({
                                 <SelectValue
                                     placeholder={
                                         data.cliente_id
-                                            ? 'Sin vehùculo / solo productos'
+                                            ? 'Sin veh√≠culo / solo productos'
                                             : 'Primero el cliente'
                                     }
                                 />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value={NONE}>Sin vehùculo</SelectItem>
+                                <SelectItem value={NONE}>Sin veh√≠culo</SelectItem>
                                 {vehiculosFiltrados.map((vehiculo) => (
                                     <SelectItem key={vehiculo.id} value={vehiculo.id}>
                                         {vehiculo.label}
@@ -380,7 +380,7 @@ export function PresupuestoFormModal({
                 </FormSection>
 
                 <FormSection index={1} title="Detalle" columns={1}>
-                    <FormField id="pre-diagnostico" label="Diagnùstico / alcance" error={errors.diagnostico}>
+                    <FormField id="pre-diagnostico" label="Diagn√≥stico / alcance" error={errors.diagnostico}>
                         <Textarea
                             id="pre-diagnostico"
                             value={data.diagnostico}
@@ -398,24 +398,24 @@ export function PresupuestoFormModal({
                     </FormField>
                 </FormSection>
 
-                <FormSection index={2} title="Lùneas del presupuesto" columns={1}>
+                <FormSection index={2} title="L√≠neas del presupuesto" columns={1}>
                     {data.lineas.map((linea, index) => (
                         <div key={index} className="grid gap-2 rounded-md border p-2">
                             {(servicios.length > 0 || productos.length > 0) && (
                                 <Select value={catalogValue(linea)} onValueChange={(value) => applyCatalog(index, value)}>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Catùlogo" />
+                                        <SelectValue placeholder="Cat√°logo" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value={LIBRE}>Texto libre</SelectItem>
                                         {servicios.map((servicio) => (
                                             <SelectItem key={`s-${servicio.id}`} value={`s:${servicio.id}`}>
-                                                Servicio ù {servicio.nombre}
+                                                Servicio ¬∑ {servicio.nombre}
                                             </SelectItem>
                                         ))}
                                         {productos.map((producto) => (
                                             <SelectItem key={`p-${producto.id}`} value={`p:${producto.id}`}>
-                                                Repuesto ù {producto.nombre}
+                                                Repuesto ¬∑ {producto.nombre}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -425,7 +425,7 @@ export function PresupuestoFormModal({
                                 <Input
                                     value={linea.descripcion}
                                     onChange={(e) => setLinea(index, { descripcion: e.target.value })}
-                                    placeholder="Descripciùn"
+                                    placeholder="Descripci√≥n"
                                 />
                                 <Input
                                     type="number"
@@ -465,7 +465,7 @@ export function PresupuestoFormModal({
                         onClick={() => setData('lineas', [...data.lineas, emptyLinea()])}
                     >
                         <Plus className="size-3.5" />
-                        Agregar lùnea
+                        Agregar l√≠nea
                     </Button>
                     {errors.lineas && <p className="text-sm text-destructive">{errors.lineas}</p>}
                 </FormSection>
