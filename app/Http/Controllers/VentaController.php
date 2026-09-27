@@ -91,6 +91,7 @@ class VentaController extends Controller
                 'cliente:id,nombres,apellidos',
                 'vehiculo:id,placa',
                 'ordenTrabajo:id,numero',
+                'lavado:id,numero',
                 'sede:id,nombre',
             ])
             ->whereRaw('DATE(COALESCE(fecha_pago, created_at)) >= ?', [$fechaDesde])
@@ -112,6 +113,10 @@ class VentaController extends Controller
                     })
                     ->orWhereHas('ordenTrabajo', function ($ot) use ($search): void {
                         $ot->where('numero', 'ILIKE', "%{$search}%");
+                    })
+                    ->orWhereHas('lavado', function ($lavado) use ($search): void {
+                        $lavado->where('numero', 'ILIKE', "%{$search}%")
+                            ->orWhere('placa', 'ILIKE', "%{$search}%");
                     });
             });
         }
@@ -413,6 +418,7 @@ class VentaController extends Controller
             'cliente:id,nombres,apellidos,tipo_documento,numero_documento',
             'vehiculo:id,placa',
             'ordenTrabajo:id,numero',
+            'lavado:id,numero',
             'sede:id,nombre',
             'creadoPor:id,name',
             'lineas' => fn ($q) => $q->orderBy('orden'),
@@ -449,6 +455,7 @@ class VentaController extends Controller
                     : null,
                 'vehiculo' => $venta->vehiculo?->placa,
                 'orden_trabajo' => $venta->ordenTrabajo?->numero,
+                'lavado' => $venta->lavado?->numero,
                 'sede' => $venta->sede?->nombre ?? '—',
                 'cajero' => $venta->creadoPor?->name ?? '—',
                 'igv_porcentaje' => number_format($setting->igvPorcentajeEfectivo(), 2, '.', ''),

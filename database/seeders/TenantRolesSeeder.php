@@ -45,6 +45,7 @@ class TenantRolesSeeder extends Seeder
                 'cotizaciones.view', 'cotizaciones.create', 'cotizaciones.update', 'cotizaciones.delete', 'cotizaciones.aprobar',
                 'checklist-inspeccion.view', 'checklist-inspeccion.create', 'checklist-inspeccion.update',
                 'puestos.view', 'puestos.create', 'puestos.update', 'puestos.delete',
+                'lavados.view', 'lavados.create', 'lavados.update', 'lavados.delete',
                 'servicios.view', 'servicios.create', 'servicios.update', 'servicios.delete',
                 'categorias-servicios.view', 'categorias-servicios.create', 'categorias-servicios.update', 'categorias-servicios.delete',
 
@@ -117,6 +118,7 @@ class TenantRolesSeeder extends Seeder
                 'citas.view', 'citas.create', 'citas.update', 'citas.convert',
                 'cotizaciones.view', 'cotizaciones.create', 'cotizaciones.aprobar',
                 'puestos.view', 'puestos.create', 'puestos.update',
+                'lavados.view', 'lavados.create', 'lavados.update',
                 'servicios.view', 'servicios.create',
                 'categorias-servicios.view',
 

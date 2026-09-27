@@ -395,19 +395,21 @@ export default function Index({
                         },
                     ]}
                     action={
-                        <Can permission="usuarios.create">
-                            <Button
-                                type="button"
-                                onClick={openCreate}
-                                className="cursor-pointer gap-2"
-                            >
-                                <Plus className="size-4" strokeWidth={2.5} />
-                                <span className="hidden sm:inline">
-                                    Nuevo usuario
-                                </span>
-                                <span className="sm:hidden">Nuevo</span>
-                            </Button>
-                        </Can>
+                        canCreate ? (
+                            <Can permission="usuarios.create">
+                                <Button
+                                    type="button"
+                                    onClick={openCreate}
+                                    className="cursor-pointer gap-2"
+                                >
+                                    <Plus className="size-4" strokeWidth={2.5} />
+                                    <span className="hidden sm:inline">
+                                        Nuevo usuario
+                                    </span>
+                                    <span className="sm:hidden">Nuevo</span>
+                                </Button>
+                            </Can>
+                        ) : undefined
                     }
                 />
 

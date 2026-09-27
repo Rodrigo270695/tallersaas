@@ -48,6 +48,7 @@ type VentaShowData = {
     cliente_doc: string | null;
     vehiculo: string | null;
     orden_trabajo: string | null;
+    lavado: string | null;
     sede: string;
     cajero: string;
     igv_porcentaje: string;
@@ -292,6 +293,14 @@ export default function Show({ venta, taller, ticket, ui }: ShowProps) {
                                             <dt className="text-muted-foreground">OT</dt>
                                             <dd className="text-right font-mono text-xs">
                                                 {venta.orden_trabajo}
+                                            </dd>
+                                        </div>
+                                    ) : null}
+                                    {venta.lavado ? (
+                                        <div className="flex justify-between gap-3">
+                                            <dt className="text-muted-foreground">Car wash</dt>
+                                            <dd className="text-right font-mono text-xs">
+                                                {venta.lavado}
                                             </dd>
                                         </div>
                                     ) : null}

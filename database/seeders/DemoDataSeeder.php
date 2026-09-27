@@ -114,6 +114,8 @@ final class DemoDataSeeder extends Seeder
             'notifications_queue',
             'citas',
             'puestos',
+            'lavado_lineas',
+            'lavados',
             'orden_trabajo_lineas',
             'ordenes_trabajo',
             'venta_pagos',
@@ -397,6 +399,9 @@ final class DemoDataSeeder extends Seeder
             [
                 ['nombre' => 'Cambio de aceite', 'precio' => 50.00, 'slug' => 'cambio-de-aceite'],
                 ['nombre' => 'Alineamiento y balanceo', 'precio' => 80.00, 'slug' => 'alineamiento-balanceo'],
+                ['nombre' => 'Lavado básico', 'precio' => 25.00, 'slug' => 'lavado-basico'],
+                ['nombre' => 'Lavado completo', 'precio' => 45.00, 'slug' => 'lavado-completo'],
+                ['nombre' => 'Lavado de motor', 'precio' => 35.00, 'slug' => 'lavado-de-motor'],
             ] as $servicio
         ) {
             DB::table('servicios')->insert([

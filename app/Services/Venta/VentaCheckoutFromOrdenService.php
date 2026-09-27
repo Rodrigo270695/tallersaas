@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Venta;
 
 use App\Models\CajaSesion;
+use App\Models\Lavado;
 use App\Models\OrdenTrabajo;
 use App\Models\Producto;
 use App\Models\Servicio;
@@ -277,6 +278,53 @@ final class VentaCheckoutFromOrdenService
                     'orden' => $i,
                 ]);
             }
+
+            return $venta->fresh(['lineas', 'pagos']) ?? $venta;
+        });
+    }
+
+    /**
+     * Cobra un lavado de car wash y deja la venta ligada para el ticket y el listado de caja.
+     *
+     * @param  array{
+     *     lineas: list<array{concepto: string, cantidad: float|int|string, precio_unitario: float|int|string, producto_id?: string|null, servicio_id?: string|null}>,
+     *     pagos: list<array{metodo: string, monto: float|int|string, monto_recibido?: float|int|string|null}>,
+     *     caja_sesion_id?: string|null,
+     *     notas?: string|null,
+     *     tipo_comprobante_sunat?: int|string|null
+     * }  $payload
+     */
+    public function cobrarLavado(Lavado $lavado, array $payload, Authenticatable $user): Venta
+    {
+        return DB::transaction(function () use ($lavado, $payload, $user): Venta {
+            /** @var Lavado $locked */
+            $locked = Lavado::query()->whereKey($lavado->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->estado !== Lavado::ESTADO_ABIERTO) {
+                throw ValidationException::withMessages([
+                    'lavado' => 'Este lavado ya no se puede cobrar.',
+                ]);
+            }
+
+            $sesion = $this->resolveSesion($payload['caja_sesion_id'] ?? null, $user);
+
+            if ((string) $sesion->sede_id !== (string) $locked->sede_id) {
+                throw ValidationException::withMessages([
+                    'caja_sesion_id' => 'La caja abierta no corresponde a la sede de este lavado.',
+                ]);
+            }
+
+            $payload['cliente_id'] = $locked->cliente_id;
+            $payload['vehiculo_id'] = $locked->vehiculo_id;
+            $notas = trim((string) ($payload['notas'] ?? ''));
+            $payload['notas'] = $notas !== '' ? $notas : 'Car wash '.$locked->numero;
+
+            $venta = $this->cobrarDirecto($payload, $user);
+            $venta->lavado_id = $locked->id;
+            $venta->save();
+
+            $locked->estado = Lavado::ESTADO_COBRADO;
+            $locked->save();
 
             return $venta->fresh(['lineas', 'pagos']) ?? $venta;
         });

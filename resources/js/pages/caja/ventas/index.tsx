@@ -145,7 +145,10 @@ export default function Index({
                             {venta.numero}
                         </Link>
                         <span className="text-xs text-muted-foreground">
-                            {venta.orden_trabajo?.numero ?? 'Sin OT'}
+                            {venta.orden_trabajo?.numero ??
+                                (venta.lavado?.numero
+                                    ? `Car wash ${venta.lavado.numero}`
+                                    : 'Sin OT')}
                         </span>
                     </div>
                 ),

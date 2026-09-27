@@ -11,6 +11,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FelDocumentController;
 use App\Http\Controllers\FelSerieController;
 use App\Http\Controllers\GeoController;
+use App\Http\Controllers\LavadoController;
 use App\Http\Controllers\MarcaController;
 use App\Http\Controllers\ModeloController;
 use App\Http\Controllers\MovimientoInventarioController;
@@ -193,6 +194,25 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
         Route::middleware('permission:puestos.delete')
             ->delete('puestos/{puesto}', [PuestoController::class, 'destroy'])
             ->name('puestos.destroy');
+
+        Route::middleware('permission:lavados.view')
+            ->get('lavados', [LavadoController::class, 'index'])
+            ->name('lavados.index');
+        Route::middleware('permission:lavados.view')
+            ->get('lavados/{lavado}', [LavadoController::class, 'show'])
+            ->name('lavados.show');
+        Route::middleware('permission:lavados.create')
+            ->post('lavados', [LavadoController::class, 'store'])
+            ->name('lavados.store');
+        Route::middleware('permission:lavados.update')
+            ->put('lavados/{lavado}/cargos', [LavadoController::class, 'syncCargos'])
+            ->name('lavados.cargos');
+        Route::middleware('permission:ventas.create')
+            ->post('lavados/{lavado}/cobrar', [LavadoController::class, 'cobrar'])
+            ->name('lavados.cobrar');
+        Route::middleware('permission:lavados.delete')
+            ->post('lavados/{lavado}/anular', [LavadoController::class, 'anular'])
+            ->name('lavados.anular');
 
         Route::middleware('permission:ordenes-trabajo.view')
             ->get('ordenes-trabajo', [OrdenTrabajoController::class, 'index'])

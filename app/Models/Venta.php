@@ -38,6 +38,7 @@ class Venta extends Model
         'cliente_id',
         'vehiculo_id',
         'orden_trabajo_id',
+        'lavado_id',
         'moneda',
         'estado',
         'subtotal',
@@ -91,6 +92,11 @@ class Venta extends Model
     public function ordenTrabajo(): BelongsTo
     {
         return $this->belongsTo(OrdenTrabajo::class, 'orden_trabajo_id');
+    }
+
+    public function lavado(): BelongsTo
+    {
+        return $this->belongsTo(Lavado::class, 'lavado_id');
     }
 
     public function sede(): BelongsTo
