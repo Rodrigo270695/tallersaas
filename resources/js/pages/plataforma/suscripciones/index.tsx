@@ -11,7 +11,6 @@ import {
     PageHeader,
 } from '@/components/data-page';
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
-import { Button } from '@/components/ui/button';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
 import suscripciones from '@/routes/plataforma/suscripciones';
@@ -20,6 +19,7 @@ import {
     SubscriptionFormModal,
     type SubscriptionPlanOption,
 } from './components/subscription-form-modal';
+import { SubscriptionRowActions } from './components/subscription-row-actions';
 
 type Subscription = {
     id: string;
@@ -156,15 +156,10 @@ export default function Index({
                 cell: (row) =>
                     canUpdate ? (
                         <div className="flex justify-end">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="cursor-pointer"
-                                onClick={() => setEditing(row)}
-                            >
-                                Editar
-                            </Button>
+                            <SubscriptionRowActions
+                                label={row.tenant?.razon_social ?? 'suscripción'}
+                                onEdit={() => setEditing(row)}
+                            />
                         </div>
                     ) : null,
             },
