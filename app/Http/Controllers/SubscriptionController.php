@@ -69,7 +69,7 @@ class SubscriptionController extends Controller
 
         $plansCatalog = Plan::query()
             ->orderBy('orden')
-            ->get(['id', 'codigo', 'nombre', 'badge', 'color_hex']);
+            ->get(['id', 'codigo', 'nombre', 'badge', 'color_hex', 'precio_mensual', 'precio_anual', 'trial_days']);
 
         $statsByEstado = Subscription::query()
             ->selectRaw('estado, COUNT(*) as total')
@@ -113,20 +113,27 @@ class SubscriptionController extends Controller
     ): RedirectResponse {
         $data = $request->validated();
         $estado = (string) $data['estado'];
-        $trialEnds = $this->endOfDay($data['trial_ends_at'] ?? null);
-        $periodEnd = $this->endOfDay($data['current_period_end'] ?? null);
-        $graceEnds = $this->endOfDay($data['grace_ends_at'] ?? null);
+        $trialEnds = $this->parseDateTime($data['trial_ends_at'] ?? null);
+        $periodStart = $this->parseDateTime($data['current_period_start'] ?? null);
+        $periodEnd = $this->parseDateTime($data['current_period_end'] ?? null);
+        $nextCharge = $this->parseDateTime($data['proximo_cobro_at'] ?? null) ?? $periodEnd;
+        $graceEnds = $this->parseDateTime($data['grace_ends_at'] ?? null);
+        $cancelled = $estado === Subscription::STATUS_CANCELLED;
 
         $subscription->update([
             'plan_id' => $data['plan_id'],
             'estado' => $estado,
             'ciclo' => $data['ciclo'],
             'precio_pactado' => $data['precio_pactado'],
+            'descuento_pct' => $data['descuento_pct'] ?? 0,
             'trial_ends_at' => $trialEnds,
+            'current_period_start' => $periodStart,
             'current_period_end' => $periodEnd,
+            'proximo_cobro_at' => $nextCharge,
             'grace_ends_at' => $graceEnds,
-            'proximo_cobro_at' => $periodEnd,
-            'cancelled_at' => $estado === Subscription::STATUS_CANCELLED ? ($subscription->cancelled_at ?? now()) : null,
+            'cancel_reason' => $cancelled ? ($data['cancel_reason'] ?? null) : null,
+            'cancel_feedback' => $cancelled ? ($data['cancel_feedback'] ?? null) : null,
+            'cancelled_at' => $cancelled ? ($subscription->cancelled_at ?? now()) : null,
         ]);
 
         $tenant = Tenant::query()->whereKey($subscription->tenant_id)->first();
@@ -154,13 +161,13 @@ class SubscriptionController extends Controller
         return back();
     }
 
-    private function endOfDay(mixed $date): ?Carbon
+    private function parseDateTime(mixed $value): ?Carbon
     {
-        if (! is_string($date) || $date === '') {
+        if (! is_string($value) || trim($value) === '') {
             return null;
         }
 
-        return Carbon::parse($date, 'America/Lima')->endOfDay();
+        return Carbon::parse($value, 'America/Lima');
     }
 
     /**

@@ -23,12 +23,19 @@ import { SubscriptionRowActions } from './components/subscription-row-actions';
 
 type Subscription = {
     id: string;
+    tenant_id: string;
+    plan_id: string;
     estado: string;
     ciclo: string;
     precio_pactado: string | number;
+    descuento_pct: string | number;
     trial_ends_at: string | null;
+    current_period_start: string | null;
     current_period_end: string | null;
     grace_ends_at: string | null;
+    proximo_cobro_at: string | null;
+    cancel_reason: string | null;
+    cancel_feedback: string | null;
     tenant?: {
         id: string;
         slug: string;
