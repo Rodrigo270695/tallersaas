@@ -218,7 +218,7 @@ export function OrdenFormModal({
             return true;
         }
 
-        return window.confirm('Hay cambios sin guardar. ¿Quieres descartarlos?');
+        return window.confirm('Tienes cambios sin guardar. ¿Estás seguro que quieres descartarlos?');
     };
 
     const handleClose = (next: boolean) => {

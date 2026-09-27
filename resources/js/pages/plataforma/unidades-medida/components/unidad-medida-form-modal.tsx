@@ -5,6 +5,7 @@ import { FormField, FormModal, FormSection } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import unidadesMedida from '@/routes/plataforma/unidades-medida';
 import type { UnidadMedida } from '../types';
 
@@ -35,6 +36,7 @@ export function UnidadMedidaFormModal({
             orden: '0',
             activo: true,
         });
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     const canSubmit = isFormValid(data) && !processing;
 
@@ -44,13 +46,15 @@ export function UnidadMedidaFormModal({
         }
 
         clearErrors();
-        setData({
+        const initial = {
             codigo: unidad?.codigo ?? '',
             nombre: unidad?.nombre ?? '',
             orden: unidad ? String(unidad.orden) : '0',
             activo: unidad?.activo ?? true,
-        });
-    }, [open, unidad, clearErrors, setData]);
+        };
+        remember(initial);
+        setData(initial);
+    }, [open, unidad, clearErrors, setData, remember]);
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
@@ -76,7 +80,7 @@ export function UnidadMedidaFormModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title={isEdit ? 'Editar unidad' : 'Nueva unidad'}
             description="Catálogo global: todos los talleres verán esta unidad."
             onSubmit={onSubmit}
@@ -86,7 +90,7 @@ export function UnidadMedidaFormModal({
                         type="button"
                         variant="outline"
                         className="cursor-pointer"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                         disabled={processing}
                     >
                         Cancelar

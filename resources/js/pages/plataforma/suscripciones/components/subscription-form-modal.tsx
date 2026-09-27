@@ -12,6 +12,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import suscripciones from '@/routes/plataforma/suscripciones';
 
 export type SubscriptionPlanOption = {
@@ -189,6 +190,7 @@ export function SubscriptionFormModal({
         cancel_reason: '',
         cancel_feedback: '',
     });
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     useEffect(() => {
         if (!open || subscription === null) {
@@ -196,7 +198,7 @@ export function SubscriptionFormModal({
         }
 
         clearErrors();
-        setData({
+        const initial = {
             plan_id: subscription.plan?.id ?? '',
             estado: subscription.estado,
             ciclo: subscription.ciclo || 'mensual',
@@ -209,8 +211,10 @@ export function SubscriptionFormModal({
             proximo_cobro_at: formatDateTimeLocal(subscription.proximo_cobro_at),
             cancel_reason: subscription.cancel_reason ?? '',
             cancel_feedback: subscription.cancel_feedback ?? '',
-        });
-    }, [open, subscription, clearErrors, setData]);
+        };
+        remember(initial);
+        setData(initial);
+    }, [open, subscription, clearErrors, setData, remember]);
 
     const applyPeriodEnd = (value: string, extra?: Partial<FormData>) => {
         setData((current) => ({
@@ -237,7 +241,7 @@ export function SubscriptionFormModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title="Editar suscripción"
             description="Ajusta el plan, el estado y las fechas de esta suscripción."
             size="xl"
@@ -248,7 +252,7 @@ export function SubscriptionFormModal({
                         type="button"
                         variant="outline"
                         className="cursor-pointer"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                         disabled={processing}
                     >
                         Cancelar

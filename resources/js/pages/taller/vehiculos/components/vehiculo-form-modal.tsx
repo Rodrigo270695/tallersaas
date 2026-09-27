@@ -180,7 +180,7 @@ export function VehiculoFormModal({
             return true;
         }
 
-        return window.confirm('Tienes cambios sin guardar. ¿Deseas descartarlos?');
+        return window.confirm('Tienes cambios sin guardar. ¿Estás seguro que quieres descartarlos?');
     };
 
     const handleClose = (next: boolean) => {

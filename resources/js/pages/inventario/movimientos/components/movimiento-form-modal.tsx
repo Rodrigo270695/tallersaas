@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import movimientos from '@/routes/inventario/movimientos';
 import type { ProductoMovimientoOption, SedeOption } from '../types';
 
@@ -49,6 +50,7 @@ export function MovimientoFormModal({
         cantidad: '',
         notas: '',
     });
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     const canSubmit = isFormValid(data) && !processing;
 
@@ -78,14 +80,16 @@ export function MovimientoFormModal({
         }
 
         clearErrors();
-        setData({
+        const initial = {
             producto_id: productos[0]?.id ?? '',
             sede_id: defaultSedeId || sedes[0]?.id || '',
-            tipo: 'entrada',
+            tipo: 'entrada' as const,
             cantidad: '',
             notas: '',
-        });
-    }, [open, productos, sedes, defaultSedeId, clearErrors, setData]);
+        };
+        remember(initial);
+        setData(initial);
+    }, [open, productos, sedes, defaultSedeId, clearErrors, setData, remember]);
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
@@ -103,7 +107,7 @@ export function MovimientoFormModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title="Registrar movimiento"
             description="Entrada aumenta stock. Salida y merma lo descuentan."
             size="md"
@@ -114,7 +118,7 @@ export function MovimientoFormModal({
                         type="button"
                         variant="outline"
                         className="cursor-pointer"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                         disabled={processing}
                     >
                         Cancelar

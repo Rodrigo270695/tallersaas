@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import ordenesTrabajo from '@/routes/taller/ordenes-trabajo';
 import type { OrdenTrabajo } from '../types';
 
@@ -63,6 +64,7 @@ export function OrdenAvisarListaModal({
         mensaje: '',
         guardar_en_cliente: false,
     });
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     useEffect(() => {
         if (!open || !orden) {
@@ -71,12 +73,14 @@ export function OrdenAvisarListaModal({
 
         clearErrors();
         const telefono = (orden.cliente?.telefono ?? '').trim();
-        setData({
+        const initial = {
             telefono,
             mensaje: buildOrdenListaMensaje(orden, tallerNombre),
             guardar_en_cliente: telefono === '',
-        });
-    }, [open, orden, tallerNombre, clearErrors, setData]);
+        };
+        remember(initial);
+        setData(initial);
+    }, [open, orden, tallerNombre, clearErrors, setData, remember]);
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
@@ -96,7 +100,7 @@ export function OrdenAvisarListaModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title={yaAvisada ? 'Reenviar aviso por WhatsApp' : 'Avisar por WhatsApp'}
             description={
                 orden
@@ -110,7 +114,7 @@ export function OrdenAvisarListaModal({
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                         disabled={processing}
                         className="cursor-pointer"
                     >

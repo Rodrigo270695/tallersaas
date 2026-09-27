@@ -1,6 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useRef  } from 'react';
+import { useEffect, useMemo } from 'react';
 import type {FormEvent} from 'react';
 import { FormField, FormModal, FormSection } from '@/components/forms';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import { expandServicioConKit, spliceLinesAtIndex } from '@/lib/servicio-kit';
 import presupuestos from '@/routes/taller/presupuestos';
 import type {
@@ -119,7 +120,7 @@ export function PresupuestoFormModal({
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } =
         useForm<FormData>(emptyForm);
-    const initialSnapshotRef = useRef<FormData>(emptyForm);
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     useEffect(() => {
         if (!open) {
@@ -137,7 +138,7 @@ export function PresupuestoFormModal({
             lineas: toLineas(presupuesto?.items),
         };
 
-        initialSnapshotRef.current = initial;
+        remember(initial);
         (Object.keys(initial) as Array<keyof FormData>).forEach((key) => {
             setData(key, initial[key]);
         });
@@ -265,14 +266,14 @@ export function PresupuestoFormModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title={isEdit ? `Editar ${presupuesto?.numero}` : 'Nuevo presupuesto'}
             description="Cotiza servicios o repuestos. El vehículo es opcional si es solo una cotización de mostrador."
             size="xl"
             onSubmit={onSubmit}
             footer={
                 <>
-                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={processing}>
+                    <Button type="button" variant="outline" onClick={() => requestClose(false)} disabled={processing}>
                         Cancelar
                     </Button>
                     <Button type="submit" disabled={!canSubmit} className="gap-2">

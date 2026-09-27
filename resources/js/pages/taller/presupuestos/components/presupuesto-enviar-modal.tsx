@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import presupuestos from '@/routes/taller/presupuestos';
 import type { Presupuesto } from '../types';
 
@@ -66,6 +67,7 @@ export function PresupuestoEnviarModal({
         mensaje: '',
         guardar_en_cliente: false,
     });
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     useEffect(() => {
         if (!open || !presupuesto) {
@@ -74,12 +76,14 @@ export function PresupuestoEnviarModal({
 
         clearErrors();
         const telefono = (presupuesto.cliente?.telefono ?? '').trim();
-        setData({
+        const initial = {
             telefono,
             mensaje: buildPresupuestoMensaje(presupuesto, tallerNombre),
             guardar_en_cliente: telefono === '',
-        });
-    }, [open, presupuesto, tallerNombre, clearErrors, setData]);
+        };
+        remember(initial);
+        setData(initial);
+    }, [open, presupuesto, tallerNombre, clearErrors, setData, remember]);
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
@@ -97,7 +101,7 @@ export function PresupuestoEnviarModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title="Enviar presupuesto"
             description={
                 presupuesto
@@ -108,7 +112,7 @@ export function PresupuestoEnviarModal({
             onSubmit={onSubmit}
             footer={
                 <>
-                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={processing}>
+                    <Button type="button" variant="outline" onClick={() => requestClose(false)} disabled={processing}>
                         Cancelar
                     </Button>
                     <Button type="submit" disabled={processing} className="gap-2">

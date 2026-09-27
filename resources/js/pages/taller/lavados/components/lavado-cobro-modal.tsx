@@ -11,6 +11,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 
 type Linea = {
     servicio_id: string;
@@ -53,6 +54,7 @@ export function LavadoCobroModal({
         notas: '',
         tipo_comprobante_sunat: '0',
     });
+    const { remember, requestClose } = useUnsavedFormGuard(form.data, onOpenChange);
 
     useEffect(() => {
         if (!open) {
@@ -60,7 +62,7 @@ export function LavadoCobroModal({
         }
 
         form.clearErrors();
-        form.setData({
+        const initial = {
             lineas: lineas.map((linea) => ({
                 concepto: linea.descripcion,
                 cantidad: linea.cantidad,
@@ -77,10 +79,12 @@ export function LavadoCobroModal({
             ],
             notas: '',
             tipo_comprobante_sunat: '0',
-        });
+        };
+        remember(initial);
+        form.setData(initial);
         // form identity changes every render; only reset when the modal opens.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, lavadoId]);
+    }, [open, lavadoId, remember]);
 
     const submit = () => {
         form.transform((data) => ({
@@ -101,7 +105,7 @@ export function LavadoCobroModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title="Cobrar car wash"
             description="Confirma la precuenta y registra el pago. El ticket sale en la venta."
             onSubmit={(event) => {
@@ -112,7 +116,7 @@ export function LavadoCobroModal({
             }}
             footer={
                 <>
-                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                    <Button type="button" variant="outline" onClick={() => requestClose(false)}>
                         Cancelar
                     </Button>
                     {sesionAbierta ? (

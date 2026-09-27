@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import categorias from '@/routes/inventario/categorias';
 import type { CategoriaProducto } from '../types';
 
@@ -33,6 +34,7 @@ export function CategoriaFormModal({
             descripcion: '',
             activo: true,
         });
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     const canSubmit = isFormValid(data) && !processing;
 
@@ -42,12 +44,14 @@ export function CategoriaFormModal({
         }
 
         clearErrors();
-        setData({
+        const initial = {
             nombre: categoria?.nombre ?? '',
             descripcion: categoria?.descripcion ?? '',
             activo: categoria?.activo ?? true,
-        });
-    }, [open, categoria, clearErrors, setData]);
+        };
+        remember(initial);
+        setData(initial);
+    }, [open, categoria, clearErrors, setData, remember]);
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
@@ -73,7 +77,7 @@ export function CategoriaFormModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title={isEdit ? 'Editar categoría' : 'Nueva categoría'}
             onSubmit={onSubmit}
             footer={
@@ -82,7 +86,7 @@ export function CategoriaFormModal({
                         type="button"
                         variant="outline"
                         className="cursor-pointer"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                         disabled={processing}
                     >
                         Cancelar

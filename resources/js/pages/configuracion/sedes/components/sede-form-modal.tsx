@@ -115,7 +115,7 @@ export function SedeFormModal({
         }
 
         return window.confirm(
-            'Hay cambios sin guardar. ¿Quieres descartarlos?',
+            'Tienes cambios sin guardar. ¿Estás seguro que quieres descartarlos?',
         );
     };
 

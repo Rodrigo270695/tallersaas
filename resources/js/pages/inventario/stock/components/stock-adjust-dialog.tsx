@@ -4,6 +4,7 @@ import { useEffect, type FormEvent } from 'react';
 import { FormField, FormModal, FormSection } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import stock from '@/routes/inventario/stock';
 import type { StockProducto } from '../types';
 
@@ -42,6 +43,7 @@ export function StockAdjustDialog({
         sede_id: '',
         cantidad: '',
     });
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     useEffect(() => {
         if (!open || !producto) {
@@ -49,12 +51,14 @@ export function StockAdjustDialog({
         }
 
         clearErrors();
-        setData({
+        const initial = {
             producto_id: producto.id,
             sede_id: sedeId,
             cantidad: formatCantidadInput(producto.cantidad_stock),
-        });
-    }, [open, producto, sedeId, clearErrors, setData]);
+        };
+        remember(initial);
+        setData(initial);
+    }, [open, producto, sedeId, clearErrors, setData, remember]);
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
@@ -67,7 +71,7 @@ export function StockAdjustDialog({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title="Ajustar stock"
             description={
                 producto
@@ -82,7 +86,7 @@ export function StockAdjustDialog({
                         type="button"
                         variant="outline"
                         className="cursor-pointer"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                     >
                         Cancelar
                     </Button>

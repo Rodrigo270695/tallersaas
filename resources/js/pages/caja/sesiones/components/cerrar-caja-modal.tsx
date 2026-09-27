@@ -5,6 +5,7 @@ import { FormField, FormModal, FormSection } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import sesiones from '@/routes/caja/sesiones';
 import type { CajaSesion } from '../types';
 
@@ -27,6 +28,7 @@ export function CerrarCajaModal({
             saldo_cierre_efectivo: '',
             notas: '',
         });
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     useEffect(() => {
         if (!open) {
@@ -35,8 +37,10 @@ export function CerrarCajaModal({
 
         clearErrors();
         reset();
-        setData({ saldo_cierre_efectivo: '', notas: '' });
-    }, [open, clearErrors, reset, setData]);
+        const initial = { saldo_cierre_efectivo: '', notas: '' };
+        remember(initial);
+        setData(initial);
+    }, [open, clearErrors, reset, setData, remember]);
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
@@ -53,7 +57,7 @@ export function CerrarCajaModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title="Cerrar caja"
             description={
                 sesion
@@ -70,7 +74,7 @@ export function CerrarCajaModal({
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                         className="cursor-pointer"
                     >
                         Cancelar

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import planes from '@/routes/plataforma/planes';
 import type { Plan } from '../types';
 
@@ -49,6 +50,7 @@ export function PlanFormModal({
     const isEdit = plan !== null;
     const { data, setData, post, put, processing, errors, reset, clearErrors } =
         useForm<FormData>(emptyForm);
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     useEffect(() => {
         if (!open) {
@@ -56,25 +58,30 @@ export function PlanFormModal({
         }
 
         clearErrors();
-        if (plan) {
-            setData({
-                codigo: plan.codigo,
-                nombre: plan.nombre,
-                descripcion: plan.descripcion ?? '',
-                badge: plan.badge ?? '',
-                color_hex: plan.color_hex ?? '#F97316',
-                precio_mensual: String(plan.precio_mensual),
-                precio_anual: plan.precio_anual ? String(plan.precio_anual) : '',
-                trial_days: String(plan.trial_days),
-                orden: String(plan.orden),
-                es_publico: plan.es_publico,
-                activo: plan.activo,
-            });
-        } else {
+        const initial: FormData = plan
+            ? {
+                  codigo: plan.codigo,
+                  nombre: plan.nombre,
+                  descripcion: plan.descripcion ?? '',
+                  badge: plan.badge ?? '',
+                  color_hex: plan.color_hex ?? '#F97316',
+                  precio_mensual: String(plan.precio_mensual),
+                  precio_anual: plan.precio_anual ? String(plan.precio_anual) : '',
+                  trial_days: String(plan.trial_days),
+                  orden: String(plan.orden),
+                  es_publico: plan.es_publico,
+                  activo: plan.activo,
+              }
+            : emptyForm;
+
+        remember(initial);
+
+        if (!plan) {
             reset();
-            setData(emptyForm);
         }
-    }, [open, plan, clearErrors, reset, setData]);
+
+        setData(initial);
+    }, [open, plan, clearErrors, reset, setData, remember]);
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
@@ -95,7 +102,7 @@ export function PlanFormModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title={isEdit ? 'Editar plan' : 'Nuevo plan'}
             onSubmit={onSubmit}
             footer={
@@ -104,7 +111,7 @@ export function PlanFormModal({
                         type="button"
                         variant="outline"
                         className="cursor-pointer"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                     >
                         Cancelar
                     </Button>

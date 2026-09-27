@@ -15,6 +15,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import { PuestoRowActions } from './components/puesto-row-actions';
 
 type SedeOption = { id: string; nombre: string };
@@ -51,21 +52,26 @@ export default function Index({ puestos, filters, stats, sedes }: Props) {
         nombre: '',
         activo: true,
     });
+    const { remember, requestClose } = useUnsavedFormGuard(form.data, setOpen);
 
     const openCreate = () => {
         setEditing(null);
-        form.setData({ sede_id: sedes[0]?.id ?? '', nombre: '', activo: true });
+        const initial = { sede_id: sedes[0]?.id ?? '', nombre: '', activo: true };
+        remember(initial);
+        form.setData(initial);
         form.clearErrors();
         setOpen(true);
     };
 
     const openEdit = (puesto: Puesto) => {
         setEditing(puesto);
-        form.setData({
+        const initial = {
             sede_id: puesto.sede_id,
             nombre: puesto.nombre,
             activo: puesto.activo,
-        });
+        };
+        remember(initial);
+        form.setData(initial);
         form.clearErrors();
         setOpen(true);
     };
@@ -190,7 +196,7 @@ export default function Index({ puestos, filters, stats, sedes }: Props) {
 
             <FormModal
                 open={open}
-                onOpenChange={setOpen}
+                onOpenChange={requestClose}
                 title={editing ? 'Editar puesto' : 'Nuevo puesto'}
                 description="Un puesto pertenece a una sede."
                 onSubmit={(event) => {
@@ -199,7 +205,7 @@ export default function Index({ puestos, filters, stats, sedes }: Props) {
                 }}
                 footer={
                     <>
-                        <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                        <Button type="button" variant="outline" onClick={() => requestClose(false)}>
                             Cancelar
                         </Button>
                         <Button type="submit" disabled={form.processing}>

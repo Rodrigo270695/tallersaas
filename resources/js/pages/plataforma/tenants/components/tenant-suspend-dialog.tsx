@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { FormField, FormModal } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import tenants from '@/routes/plataforma/tenants';
 import type { PlataformaTenant } from '../types';
 
@@ -18,6 +19,14 @@ export function TenantSuspendDialog({
 }) {
     const [reason, setReason] = useState('');
     const [processing, setProcessing] = useState(false);
+    const { remember, requestClose } = useUnsavedFormGuard({ reason }, (next) => {
+        if (!next) {
+            setReason('');
+            remember({ reason: '' });
+        }
+
+        onOpenChange(next);
+    });
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
@@ -43,7 +52,7 @@ export function TenantSuspendDialog({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title="Suspender taller"
             description={
                 tenant
@@ -57,7 +66,7 @@ export function TenantSuspendDialog({
                         type="button"
                         variant="outline"
                         className="cursor-pointer"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                     >
                         Cancelar
                     </Button>

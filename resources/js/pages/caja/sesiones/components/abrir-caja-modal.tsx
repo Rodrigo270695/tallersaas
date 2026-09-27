@@ -12,6 +12,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import sesiones from '@/routes/caja/sesiones';
 import type { SedeOpcion } from '../types';
 
@@ -38,6 +39,7 @@ export function AbrirCajaModal({
             saldo_apertura: '0',
             notas: '',
         });
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     useEffect(() => {
         if (!open) {
@@ -46,13 +48,15 @@ export function AbrirCajaModal({
 
         clearErrors();
         reset();
-        setData({
+        const initial = {
             sede_id: sedes[0]?.id ?? '',
             moneda: 'PEN',
             saldo_apertura: '0',
             notas: '',
-        });
-    }, [open, sedes, clearErrors, reset, setData]);
+        };
+        remember(initial);
+        setData(initial);
+    }, [open, sedes, clearErrors, reset, setData, remember]);
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
@@ -65,7 +69,7 @@ export function AbrirCajaModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title="Abrir caja"
             description="Solo puede haber una caja abierta por sede y por usuario."
             onSubmit={onSubmit}
@@ -74,7 +78,7 @@ export function AbrirCajaModal({
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                         className="cursor-pointer"
                     >
                         Cancelar

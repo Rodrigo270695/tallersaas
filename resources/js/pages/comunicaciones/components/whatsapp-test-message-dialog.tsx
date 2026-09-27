@@ -13,6 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 
 export function WhatsAppTestMessageDialog({
     open,
@@ -29,13 +30,24 @@ export function WhatsAppTestMessageDialog({
     const [destinatario, setDestinatario] = useState('');
     const [mensaje, setMensaje] = useState('');
     const [processing, setProcessing] = useState(false);
+    const { remember, requestClose } = useUnsavedFormGuard(
+        { destinatario, mensaje },
+        onOpenChange,
+    );
 
     useEffect(() => {
-        if (open) {
-            setDestinatario(defaultPhone ?? '');
-            setMensaje('Mensaje de prueba desde TallerSaaS.');
+        if (!open) {
+            return;
         }
-    }, [open, defaultPhone]);
+
+        const initial = {
+            destinatario: defaultPhone ?? '',
+            mensaje: 'Mensaje de prueba desde TallerSaaS.',
+        };
+        setDestinatario(initial.destinatario);
+        setMensaje(initial.mensaje);
+        remember(initial);
+    }, [open, defaultPhone, remember]);
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
@@ -52,7 +64,7 @@ export function WhatsAppTestMessageDialog({
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={requestClose}>
             <DialogContent className="sm:max-w-md">
                 <form onSubmit={onSubmit}>
                     <DialogHeader>
@@ -101,7 +113,7 @@ export function WhatsAppTestMessageDialog({
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={() => onOpenChange(false)}
+                            onClick={() => requestClose(false)}
                             disabled={processing}
                             className="cursor-pointer"
                         >

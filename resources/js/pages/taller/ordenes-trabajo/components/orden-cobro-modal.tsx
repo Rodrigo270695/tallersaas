@@ -13,6 +13,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import { expandServicioConKit, spliceLinesAtIndex } from '@/lib/servicio-kit';
 import ordenesTrabajo from '@/routes/taller/ordenes-trabajo';
 import type {
@@ -83,6 +84,7 @@ export function OrdenCobroModal({
             notas: '',
             tipo_comprobante_sunat: '0',
         });
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     useEffect(() => {
         if (!open || !orden) {
@@ -113,13 +115,15 @@ export function OrdenCobroModal({
                                   : '',
                       },
                   ];
-        setData({
+        const initial = {
             lineas,
             pagos: [{ metodo: 'efectivo', monto: '', monto_recibido: '' }],
             notas: '',
             tipo_comprobante_sunat: '0',
-        });
-    }, [open, orden, clearErrors, reset, setData]);
+        };
+        remember(initial);
+        setData(initial);
+    }, [open, orden, clearErrors, reset, setData, remember]);
 
     const totales = useMemo(() => {
         const suma = data.lineas.reduce((acc, linea) => {
@@ -185,7 +189,7 @@ export function OrdenCobroModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title={orden ? `Pasar a venta · ${orden.numero}` : 'Pasar a venta'}
             description="Confirma la precuenta y registra el cobro en caja. La OT acumula cargos; Ventas cierra la venta."
             size="lg"
@@ -195,7 +199,7 @@ export function OrdenCobroModal({
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                         className="cursor-pointer"
                     >
                         Cancelar

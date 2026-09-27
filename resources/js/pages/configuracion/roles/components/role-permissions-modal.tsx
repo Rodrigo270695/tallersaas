@@ -225,7 +225,7 @@ function RolePermissionsModalOpen({
         if (!next && isDirty) {
             if (
                 !window.confirm(
-                    'Hay cambios sin guardar. ¿Descartarlos y cerrar?',
+                    'Tienes cambios sin guardar. ¿Estás seguro que quieres descartarlos?',
                 )
             ) {
                 return;

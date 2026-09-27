@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import productos from '@/routes/inventario/productos';
 import type { Producto, ProductoOption, SedeOption, UnidadOption } from '../types';
 
@@ -63,6 +64,7 @@ export function ProductoFormModal({
             foto: null,
             clear_foto: false,
         });
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     const canSubmit = isFormValid(data) && !processing;
     const isEditRef = useRef(isEdit);
@@ -139,7 +141,7 @@ export function ProductoFormModal({
         }
 
         clearErrors();
-        setData({
+        const initial = {
             categoria_id: producto?.categoria_id ?? '',
             nombre: producto?.nombre ?? '',
             descripcion: producto?.descripcion ?? '',
@@ -154,8 +156,10 @@ export function ProductoFormModal({
             stock_inicial_cantidad: '',
             foto: null,
             clear_foto: false,
-        });
-    }, [open, producto, sedes, clearErrors, setData]);
+        };
+        remember(initial);
+        setData(initial);
+    }, [open, producto, sedes, clearErrors, setData, remember]);
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
@@ -187,7 +191,7 @@ export function ProductoFormModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title={isEdit ? 'Editar repuesto' : 'Nuevo repuesto'}
             size="lg"
             onSubmit={onSubmit}
@@ -197,7 +201,7 @@ export function ProductoFormModal({
                         type="button"
                         variant="outline"
                         className="cursor-pointer"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                         disabled={processing}
                     >
                         Cancelar

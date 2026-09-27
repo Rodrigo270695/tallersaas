@@ -11,6 +11,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import tenants from '@/routes/plataforma/tenants';
 import type { PlanCatalogItem, PlataformaTenant } from '../types';
 
@@ -68,6 +69,10 @@ export function TenantFormModal({
         telefono: '',
         direccion: '',
     });
+    const { remember, requestClose } = useUnsavedFormGuard(
+        isEdit ? editForm.data : createForm.data,
+        onOpenChange,
+    );
 
     useEffect(() => {
         if (!open) {
@@ -76,18 +81,32 @@ export function TenantFormModal({
 
         if (tenant) {
             editForm.clearErrors();
-            editForm.setData({
+            const initial = {
                 razon_social: tenant.razon_social,
                 nombre_comercial: tenant.nombre_comercial ?? '',
                 ruc: tenant.ruc ?? '',
                 email_admin: tenant.email_admin,
                 telefono: tenant.telefono ?? '',
                 direccion: tenant.direccion ?? '',
-            });
+            };
+            remember(initial);
+            editForm.setData(initial);
         } else {
             createForm.clearErrors();
+            const initial = {
+                tenant_slug: '',
+                razon_social: '',
+                nombre_comercial: '',
+                ruc: '',
+                admin_email: '',
+                admin_password: '',
+                telefono: '',
+                plan_slug: plans[0]?.codigo ?? '',
+                ciclo: 'mensual',
+            };
+            remember(initial);
             createForm.reset();
-            createForm.setData('plan_slug', plans[0]?.codigo ?? '');
+            createForm.setData(initial);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, tenant]);
@@ -115,7 +134,7 @@ export function TenantFormModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title={isEdit ? 'Editar taller' : 'Nuevo taller'}
             description={
                 isEdit
@@ -129,7 +148,7 @@ export function TenantFormModal({
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                         className="cursor-pointer"
                     >
                         Cancelar

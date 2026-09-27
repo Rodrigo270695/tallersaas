@@ -11,6 +11,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import egresos from '@/routes/caja/sesiones/egresos';
 import {
     CAJA_EGRESO_MOTIVOS,
@@ -45,6 +46,7 @@ export function SesionEgresoModal({
             motivo: 'insumos',
             descripcion: '',
         });
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     useEffect(() => {
         if (!open) {
@@ -53,8 +55,10 @@ export function SesionEgresoModal({
 
         clearErrors();
         reset();
-        setData({ monto: '', motivo: 'insumos', descripcion: '' });
-    }, [open, clearErrors, reset, setData]);
+        const initial = { monto: '', motivo: 'insumos' as const, descripcion: '' };
+        remember(initial);
+        setData(initial);
+    }, [open, clearErrors, reset, setData, remember]);
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
@@ -76,7 +80,7 @@ export function SesionEgresoModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title="Egresos de caja"
             description={
                 sesion
@@ -90,7 +94,7 @@ export function SesionEgresoModal({
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                         className="cursor-pointer"
                     >
                         Cerrar

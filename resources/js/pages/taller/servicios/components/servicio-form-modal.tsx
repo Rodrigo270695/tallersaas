@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import servicios from '@/routes/taller/servicios';
 import type { CategoriaOption, Servicio } from '../types';
 
@@ -42,6 +43,7 @@ export function ServicioFormModal({
         duracion_minutos: '',
         activo: true,
     });
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     const canSubmit = isFormValid(data) && !processing;
 
@@ -60,7 +62,7 @@ export function ServicioFormModal({
         }
 
         clearErrors();
-        setData({
+        const initial = {
             categoria_id: servicio?.categoria_id ?? '',
             nombre: servicio?.nombre ?? '',
             descripcion: servicio?.descripcion ?? '',
@@ -68,8 +70,10 @@ export function ServicioFormModal({
             duracion_minutos:
                 servicio?.duracion_minutos != null ? String(servicio.duracion_minutos) : '',
             activo: servicio?.activo ?? true,
-        });
-    }, [open, servicio, clearErrors, setData]);
+        };
+        remember(initial);
+        setData(initial);
+    }, [open, servicio, clearErrors, setData, remember]);
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
@@ -95,7 +99,7 @@ export function ServicioFormModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title={isEdit ? 'Editar servicio' : 'Nuevo servicio'}
             size="lg"
             onSubmit={onSubmit}
@@ -105,7 +109,7 @@ export function ServicioFormModal({
                         type="button"
                         variant="outline"
                         className="cursor-pointer"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                         disabled={processing}
                     >
                         Cancelar

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 
 type SedeOption = { id: string; nombre: string; codigo: string };
 type ClienteHit = { id: string; nombre: string; documento: string };
@@ -47,19 +48,35 @@ export function LavadoFormModal({
     const [vehiculos, setVehiculos] = useState<VehiculoHit[]>([]);
     const [loading, setLoading] = useState(false);
 
-    const close = (next: boolean) => {
+    const resetFields = () => {
+        form.reset();
+        form.clearErrors();
+        form.setData(emptyForm(sedes));
+        setClienteQuery('');
+        setVehiculoQuery('');
+        setClientes([]);
+        setVehiculos([]);
+    };
+
+    const { remember, requestClose } = useUnsavedFormGuard(form.data, (next) => {
         if (!next) {
-            form.reset();
-            form.clearErrors();
-            form.setData(emptyForm(sedes));
-            setClienteQuery('');
-            setVehiculoQuery('');
-            setClientes([]);
-            setVehiculos([]);
+            resetFields();
         }
 
         onOpenChange(next);
-    };
+    });
+
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        const initial = emptyForm(sedes);
+        remember(initial);
+        form.setData(initial);
+        // La foto se toma al abrir. `sedes` no va en deps para no rebasar mientras se escribe.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, remember]);
 
     useEffect(() => {
         if (!open) {
@@ -153,20 +170,23 @@ export function LavadoFormModal({
 
         form.post('/taller/lavados', {
             preserveScroll: true,
-            onSuccess: () => close(false),
+            onSuccess: () => {
+                resetFields();
+                onOpenChange(false);
+            },
         });
     };
 
     return (
         <FormModal
             open={open}
-            onOpenChange={close}
+            onOpenChange={requestClose}
             title="Nuevo lavado"
             description="Cliente y placa. Los cargos se agregan en la precuenta."
             onSubmit={submit}
             footer={
                 <>
-                    <Button type="button" variant="outline" onClick={() => close(false)}>
+                    <Button type="button" variant="outline" onClick={() => requestClose(false)}>
                         Cancelar
                     </Button>
                     <Button type="submit" disabled={!canCreate}>

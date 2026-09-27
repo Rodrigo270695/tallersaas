@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import planes from '@/routes/plataforma/planes';
 import type { FeatureCatalogItem, Plan } from '../types';
 
@@ -42,6 +43,7 @@ export function PlanFeaturesModal({
     const { data, setData, put, processing, reset } = useForm<{
         features: FeatureForm[];
     }>({ features: [] });
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     useEffect(() => {
         if (!open || !plan) {
@@ -52,9 +54,8 @@ export function PlanFeaturesModal({
             (plan.features ?? []).map((row) => [row.feature, row]),
         );
 
-        setData(
-            'features',
-            catalog.map((item) => {
+        const initial = {
+            features: catalog.map((item) => {
                 const row = current.get(item.feature);
 
                 return {
@@ -73,8 +74,10 @@ export function PlanFeaturesModal({
                     valor_str: row?.valor_str ?? '',
                 };
             }),
-        );
-    }, [open, plan, catalog, setData]);
+        };
+        remember(initial);
+        setData(initial);
+    }, [open, plan, catalog, setData, remember]);
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
@@ -94,7 +97,7 @@ export function PlanFeaturesModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title={plan ? `Funcionalidades · ${plan.nombre}` : 'Funcionalidades'}
             size="lg"
             onSubmit={onSubmit}
@@ -104,7 +107,7 @@ export function PlanFeaturesModal({
                         type="button"
                         variant="outline"
                         className="cursor-pointer"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                     >
                         Cancelar
                     </Button>

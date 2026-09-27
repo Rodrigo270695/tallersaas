@@ -13,6 +13,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import citas from '@/routes/taller/citas';
 import type { Auth } from '@/types';
 import type {
@@ -122,6 +123,7 @@ export function CitaFormModal({
         motivo: '',
         notas: '',
     });
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     const defaultMecanicoId = useMemo(() => {
         if (!currentUserId) {
@@ -169,7 +171,7 @@ export function CitaFormModal({
             iniciaDefault = `${prefill.fecha}T${hora}`;
         }
 
-        setData({
+        const initial = {
             sede_id: cita?.sede_id ?? (sedes.length === 1 ? sedes[0].id : ''),
             cliente_id: cita?.cliente_id ?? '',
             vehiculo_id: cita?.vehiculo_id ?? '',
@@ -177,11 +179,13 @@ export function CitaFormModal({
             puesto_id: cita?.puesto_id ?? '',
             inicia_at: cita ? toDatetimeLocal(cita.inicia_at) : iniciaDefault,
             duracion_minutos: String(cita?.duracion_minutos ?? Number(DURACION_DEFAULT)),
-            estado: cita?.estado === 'convertida' ? 'programada' : (cita?.estado ?? 'programada'),
+            estado: (cita?.estado === 'convertida' ? 'programada' : (cita?.estado ?? 'programada')) as FormData['estado'],
             motivo: cita?.motivo ?? '',
             notas: cita?.notas ?? '',
-        });
-    }, [open, cita, prefill, sedes, defaultMecanicoId, clearErrors, setData]);
+        };
+        remember(initial);
+        setData(initial);
+    }, [open, cita, prefill, sedes, defaultMecanicoId, clearErrors, setData, remember]);
 
     const canSubmit =
         !processing &&
@@ -215,7 +219,7 @@ export function CitaFormModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title={isEdit ? 'Editar cita' : 'Nueva cita'}
             description={
                 locked
@@ -230,7 +234,7 @@ export function CitaFormModal({
                         type="button"
                         variant="outline"
                         className="cursor-pointer"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                         disabled={processing}
                     >
                         Cancelar
@@ -242,7 +246,10 @@ export function CitaFormModal({
                             className="cursor-pointer gap-2"
                             disabled={processing}
                             onClick={() => {
-                                onOpenChange(false);
+                                if (!requestClose(false)) {
+                                    return;
+                                }
+
                                 onConvert(cita);
                             }}
                         >

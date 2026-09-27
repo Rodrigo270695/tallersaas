@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import { toastManager } from '@/lib/toast';
 import proveedores from '@/routes/inventario/proveedores';
 import type { Proveedor } from '../types';
@@ -84,6 +85,7 @@ export function ProveedorFormModal({
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } =
         useForm<FormData>(emptyForm);
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     const canSubmit = isFormValid(data) && !processing;
     const lastConsultaKeyRef = useRef<string | null>(null);
@@ -98,6 +100,7 @@ export function ProveedorFormModal({
         }
 
         const initial = buildInitialData(proveedor);
+        remember(initial);
         (Object.keys(initial) as Array<keyof FormData>).forEach((key) => {
             setData(key, initial[key]);
         });
@@ -105,7 +108,7 @@ export function ProveedorFormModal({
 
         lastConsultaKeyRef.current = initial.ruc.length === 11 ? initial.ruc : null;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, proveedor?.id]);
+    }, [open, proveedor?.id, remember]);
 
     const onConsultarRuc = async (forcedRuc?: string) => {
         const ruc = soloDigitosDocumento(forcedRuc ?? data.ruc, 11);
@@ -200,7 +203,7 @@ export function ProveedorFormModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title={isEdit ? 'Editar proveedor' : 'Nuevo proveedor'}
             description="Al completar el RUC (11 dígitos) se consulta automáticamente SUNAT."
             size="lg"
@@ -211,7 +214,7 @@ export function ProveedorFormModal({
                         type="button"
                         variant="outline"
                         className="cursor-pointer"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                         disabled={processing}
                     >
                         Cancelar

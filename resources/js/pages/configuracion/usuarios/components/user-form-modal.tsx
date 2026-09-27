@@ -134,7 +134,7 @@ export function UserFormModal({
         }
 
         return window.confirm(
-            'Hay cambios sin guardar. ¿Descartarlos y cerrar?',
+            'Tienes cambios sin guardar. ¿Estás seguro que quieres descartarlos?',
         );
     };
 

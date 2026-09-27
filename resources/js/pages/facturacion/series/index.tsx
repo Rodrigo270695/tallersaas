@@ -14,6 +14,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { usePermission } from '@/hooks/use-permission';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import seriesRoutes from '@/routes/facturacion/series';
 
 type SedeOption = {
@@ -58,6 +59,19 @@ export default function Index({
         tipo_comprobante: '2',
         serie: 'B001',
     });
+    const { remember, requestClose } = useUnsavedFormGuard(data, setOpen);
+
+    const openCreate = () => {
+        const initial = {
+            sede_id: sedes[0]?.id ?? '',
+            tipo_comprobante: '2',
+            serie: 'B001',
+        };
+        remember(initial);
+        clearErrors();
+        setData(initial);
+        setOpen(true);
+    };
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
@@ -183,15 +197,7 @@ export default function Index({
                             <Button
                                 type="button"
                                 className="cursor-pointer gap-2"
-                                onClick={() => {
-                                    clearErrors();
-                                    setData({
-                                        sede_id: sedes[0]?.id ?? '',
-                                        tipo_comprobante: '2',
-                                        serie: 'B001',
-                                    });
-                                    setOpen(true);
-                                }}
+                                onClick={openCreate}
                             >
                                 <Plus className="size-4" />
                                 Nueva serie
@@ -214,7 +220,7 @@ export default function Index({
                                     <Button
                                         type="button"
                                         className="cursor-pointer"
-                                        onClick={() => setOpen(true)}
+                                        onClick={openCreate}
                                     >
                                         Nueva serie
                                     </Button>
@@ -227,7 +233,7 @@ export default function Index({
 
             <FormModal
                 open={open}
-                onOpenChange={setOpen}
+                onOpenChange={requestClose}
                 title="Nueva serie"
                 description="Cuatro caracteres. Boletas suelen ser B001; facturas F001."
                 onSubmit={onSubmit}
@@ -237,7 +243,7 @@ export default function Index({
                             type="button"
                             variant="outline"
                             className="cursor-pointer"
-                            onClick={() => setOpen(false)}
+                            onClick={() => requestClose(false)}
                         >
                             Cancelar
                         </Button>

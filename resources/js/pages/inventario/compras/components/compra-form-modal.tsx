@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import compras from '@/routes/inventario/compras';
 import type {
     CompraTipoComprobante,
@@ -111,6 +112,7 @@ export function CompraFormModal({
             factura: null,
             lineas: [emptyLinea(unidadDefault)],
         });
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     const canSubmit = isFormValid(data) && !processing;
 
@@ -120,19 +122,21 @@ export function CompraFormModal({
         }
 
         clearErrors();
-        setData({
+        const initial = {
             proveedor_id: '',
             sede_id: sedes.length === 1 ? sedes[0].id : '',
-            tipo_comprobante: 'boleta',
+            tipo_comprobante: 'boleta' as const,
             serie: '',
             numero_documento: '',
             fecha_documento: todayPeru(),
             notas: '',
             factura: null,
             lineas: [emptyLinea(unidadDefault)],
-        });
+        };
+        remember(initial);
+        setData(initial);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open]);
+    }, [open, remember]);
 
     const proveedorOptions = useMemo<readonly ComboboxOption[]>(
         () =>
@@ -230,7 +234,7 @@ export function CompraFormModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title="Nueva compra"
             description="Registra el comprobante del proveedor: el stock se actualiza automáticamente."
             size="xl"
@@ -241,7 +245,7 @@ export function CompraFormModal({
                         type="button"
                         variant="outline"
                         className="cursor-pointer"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                         disabled={processing}
                     >
                         Cancelar

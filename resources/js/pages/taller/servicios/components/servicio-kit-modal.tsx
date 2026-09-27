@@ -5,6 +5,7 @@ import { FormField, FormModal, FormSection } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
+import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
 import servicios from '@/routes/taller/servicios';
 import type { ProductoOption, Servicio } from '../types';
 
@@ -66,6 +67,7 @@ export function ServicioKitModal({
         activo: true,
         kit: [],
     });
+    const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
 
     const canSubmit = Boolean(servicio) && isKitValid(data.kit) && !processing;
 
@@ -95,7 +97,7 @@ export function ServicioKitModal({
         }
 
         clearErrors();
-        setData({
+        const initial = {
             categoria_id: servicio.categoria_id ?? '',
             nombre: servicio.nombre,
             descripcion: servicio.descripcion ?? '',
@@ -107,8 +109,10 @@ export function ServicioKitModal({
                 producto_id: item.producto_id,
                 cantidad: formatQty(item.cantidad),
             })),
-        });
-    }, [open, servicio, clearErrors, setData]);
+        };
+        remember(initial);
+        setData(initial);
+    }, [open, servicio, clearErrors, setData, remember]);
 
     const setKitLinea = (index: number, patch: Partial<KitLineaForm>) => {
         setData(
@@ -133,7 +137,7 @@ export function ServicioKitModal({
     return (
         <FormModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={requestClose}
             title={servicio ? `Kit · ${servicio.nombre}` : 'Kit de repuestos'}
             description="Repuestos que se agregan solos al elegir este servicio en OT o cobro. Se descuentan del stock al vender."
             size="lg"
@@ -144,7 +148,7 @@ export function ServicioKitModal({
                         type="button"
                         variant="outline"
                         className="cursor-pointer"
-                        onClick={() => onOpenChange(false)}
+                        onClick={() => requestClose(false)}
                         disabled={processing}
                     >
                         Cancelar
