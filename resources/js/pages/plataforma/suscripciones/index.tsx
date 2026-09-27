@@ -13,6 +13,7 @@ import {
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
+import { statusPillClass, suscripcionEstadoBadgeClass } from '@/lib/status-badge';
 import suscripciones from '@/routes/plataforma/suscripciones';
 import type { Paginated } from '@/types';
 import {
@@ -142,7 +143,17 @@ export default function Index({
                 key: 'estado',
                 header: 'Estado',
                 sortable: true,
-                cell: (row) => ESTADO_LABEL[row.estado] ?? row.estado,
+                cell: (row) => (
+                    <span
+                        className={`${statusPillClass} ${
+                            suscripcionEstadoBadgeClass[
+                                row.estado as keyof typeof suscripcionEstadoBadgeClass
+                            ] ?? suscripcionEstadoBadgeClass.cancelled
+                        }`}
+                    >
+                        {ESTADO_LABEL[row.estado] ?? row.estado}
+                    </span>
+                ),
             },
             {
                 key: 'trial_ends_at',

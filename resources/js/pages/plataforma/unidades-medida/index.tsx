@@ -93,10 +93,10 @@ export default function Index({
                 sortable: true,
                 cell: (row) => (
                     <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                        className={`inline-flex w-fit items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${
                             row.activo
-                                ? 'bg-emerald-50 text-emerald-800'
-                                : 'bg-stone-100 text-stone-600'
+                                ? 'bg-emerald-100 text-emerald-900 ring-emerald-300/80'
+                                : 'bg-stone-100 text-stone-700 ring-stone-300/80'
                         }`}
                     >
                         {row.activo ? 'Activa' : 'Inactiva'}

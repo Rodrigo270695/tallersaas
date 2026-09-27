@@ -1,7 +1,7 @@
 import { Slot } from "@radix-ui/react-slot"
 import type { VariantProps} from "class-variance-authority";
 import { cva } from "class-variance-authority"
-import { PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react"
+import { Menu } from "lucide-react"
 import * as React from "react"
 
 import { Button } from "@/components/ui/button"
@@ -237,7 +237,7 @@ function Sidebar({
       >
         <div
           data-sidebar="sidebar"
-          className="bg-sidebar group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm"
+          className="bg-sidebar flex h-full w-full flex-col group-data-[variant=floating]:rounded-2xl group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow-sm"
         >
           {children}
         </div>
@@ -251,7 +251,7 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar, isMobile, state } = useSidebar()
+  const { toggleSidebar } = useSidebar()
 
   return (
     <Button
@@ -259,14 +259,14 @@ function SidebarTrigger({
       data-slot="sidebar-trigger"
       variant="ghost"
       size="icon"
-      className={cn("h-7 w-7", className)}
+      className={cn("size-7", className)}
       onClick={(event) => {
         onClick?.(event)
         toggleSidebar()
       }}
       {...props}
     >
-      {isMobile || state === "collapsed" ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
+      <Menu className="size-4" strokeWidth={2} />
       <span className="sr-only">Toggle sidebar</span>
     </Button>
   )

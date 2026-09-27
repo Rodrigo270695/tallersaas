@@ -56,11 +56,11 @@ const ESTADO_LABEL: Record<TenantEstado, string> = {
 };
 
 const estadoClass: Record<TenantEstado, string> = {
-    trial: 'bg-sky-50 text-sky-800',
-    active: 'bg-emerald-50 text-emerald-800',
-    grace: 'bg-amber-50 text-amber-800',
-    suspended: 'bg-rose-50 text-rose-800',
-    cancelled: 'bg-stone-100 text-stone-600',
+    trial: 'bg-sky-100 text-sky-900 ring-1 ring-sky-300/80',
+    active: 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300/80',
+    grace: 'bg-amber-100 text-amber-950 ring-1 ring-amber-300/80',
+    suspended: 'bg-rose-100 text-rose-900 ring-1 ring-rose-300/80',
+    cancelled: 'bg-stone-100 text-stone-700 ring-1 ring-stone-300/80',
 };
 
 export default function Index({
@@ -125,7 +125,7 @@ export default function Index({
                 sortable: true,
                 cell: (tenant) => (
                     <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${estadoClass[tenant.estado]}`}
+                        className={`inline-flex w-fit items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${estadoClass[tenant.estado]}`}
                     >
                         {ESTADO_LABEL[tenant.estado]}
                     </span>
