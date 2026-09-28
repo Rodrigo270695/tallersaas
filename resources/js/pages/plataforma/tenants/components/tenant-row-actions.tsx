@@ -9,6 +9,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toastManager } from '@/lib/toast';
+import { tenantExternalUrl, useTenancy } from '@/lib/tenancy-url';
 import tenants from '@/routes/plataforma/tenants';
 import type { PlataformaTenant } from '../types';
 
@@ -29,6 +30,7 @@ export function TenantRowActions({
     canResume: boolean;
     canImpersonate: boolean;
 }) {
+    const tenancy = useTenancy();
     const canEnter =
         canImpersonate && tenant.estado !== 'cancelled' && tenant.estado !== 'suspended';
     const canStop = canSuspend && tenant.estado !== 'suspended' && tenant.estado !== 'cancelled';
@@ -61,14 +63,23 @@ export function TenantRowActions({
                     <Copy className="size-4" strokeWidth={2.25} />
                     Copiar slug
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                    className="cursor-pointer gap-2"
-                    onSelect={() => {
-                        window.location.assign(`/plataforma/tenants/${tenant.id}/abrir`);
-                    }}
-                >
-                    <ExternalLink className="size-4" strokeWidth={2.25} />
-                    Abrir subdominio
+                <DropdownMenuItem asChild className="cursor-pointer gap-2">
+                    <a
+                        href={tenantExternalUrl(tenant.slug, tenancy)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(event) => {
+                            event.preventDefault();
+                            window.open(
+                                tenantExternalUrl(tenant.slug, tenancy),
+                                '_blank',
+                                'noopener,noreferrer',
+                            );
+                        }}
+                    >
+                        <ExternalLink className="size-4" strokeWidth={2.25} />
+                        Abrir subdominio
+                    </a>
                 </DropdownMenuItem>
                 {canEnter ? (
                     <>

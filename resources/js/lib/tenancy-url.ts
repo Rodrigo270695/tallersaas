@@ -26,3 +26,9 @@ export function tenantHost(slug: string, tenancy: TenancyShared): string {
     return `${slug}.${tenancy.root_domain}`;
 }
 
+export function tenantExternalUrl(slug: string, tenancy: TenancyShared): string {
+    const path = tenancy.login_path.startsWith('/') ? tenancy.login_path : `/${tenancy.login_path}`;
+
+    return `${tenancy.scheme}://${tenantHost(slug, tenancy)}${path}?visita=externa`;
+}
+

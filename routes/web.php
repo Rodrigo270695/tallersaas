@@ -594,9 +594,6 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.none'])
         Route::middleware('permission:plataforma-tenants.view')
             ->get('tenants', [TenantController::class, 'index'])
             ->name('tenants.index');
-        Route::middleware('permission:plataforma-tenants.view')
-            ->get('tenants/{tenant}/abrir', [TenantController::class, 'open'])
-            ->name('tenants.open');
         Route::middleware('permission:plataforma-tenants.create')
             ->post('tenants', [TenantController::class, 'store'])
             ->name('tenants.store');

@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureNoTenant;
 use App\Http\Middleware\EnsureTenant;
+use App\Http\Middleware\ExternalTenantVisit;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\HandleTallerBrandTheme;
@@ -19,6 +20,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Middleware\PermissionMiddleware;
@@ -84,10 +86,15 @@ return Application::configure(basePath: dirname(__DIR__))
         // terminan ejecutándose DESPUÉS de `auth` y un request no
         // autenticado a una ruta central desde un subdominio recibiría
         // 302 → /login en vez del 404 esperado.
+        $middleware->prependToPriorityList(
+            before: StartSession::class,
+            prepend: ExternalTenantVisit::class,
+        );
         $middleware->prependToPriorityList(before: AuthenticatesRequests::class, prepend: ResolveTenant::class);
         $middleware->prependToPriorityList(before: AuthenticatesRequests::class, prepend: EnsureNoTenant::class);
 
         $middleware->web(append: [
+            ExternalTenantVisit::class,
             ReplayIdempotency::class,
             HandleAppearance::class,
             HandleTallerBrandTheme::class,
