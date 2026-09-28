@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\PlacaPeru;
 use Illuminate\Foundation\Http\FormRequest;
 
 class LavadoRequest extends FormRequest
@@ -17,7 +18,11 @@ class LavadoRequest extends FormRequest
             'sede_id' => ['required', 'uuid', 'exists:sedes,id'],
             'cliente_id' => ['required', 'uuid', 'exists:clientes,id'],
             'vehiculo_id' => ['nullable', 'uuid', 'exists:vehiculos,id'],
-            'placa' => ['required', 'string', 'max:12'],
+            'placa' => ['required', 'string', 'max:7', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (! PlacaPeru::passes((string) $value, 'cualquiera')) {
+                    $fail(PlacaPeru::message('cualquiera'));
+                }
+            }],
             'notas' => ['nullable', 'string', 'max:2000'],
         ];
     }

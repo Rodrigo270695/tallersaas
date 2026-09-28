@@ -4,6 +4,7 @@ import { useEffect, useMemo } from 'react';
 import type {FormEvent} from 'react';
 import { FormField, FormModal, FormSection } from '@/components/forms';
 import { Button } from '@/components/ui/button';
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -149,6 +150,11 @@ export function PresupuestoFormModal({
     const vehiculosFiltrados = useMemo(
         () => vehiculos.filter((v) => v.cliente_id === data.cliente_id),
         [vehiculos, data.cliente_id],
+    );
+
+    const clienteOptions = useMemo<ComboboxOption[]>(
+        () => clientes.map((cliente) => ({ value: cliente.id, label: cliente.nombre })),
+        [clientes],
     );
 
     const onOrdenChange = (ordenId: string) => {
@@ -332,24 +338,20 @@ export function PresupuestoFormModal({
                         />
                     </FormField>
                     <FormField id="pre-cliente" label="Cliente" required error={errors.cliente_id}>
-                        <Select
-                            value={data.cliente_id}
-                            onValueChange={(value) => {
-                                setData('cliente_id', value);
+                        <Combobox
+                            id="pre-cliente"
+                            className="h-9 w-full"
+                            options={clienteOptions}
+                            value={data.cliente_id || null}
+                            onChange={(value) => {
+                                setData('cliente_id', value ?? '');
                                 setData('vehiculo_id', '');
                             }}
-                        >
-                            <SelectTrigger id="pre-cliente" className="h-9 w-full">
-                                <SelectValue placeholder="Selecciona cliente" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {clientes.map((cliente) => (
-                                    <SelectItem key={cliente.id} value={cliente.id}>
-                                        {cliente.nombre}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            placeholder="Buscar cliente"
+                            searchPlaceholder="Nombre del cliente"
+                            emptyMessage="Sin coincidencias."
+                            aria-invalid={Boolean(errors.cliente_id)}
+                        />
                     </FormField>
                     <FormField id="pre-vehiculo" label="Vehículo (opcional)" error={errors.vehiculo_id}>
                         <Select

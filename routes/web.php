@@ -203,6 +203,9 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
             ->delete('puestos/{puesto}', [PuestoController::class, 'destroy'])
             ->name('puestos.destroy');
 
+        Route::middleware(['permission:aseguradoras.create|aseguradoras.update', 'throttle:20,1'])
+            ->get('aseguradoras/consulta-ruc', [AseguradoraController::class, 'consultaRuc'])
+            ->name('aseguradoras.consulta-ruc');
         Route::middleware('permission:aseguradoras.view')
             ->get('aseguradoras', [AseguradoraController::class, 'index'])
             ->name('aseguradoras.index');

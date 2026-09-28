@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
+import { soloDecimal } from '@/lib/numeros';
 import type { Paginated } from '@/types';
 import { SiniestroRowActions } from './components/siniestro-row-actions';
 
@@ -391,7 +392,7 @@ export default function Index({ siniestros, filters, stats, aseguradoras, ordene
                             id="sin-pct"
                             inputMode="decimal"
                             value={form.data.cobertura_pct}
-                            onChange={(event) => form.setData('cobertura_pct', event.target.value)}
+                            onChange={(event) => form.setData('cobertura_pct', soloDecimal(event.target.value, 2, 3))}
                             placeholder="80"
                         />
                     </FormField>
@@ -400,7 +401,7 @@ export default function Index({ siniestros, filters, stats, aseguradoras, ordene
                             id="sin-reclamado"
                             inputMode="decimal"
                             value={form.data.monto_reclamado}
-                            onChange={(event) => form.setData('monto_reclamado', event.target.value)}
+                            onChange={(event) => form.setData('monto_reclamado', soloDecimal(event.target.value))}
                         />
                     </FormField>
                     <FormField id="sin-seguro" label="Lo que paga el seguro" error={form.errors.monto_seguro}>
@@ -409,7 +410,7 @@ export default function Index({ siniestros, filters, stats, aseguradoras, ordene
                             inputMode="decimal"
                             value={form.data.cobertura_pct !== '' ? String(split.seguro) : form.data.monto_seguro}
                             disabled={form.data.cobertura_pct !== ''}
-                            onChange={(event) => form.setData('monto_seguro', event.target.value)}
+                            onChange={(event) => form.setData('monto_seguro', soloDecimal(event.target.value))}
                         />
                     </FormField>
                     <div className="grid gap-2 sm:grid-cols-2">

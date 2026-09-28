@@ -7,13 +7,14 @@ import {
     FormField,
     FormModal,
     FormSection,
-    soloDigitosDocumento,
 } from '@/components/forms';
 import { ImageCaptureField } from '@/components/media/image-capture-field';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
+import { soloEntero } from '@/lib/numeros';
+import { formatPlaca, grupoPlaca, mensajePlaca, placaValida } from '@/lib/placa';
 import marcas from '@/routes/taller/marcas';
 import modelos from '@/routes/taller/modelos';
 import vehiculos from '@/routes/taller/vehiculos';
@@ -86,11 +87,7 @@ const buildInitialData = (vehiculo: Vehiculo | null): VehiculoFormData => ({
 });
 
 const isFormValid = (data: VehiculoFormData): boolean =>
-    data.cliente_id.trim().length > 0 && data.placa.trim().length > 0;
-
-/** Placa peruana: letras, números y guión, en mayúsculas. */
-const soloPlacaMayusculas = (value: string): string =>
-    value.replace(/[^a-zA-Z0-9-]/g, '').toUpperCase();
+    data.cliente_id.trim().length > 0 && placaValida(data.placa, grupoPlaca(data.tipo));
 
 /** VIN/chasis: solo letras y números (sin espacios ni guiones), en mayúsculas. */
 const soloVinMayusculas = (value: string): string =>
@@ -390,17 +387,18 @@ export function VehiculoFormModal({
                         label="Placa"
                         required
                         error={errors.placa}
-                        hint="Solo letras, números y guión."
+                        hint={mensajePlaca(grupoPlaca(data.tipo))}
                     >
                         <Input
                             id="vehiculo-placa"
                             value={data.placa}
                             onChange={(e) =>
-                                setData('placa', soloPlacaMayusculas(e.target.value))
+                                setData('placa', formatPlaca(e.target.value, grupoPlaca(data.tipo)))
                             }
-                            placeholder="ABC-123"
+                            placeholder={grupoPlaca(data.tipo) === 'moto' ? '34-AW12' : '123-SD4'}
                             autoComplete="off"
-                            maxLength={10}
+                            maxLength={7}
+                            className="h-9 w-full font-mono uppercase"
                         />
                     </FormField>
 
@@ -415,7 +413,11 @@ export function VehiculoFormModal({
                             id="vehiculo-tipo"
                             options={[...TIPO_OPTIONS]}
                             value={data.tipo || null}
-                            onChange={(value) => setData('tipo', value ?? 'auto')}
+                            onChange={(value) => {
+                                const tipo = value ?? 'auto';
+                                setData('tipo', tipo);
+                                setData('placa', formatPlaca(data.placa, grupoPlaca(tipo)));
+                            }}
                             placeholder="Seleccionar tipo"
                             searchPlaceholder="Buscar tipo…"
                             emptyMessage="Sin coincidencias."
@@ -437,13 +439,13 @@ export function VehiculoFormModal({
                     <FormField id="vehiculo-anio" label="Año" error={errors.anio}>
                         <Input
                             id="vehiculo-anio"
-                            value={data.anio}
-                            onChange={(e) =>
-                                setData('anio', soloDigitosDocumento(e.target.value, 4))
-                            }
-                            placeholder="2020"
+                            type="text"
                             inputMode="numeric"
+                            value={data.anio}
+                            onChange={(e) => setData('anio', soloEntero(e.target.value, 4))}
+                            placeholder="2020"
                             autoComplete="off"
+                            className="h-9 w-full"
                         />
                     </FormField>
 
@@ -454,16 +456,13 @@ export function VehiculoFormModal({
                     >
                         <Input
                             id="vehiculo-kilometraje"
-                            value={data.kilometraje}
-                            onChange={(e) =>
-                                setData(
-                                    'kilometraje',
-                                    soloDigitosDocumento(e.target.value, 7),
-                                )
-                            }
-                            placeholder="45000"
+                            type="text"
                             inputMode="numeric"
+                            value={data.kilometraje}
+                            onChange={(e) => setData('kilometraje', soloEntero(e.target.value, 7))}
+                            placeholder="45000"
                             autoComplete="off"
+                            className="h-9 w-full"
                         />
                     </FormField>
 

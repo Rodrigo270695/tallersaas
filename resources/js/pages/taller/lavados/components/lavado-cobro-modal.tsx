@@ -12,6 +12,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
+import { soloDecimal } from '@/lib/numeros';
 
 type Linea = {
     servicio_id: string;
@@ -172,7 +173,10 @@ export function LavadoCobroModal({
                             value={form.data.pagos[0].monto_recibido}
                             onChange={(event) =>
                                 form.setData('pagos', [
-                                    { ...form.data.pagos[0], monto_recibido: event.target.value },
+                                    {
+                                        ...form.data.pagos[0],
+                                        monto_recibido: soloDecimal(event.target.value),
+                                    },
                                 ])
                             }
                         />

@@ -7,6 +7,7 @@ import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useUnsavedFormGuard } from '@/hooks/use-unsaved-form-guard';
+import { formatPlaca, mensajePlaca, placaValida } from '@/lib/placa';
 
 type SedeOption = { id: string; nombre: string; codigo: string };
 type ClienteHit = { id: string; nombre: string; documento: string };
@@ -160,7 +161,7 @@ export function LavadoFormModal({
         !form.processing &&
         form.data.sede_id.trim() !== '' &&
         form.data.cliente_id.trim() !== '' &&
-        form.data.placa.trim() !== '';
+        placaValida(form.data.placa, 'cualquiera');
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -271,13 +272,21 @@ export function LavadoFormModal({
                         aria-invalid={Boolean(form.errors.vehiculo_id)}
                     />
                 </FormField>
-                <FormField id="lavado-placa" label="Placa" required error={form.errors.placa} className="min-w-0">
+                <FormField
+                    id="lavado-placa"
+                    label="Placa"
+                    required
+                    error={form.errors.placa}
+                    hint={mensajePlaca('cualquiera')}
+                    className="min-w-0"
+                >
                     <Input
                         id="lavado-placa"
-                        className={controlClass}
                         value={form.data.placa}
-                        onChange={(event) => form.setData('placa', event.target.value.toUpperCase())}
-                        placeholder="ABC-123"
+                        onChange={(event) => form.setData('placa', formatPlaca(event.target.value, 'cualquiera'))}
+                        placeholder="123-SD4"
+                        maxLength={7}
+                        className={`${controlClass} font-mono uppercase`}
                         aria-invalid={Boolean(form.errors.placa)}
                     />
                 </FormField>

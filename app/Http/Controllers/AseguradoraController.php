@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\RespondsToApiPeruConsulta;
 use App\Http\Requests\AseguradoraRequest;
 use App\Models\Aseguradora;
+use App\Services\Integrations\ApiPeruRucService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,6 +15,22 @@ use Inertia\Response;
 
 class AseguradoraController extends Controller
 {
+    use RespondsToApiPeruConsulta;
+
+    public function consultaRuc(Request $request, ApiPeruRucService $apiPeru): JsonResponse
+    {
+        $ruc = preg_replace('/\D+/', '', (string) $request->query('ruc', '')) ?? '';
+
+        $validated = validator(
+            ['ruc' => $ruc],
+            ['ruc' => ['required', 'string', 'regex:/^[0-9]{11}$/']],
+        )->validate();
+
+        return $this->consultaApiPeruResponse(
+            fn () => $apiPeru->consultar($validated['ruc']),
+        );
+    }
+
     public function index(Request $request): Response
     {
         abort_if(tenant_id() === null || tenant_id() === '', 403);
