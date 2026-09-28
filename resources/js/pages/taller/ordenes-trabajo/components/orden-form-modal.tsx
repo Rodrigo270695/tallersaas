@@ -3,6 +3,7 @@ import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef  } from 'react';
 import type {FormEvent} from 'react';
 import { FormField, FormModal, FormSection } from '@/components/forms';
+import { OrdenIaBox } from '@/components/taller-ia/orden-ia-box';
 import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
@@ -512,6 +513,37 @@ export function OrdenFormModal({
                             placeholder="Ruido en el motor, cambio de aceite…"
                         />
                     </FormField>
+
+                    <OrdenIaBox
+                        vehiculoId={data.vehiculo_id}
+                        sedeId={data.sede_id}
+                        sintoma={data.solicitud_cliente}
+                        onRecepcion={(result) => {
+                            const solicitud = result.solicitud_cliente || data.solicitud_cliente;
+                            setData({
+                                ...data,
+                                solicitud_cliente: isEdit
+                                    ? solicitud
+                                    : [solicitud, result.diagnostico].filter(Boolean).join('\n\n'),
+                                diagnostico: result.diagnostico || data.diagnostico,
+                            });
+                        }}
+                        onRepuestos={(lineas) => {
+                            setData({
+                                ...data,
+                                lineas: [
+                                    ...data.lineas,
+                                    ...lineas.map((linea) => ({
+                                        servicio_id: linea.servicio_id,
+                                        producto_id: linea.producto_id,
+                                        descripcion: linea.descripcion,
+                                        cantidad: linea.cantidad,
+                                        precio_unitario: linea.precio_unitario,
+                                    })),
+                                ],
+                            });
+                        }}
+                    />
 
                     {isEdit && (
                         <>

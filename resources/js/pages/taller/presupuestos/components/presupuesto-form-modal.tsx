@@ -3,6 +3,7 @@ import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import type {FormEvent} from 'react';
 import { FormField, FormModal, FormSection } from '@/components/forms';
+import { PresupuestoIaBox } from '@/components/taller-ia/presupuesto-ia-box';
 import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
@@ -381,6 +382,27 @@ export function PresupuestoFormModal({
                         </Select>
                     </FormField>
                 </FormSection>
+
+                <PresupuestoIaBox
+                    vehiculoId={data.vehiculo_id}
+                    sedeId={data.sede_id}
+                    onApply={(result) => {
+                        setData({
+                            ...data,
+                            diagnostico: result.diagnostico || data.diagnostico,
+                            lineas: [
+                                ...data.lineas,
+                                ...result.lineas.map((linea) => ({
+                                    servicio_id: linea.servicio_id,
+                                    producto_id: linea.producto_id,
+                                    descripcion: linea.descripcion,
+                                    cantidad: linea.cantidad,
+                                    precio_unitario: linea.precio_unitario,
+                                })),
+                            ],
+                        });
+                    }}
+                />
 
                 <FormSection index={1} title="Detalle" columns={1}>
                     <FormField id="pre-diagnostico" label="Diagnóstico / alcance" error={errors.diagnostico}>

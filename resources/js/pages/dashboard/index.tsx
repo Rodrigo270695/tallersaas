@@ -137,7 +137,7 @@ export default function DashboardIndex({
         <>
             <Head title="Dashboard" />
 
-            <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
+            <div className="flex flex-1 flex-col gap-4 p-4 sm:p-5">
                 <DashboardHero
                     greeting={greeting}
                     tallerLabel={tallerLabel}

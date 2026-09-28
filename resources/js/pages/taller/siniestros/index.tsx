@@ -12,6 +12,7 @@ import {
 } from '@/components/data-page';
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
 import { FormField, FormModal, FormSection } from '@/components/forms';
+import { SiniestroIaBox } from '@/components/taller-ia/siniestro-ia-box';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -423,6 +424,16 @@ export default function Index({ siniestros, filters, stats, aseguradoras, ordene
                             <p className="text-lg font-semibold">{money(split.cliente)}</p>
                         </div>
                     </div>
+                    <SiniestroIaBox
+                        orden={ordenes.find((item) => item.id === form.data.orden_trabajo_id)?.numero ?? ''}
+                        placa={ordenes.find((item) => item.id === form.data.orden_trabajo_id)?.placa ?? ''}
+                        aseguradora={aseguradoras.find((item) => item.id === form.data.aseguradora_id)?.nombre ?? ''}
+                        numero={form.data.numero}
+                        cobertura={form.data.cobertura_pct}
+                        monto={form.data.monto_reclamado}
+                        notas={form.data.notas}
+                        onInforme={(informe) => form.setData('notas', informe)}
+                    />
                     <FormField id="sin-notas" label="Notas" error={form.errors.notas}>
                         <Textarea
                             id="sin-notas"

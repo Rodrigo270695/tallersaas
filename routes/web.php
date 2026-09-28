@@ -35,6 +35,7 @@ use App\Http\Controllers\SiniestroController;
 use App\Http\Controllers\StockInventarioController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\SuscripcionTallerController;
+use App\Http\Controllers\TallerIaController;
 use App\Http\Controllers\TallerSettingController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\TenantImpersonationController;
@@ -288,6 +289,19 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
         Route::middleware('permission:ventas.create')
             ->post('ordenes-trabajo/{orden_trabajo}/cobrar', [OrdenTrabajoController::class, 'cobrar'])
             ->name('ordenes-trabajo.cobrar');
+
+        Route::middleware(['permission:cotizaciones.create|cotizaciones.update', 'throttle:20,1'])
+            ->post('ia/presupuesto', [TallerIaController::class, 'presupuesto'])
+            ->name('ia.presupuesto');
+        Route::middleware(['permission:ordenes-trabajo.create|ordenes-trabajo.update', 'throttle:20,1'])
+            ->post('ia/recepcion', [TallerIaController::class, 'recepcion'])
+            ->name('ia.recepcion');
+        Route::middleware(['permission:ordenes-trabajo.create|ordenes-trabajo.update', 'throttle:20,1'])
+            ->post('ia/repuestos', [TallerIaController::class, 'repuestos'])
+            ->name('ia.repuestos');
+        Route::middleware(['permission:siniestros.create|siniestros.update', 'throttle:20,1'])
+            ->post('ia/siniestro', [TallerIaController::class, 'siniestro'])
+            ->name('ia.siniestro');
 
         Route::middleware('permission:cotizaciones.view')
             ->get('presupuestos', [PresupuestoController::class, 'index'])

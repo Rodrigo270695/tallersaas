@@ -20,7 +20,7 @@ export function DashboardHero({
 
     return (
         <section
-            className="relative overflow-hidden rounded-2xl border border-brand-600/20 bg-gradient-to-br from-brand-700 via-brand-600 to-brand-800 px-6 py-7 text-white shadow-lg shadow-brand-900/15 md:px-8"
+            className="relative overflow-hidden rounded-2xl border border-brand-600/20 bg-gradient-to-br from-brand-700 via-brand-600 to-brand-800 px-5 py-3.5 text-white shadow-lg shadow-brand-900/15 md:px-6"
             aria-label="Dashboard"
         >
             <div
@@ -32,9 +32,9 @@ export function DashboardHero({
                 aria-hidden
             />
 
-            <div className="relative flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-                <div className="space-y-3">
-                    <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium ring-1 ring-white/20 backdrop-blur-sm">
+            <div className="relative flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="space-y-1.5">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-medium ring-1 ring-white/20 backdrop-blur-sm">
                         <LayoutDashboard className="size-3.5" aria-hidden />
                         Operación de hoy
                     </div>
@@ -43,11 +43,11 @@ export function DashboardHero({
                             {greeting}
                             {firstName !== '' ? `, ${firstName}` : ''}
                         </p>
-                        <h1 className="mt-1 text-xl font-semibold tracking-tight md:text-2xl">
+                        <h1 className="text-lg font-semibold tracking-tight md:text-xl">
                             {tallerLabel}
                         </h1>
                         {hoyLabel !== '' && (
-                            <p className="mt-2 text-sm capitalize text-brand-50/85">{hoyLabel}</p>
+                            <p className="text-sm capitalize text-brand-50/85">{hoyLabel}</p>
                         )}
                     </div>
                 </div>
