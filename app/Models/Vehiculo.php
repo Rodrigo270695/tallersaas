@@ -38,6 +38,9 @@ class Vehiculo extends Model
         'vin',
         'foto_path',
         'activo',
+        'aseguradora_id',
+        'numero_poliza',
+        'cobertura_pct',
     ];
 
     /**
@@ -56,7 +59,16 @@ class Vehiculo extends Model
             'activo' => 'boolean',
             'anio' => 'integer',
             'kilometraje' => 'integer',
+            'cobertura_pct' => 'decimal:2',
         ];
+    }
+
+    /**
+     * @return BelongsTo<Aseguradora, $this>
+     */
+    public function aseguradora(): BelongsTo
+    {
+        return $this->belongsTo(Aseguradora::class);
     }
 
     /**

@@ -11,7 +11,7 @@
  * Sube la versión del caché cuando cambies esta lista o la estrategia,
  * para invalidar lo que quedó guardado en los navegadores de los usuarios.
  */
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const STATIC_CACHE = `tallersaas-static-${CACHE_VERSION}`;
 const OFFLINE_CACHE = `tallersaas-offline-${CACHE_VERSION}`;
 const CURRENT_CACHES = [STATIC_CACHE, OFFLINE_CACHE];
@@ -28,7 +28,7 @@ const STATIC_ASSET_PATTERN =
 
 // Nunca se debe servir desde caché ni cachear (auth, API interna, formularios).
 const NETWORK_ONLY_PATTERN =
-    /^\/(login|logout|register|dashboard|settings|api|forgot-password|reset-password|two-factor|confirm-password|verify-email)(\/|$)/;
+    /^\/(login|logout|register|settings|api|forgot-password|reset-password|two-factor|confirm-password|verify-email)(\/|$)/;
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -73,8 +73,9 @@ self.addEventListener('fetch', (event) => {
     const isNavigation =
         request.mode === 'navigate' ||
         request.headers.get('accept')?.includes('text/html');
+    const isInertia = request.headers.get('X-Inertia') === 'true';
 
-    if (isNavigation) {
+    if (isNavigation || isInertia) {
         event.respondWith(networkFirst(request));
 
         return;

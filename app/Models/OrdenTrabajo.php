@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -84,6 +85,7 @@ class OrdenTrabajo extends Model
             }
         });
     }
+
     protected function casts(): array
     {
         return [
@@ -113,6 +115,11 @@ class OrdenTrabajo extends Model
     public function vehiculo(): BelongsTo
     {
         return $this->belongsTo(Vehiculo::class);
+    }
+
+    public function siniestro(): HasOne
+    {
+        return $this->hasOne(Siniestro::class, 'orden_trabajo_id');
     }
 
     public function sede(): BelongsTo

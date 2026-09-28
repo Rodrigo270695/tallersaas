@@ -13,6 +13,8 @@ const MODULE_LABELS: Record<string, string> = {
     'checklist-inspeccion': 'Checklist de inspección',
     puestos: 'Puestos',
     lavados: 'Car wash',
+    aseguradoras: 'Aseguradoras',
+    siniestros: 'Siniestros',
     servicios: 'Servicios',
     'categorias-servicios': 'Cat. de servicios',
     productos: 'Productos',

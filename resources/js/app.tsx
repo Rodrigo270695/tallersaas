@@ -8,6 +8,7 @@ import AuthLayout from '@/layouts/auth-layout';
 import GuestLayout from '@/layouts/guest-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { applyInitialTallerThemeFromDocument } from '@/lib/apply-initial-taller-theme';
+import { installOfflineRouter } from '@/lib/offline/mutations';
 
 const appName = import.meta.env.VITE_APP_NAME || 'TallerSaaS';
 
@@ -47,7 +48,11 @@ createInertiaApp({
 // This will set light / dark mode on load...
 initializeTheme();
 
-if ('serviceWorker' in navigator) {
+if (typeof window !== 'undefined') {
+    installOfflineRouter();
+}
+
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker
             .register('/sw.js')

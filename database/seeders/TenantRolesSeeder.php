@@ -46,6 +46,8 @@ class TenantRolesSeeder extends Seeder
                 'checklist-inspeccion.view', 'checklist-inspeccion.create', 'checklist-inspeccion.update',
                 'puestos.view', 'puestos.create', 'puestos.update', 'puestos.delete',
                 'lavados.view', 'lavados.create', 'lavados.update', 'lavados.delete',
+                'aseguradoras.view', 'aseguradoras.create', 'aseguradoras.update', 'aseguradoras.delete',
+                'siniestros.view', 'siniestros.create', 'siniestros.update', 'siniestros.delete',
                 'servicios.view', 'servicios.create', 'servicios.update', 'servicios.delete',
                 'categorias-servicios.view', 'categorias-servicios.create', 'categorias-servicios.update', 'categorias-servicios.delete',
 
@@ -94,6 +96,8 @@ class TenantRolesSeeder extends Seeder
                 'citas.view',
                 'cotizaciones.view',
                 'checklist-inspeccion.view', 'checklist-inspeccion.create', 'checklist-inspeccion.update',
+                'aseguradoras.view',
+                'siniestros.view',
                 'servicios.view',
                 'categorias-servicios.view',
 
@@ -119,6 +123,8 @@ class TenantRolesSeeder extends Seeder
                 'cotizaciones.view', 'cotizaciones.create', 'cotizaciones.aprobar',
                 'puestos.view', 'puestos.create', 'puestos.update',
                 'lavados.view', 'lavados.create', 'lavados.update',
+                'aseguradoras.view', 'aseguradoras.create', 'aseguradoras.update',
+                'siniestros.view', 'siniestros.create', 'siniestros.update',
                 'servicios.view', 'servicios.create',
                 'categorias-servicios.view',
 

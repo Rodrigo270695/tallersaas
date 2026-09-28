@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AseguradoraController;
 use App\Http\Controllers\CajaEgresoController;
 use App\Http\Controllers\CajaSesionController;
 use App\Http\Controllers\CategoriaInventarioController;
@@ -18,17 +19,19 @@ use App\Http\Controllers\MovimientoInventarioController;
 use App\Http\Controllers\NotificationQueueController;
 use App\Http\Controllers\OrdenTrabajoController;
 use App\Http\Controllers\OrdenTrabajoPublicController;
+use App\Http\Controllers\PlacaPortalController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PresupuestoController;
 use App\Http\Controllers\PresupuestoPublicController;
 use App\Http\Controllers\ProductoInventarioController;
-use App\Http\Controllers\PuestoController;
 use App\Http\Controllers\ProveedorInventarioController;
+use App\Http\Controllers\PuestoController;
 use App\Http\Controllers\ReporteFinancieroController;
 use App\Http\Controllers\ReporteOrdenesController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SedeController;
 use App\Http\Controllers\ServicioController;
+use App\Http\Controllers\SiniestroController;
 use App\Http\Controllers\StockInventarioController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TallerSettingController;
@@ -54,6 +57,11 @@ Route::middleware('tenant')
             ->name('presupuesto.public.rechazar');
         Route::get('ot/{token}', [OrdenTrabajoPublicController::class, 'show'])
             ->name('orden.public');
+        Route::get('placa', [PlacaPortalController::class, 'show'])
+            ->name('placa.public');
+        Route::get('placa/{placa}', [PlacaPortalController::class, 'show'])
+            ->where('placa', '[A-Za-z0-9\-]+')
+            ->name('placa.public.show');
     });
 
 /*
@@ -194,6 +202,32 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
         Route::middleware('permission:puestos.delete')
             ->delete('puestos/{puesto}', [PuestoController::class, 'destroy'])
             ->name('puestos.destroy');
+
+        Route::middleware('permission:aseguradoras.view')
+            ->get('aseguradoras', [AseguradoraController::class, 'index'])
+            ->name('aseguradoras.index');
+        Route::middleware('permission:aseguradoras.create')
+            ->post('aseguradoras', [AseguradoraController::class, 'store'])
+            ->name('aseguradoras.store');
+        Route::middleware('permission:aseguradoras.update')
+            ->match(['put', 'patch'], 'aseguradoras/{aseguradora}', [AseguradoraController::class, 'update'])
+            ->name('aseguradoras.update');
+        Route::middleware('permission:aseguradoras.delete')
+            ->delete('aseguradoras/{aseguradora}', [AseguradoraController::class, 'destroy'])
+            ->name('aseguradoras.destroy');
+
+        Route::middleware('permission:siniestros.view')
+            ->get('siniestros', [SiniestroController::class, 'index'])
+            ->name('siniestros.index');
+        Route::middleware('permission:siniestros.create')
+            ->post('siniestros', [SiniestroController::class, 'store'])
+            ->name('siniestros.store');
+        Route::middleware('permission:siniestros.update')
+            ->match(['put', 'patch'], 'siniestros/{siniestro}', [SiniestroController::class, 'update'])
+            ->name('siniestros.update');
+        Route::middleware('permission:siniestros.delete')
+            ->delete('siniestros/{siniestro}', [SiniestroController::class, 'destroy'])
+            ->name('siniestros.destroy');
 
         Route::middleware('permission:lavados.view')
             ->get('lavados', [LavadoController::class, 'index'])

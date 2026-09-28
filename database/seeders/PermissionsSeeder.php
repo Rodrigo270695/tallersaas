@@ -40,6 +40,8 @@ class PermissionsSeeder extends Seeder
         'checklist-inspeccion' => ['view', 'create', 'update'],
         'puestos' => ['view', 'create', 'update', 'delete'],
         'lavados' => ['view', 'create', 'update', 'delete'],
+        'aseguradoras' => ['view', 'create', 'update', 'delete'],
+        'siniestros' => ['view', 'create', 'update', 'delete'],
         'servicios' => ['view', 'create', 'update', 'delete'],
         'categorias-servicios' => ['view', 'create', 'update', 'delete'],
 

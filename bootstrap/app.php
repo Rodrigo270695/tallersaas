@@ -6,6 +6,7 @@ use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\HandleTallerBrandTheme;
 use App\Http\Middleware\MatchUserTenant;
+use App\Http\Middleware\ReplayIdempotency;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\SetPermissionsTeam;
 use App\Http\Middleware\VerifyOrvaeProvisionSignature;
@@ -87,6 +88,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(before: AuthenticatesRequests::class, prepend: EnsureNoTenant::class);
 
         $middleware->web(append: [
+            ReplayIdempotency::class,
             HandleAppearance::class,
             HandleTallerBrandTheme::class,
             HandleInertiaRequests::class,
