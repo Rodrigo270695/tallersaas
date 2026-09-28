@@ -3,6 +3,7 @@
 namespace App\Services\Tenancy;
 
 use App\Models\Plan;
+use App\Models\Sede;
 use App\Models\Subscription;
 use App\Models\SubscriptionPayment;
 use App\Models\Tenant;
@@ -58,6 +59,7 @@ class TenantProvisioner
                 'ruc' => $payload['ruc'] ?? null,
                 'email_admin' => $payload['admin_email'],
                 'telefono' => $payload['telefono'] ?? null,
+                'direccion' => $payload['direccion'] ?? null,
                 'estado' => $isFreePlan ? 'active' : 'trial',
                 'trial_ends_at' => $isFreePlan
                     ? null
@@ -91,6 +93,7 @@ class TenantProvisioner
         }
 
         $this->seedTenantSchema($schemaName, $tenant, $payload);
+        $this->createPrincipalSede($tenant, $payload);
 
         return $tenant->refresh();
     }
@@ -227,6 +230,31 @@ class TenantProvisioner
     /**
      * @param  array<string, mixed>  $payload
      */
+    private function createPrincipalSede(Tenant $tenant, array $payload): void
+    {
+        $distritoId = isset($payload['distrito_id']) ? (int) $payload['distrito_id'] : null;
+        $location = Sede::locationNames($distritoId ?: null);
+
+        Sede::query()->create([
+            'tenant_id' => $tenant->id,
+            'nombre' => filled($payload['nombre_comercial'] ?? null)
+                ? (string) $payload['nombre_comercial']
+                : 'Sede principal',
+            'codigo' => Sede::generateNextCode((string) $tenant->id),
+            'direccion' => $payload['direccion'] ?? null,
+            'telefono' => $payload['telefono'] ?? null,
+            'email' => $payload['admin_email'] ?? null,
+            'distrito_id' => $distritoId ?: null,
+            'distrito' => $location['distrito'],
+            'provincia' => $location['provincia'],
+            'departamento' => $location['departamento'],
+            'activa' => true,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
     private function seedTenantSchema(string $schema, Tenant $tenant, array $payload): void
     {
         DB::statement('SET search_path TO "'.$schema.'", public');
@@ -239,6 +267,8 @@ class TenantProvisioner
                 'ruc' => $tenant->ruc,
                 'email_institucional' => $tenant->email_admin,
                 'telefono_principal' => $tenant->telefono,
+                'direccion_fiscal' => $payload['direccion'] ?? null,
+                'distrito_id' => $payload['distrito_id'] ?? null,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

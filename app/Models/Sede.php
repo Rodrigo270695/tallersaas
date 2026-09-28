@@ -65,4 +65,22 @@ class Sede extends Model
 
         return 'SEDE-'.str_pad((string) ($maxNumber + 1), 3, '0', STR_PAD_LEFT);
     }
+
+    /**
+     * @return array{distrito: ?string, provincia: ?string, departamento: ?string}
+     */
+    public static function locationNames(?int $distritoId): array
+    {
+        if ($distritoId === null) {
+            return ['distrito' => null, 'provincia' => null, 'departamento' => null];
+        }
+
+        $distrito = Distrito::query()->with('provincia.departamento')->find($distritoId);
+
+        return [
+            'distrito' => $distrito?->name,
+            'provincia' => $distrito?->provincia?->name,
+            'departamento' => $distrito?->provincia?->departamento?->name,
+        ];
+    }
 }

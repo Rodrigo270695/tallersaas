@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\TenantStoreRequest;
 use App\Http\Requests\TenantUpdateRequest;
+use App\Models\Departamento;
 use App\Models\Plan;
+use App\Models\Sede;
 use App\Models\Tenant;
 use App\Services\Tenancy\TenantProvisioner;
 use App\Tenancy\TenantManager;
@@ -65,6 +67,9 @@ class TenantController extends Controller
                     ->latest()
                     ->limit(1),
                 'subscriptions.plan:id,codigo,nombre,badge,color_hex',
+                'sedes' => fn ($q) => $q
+                    ->orderBy('created_at')
+                    ->with('distritoModel.provincia.departamento'),
             ])
             ->paginate($perPage)
             ->withQueryString();
@@ -98,6 +103,10 @@ class TenantController extends Controller
                 'coincidencias' => $tenants->total(),
             ],
             'plans_catalog' => $plansCatalog,
+            'departamentos' => Departamento::query()
+                ->where('status', true)
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ]);
     }
 
@@ -117,6 +126,10 @@ class TenantController extends Controller
                 'admin_nombres' => $data['admin_nombres'] ?? 'Administrador',
                 'admin_apellidos' => $data['admin_apellidos'] ?? 'Taller',
                 'telefono' => $data['telefono'] ?? null,
+                'direccion' => $data['direccion'] ?? null,
+                'distrito_id' => $data['distrito_id'] ?? null,
+                'timezone' => $data['timezone'] ?? 'America/Lima',
+                'locale' => $data['locale'] ?? 'es_PE',
                 'ciclo' => $data['ciclo'] ?? 'mensual',
                 'canal_adquisicion' => 'plataforma',
             ]);
@@ -133,7 +146,12 @@ class TenantController extends Controller
 
     public function update(TenantUpdateRequest $request, Tenant $tenant, TenantManager $manager): RedirectResponse
     {
-        $tenant->update($request->validated());
+        $data = $request->validated();
+        $distritoId = array_key_exists('distrito_id', $data) ? $data['distrito_id'] : null;
+        unset($data['distrito_id']);
+
+        $tenant->update($data);
+        $this->syncPrincipalSede($tenant, $distritoId, $data['direccion'] ?? null, $data['telefono'] ?? null);
         $manager->flushCacheFor($tenant->fresh() ?? $tenant);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Taller actualizado correctamente.']);
@@ -215,6 +233,37 @@ class TenantController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Taller reanudado correctamente.']);
 
         return back();
+    }
+
+    private function syncPrincipalSede(Tenant $tenant, mixed $distritoId, ?string $direccion, ?string $telefono): void
+    {
+        $id = is_numeric($distritoId) ? (int) $distritoId : null;
+        $location = Sede::locationNames($id);
+        $sede = $tenant->sedes()->orderBy('created_at')->first();
+
+        $payload = [
+            'direccion' => $direccion,
+            'telefono' => $telefono,
+            'distrito_id' => $id,
+            'distrito' => $location['distrito'],
+            'provincia' => $location['provincia'],
+            'departamento' => $location['departamento'],
+        ];
+
+        if ($sede === null) {
+            Sede::query()->create([
+                ...$payload,
+                'tenant_id' => $tenant->id,
+                'nombre' => $tenant->nombre_comercial ?: 'Sede principal',
+                'codigo' => Sede::generateNextCode((string) $tenant->id),
+                'email' => $tenant->email_admin,
+                'activa' => true,
+            ]);
+
+            return;
+        }
+
+        $sede->update($payload);
     }
 
     /**

@@ -76,6 +76,11 @@ class HandleInertiaRequests extends Middleware
             'tenant_plan' => $this->resolveTenantPlan($tenant),
             'tenant_impersonation' => $this->resolveImpersonation($request),
             'is_demo' => is_public_demo_tenant(),
+            'tenancy' => [
+                'root_domain' => (string) config('tenant.root_domain', 'tallersaas.orvae.pe'),
+                'scheme' => (string) config('orvae.tenant.scheme', 'https'),
+                'login_path' => (string) config('orvae.tenant.login_path', '/login'),
+            ],
         ];
     }
 

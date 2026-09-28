@@ -16,7 +16,9 @@ import {
     PageHeader,
 } from '@/components/data-page';
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
+import type { GeoOption } from '@/components/geo/geo-cascade-fields';
 import { planColor } from '@/components/tenant-plan-badge';
+import { tenantHost, useTenancy } from '@/lib/tenancy-url';
 import { Button } from '@/components/ui/button';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
@@ -38,6 +40,7 @@ type IndexProps = {
     filters: TenantFilters;
     stats: TenantStats;
     plans_catalog: readonly PlanCatalogItem[];
+    departamentos: readonly GeoOption[];
 };
 
 type ModalState =
@@ -69,7 +72,9 @@ export default function Index({
     filters,
     stats,
     plans_catalog: plans,
+    departamentos = [],
 }: IndexProps) {
+    const tenancy = useTenancy();
     const { can } = usePermission();
     const canCreate = can('plataforma-tenants.create');
     const canUpdate = can('plataforma-tenants.update');
@@ -100,16 +105,21 @@ export default function Index({
                     <div className="flex flex-col">
                         <span className="font-medium">{tenant.razon_social}</span>
                         <span className="font-mono text-xs text-muted-foreground">
-                            {tenant.slug}
+                            {tenantHost(tenant.slug, tenancy)}
                         </span>
                     </div>
                 ),
             },
             {
                 key: 'email_admin',
-                header: 'Admin',
+                header: 'Contacto',
                 cell: (tenant) => (
-                    <span className="text-sm">{tenant.email_admin}</span>
+                    <div className="flex flex-col text-xs leading-tight">
+                        <span className="truncate">{tenant.email_admin}</span>
+                        <span className="truncate font-mono text-muted-foreground">
+                            {tenant.telefono || 'Sin teléfono'}
+                        </span>
+                    </div>
                 ),
             },
             {
@@ -152,6 +162,39 @@ export default function Index({
                     </span>
                 ),
             },
+            {
+                key: 'ubicacion',
+                header: 'Ubicación',
+                cell: (tenant) => {
+                    const sede = tenant.sedes?.[0];
+                    const place = [sede?.distrito, sede?.provincia, sede?.departamento].filter(Boolean).join(', ');
+
+                    return place ? (
+                        <span className="text-xs">{place}</span>
+                    ) : (
+                        <span className="text-xs text-muted-foreground">Sin sede</span>
+                    );
+                },
+            },
+            {
+                key: 'vencimiento',
+                header: 'Vencimiento',
+                cell: (tenant) => <ExpiryBadge tenant={tenant} />,
+            },
+            {
+                key: 'created_at',
+                header: 'Creado',
+                sortable: true,
+                cell: (tenant) => (
+                    <span className="text-xs text-muted-foreground">
+                        {new Date(tenant.created_at).toLocaleDateString('es-PE', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                        })}
+                    </span>
+                ),
+            },
         ];
 
         base.push({
@@ -175,7 +218,7 @@ export default function Index({
         });
 
         return base;
-    }, [canUpdate, canSuspend, canResume, canImpersonate]);
+    }, [canUpdate, canSuspend, canResume, canImpersonate, tenancy]);
 
     const estadoOptions: FilterChip[] = [
         { value: 'todos', label: 'Todos' },
@@ -263,7 +306,7 @@ export default function Index({
                         <EmptyState
                             icon={Building2}
                             title="Aún no hay talleres"
-                            description="Crea el primer tenant para provisionar un schema."
+                            description="Crea el primer taller para provisionar su subdominio."
                             action={
                                 canCreate ? (
                                     <Button
@@ -290,6 +333,7 @@ export default function Index({
                 }}
                 tenant={modal.type === 'edit' ? modal.tenant : null}
                 plans={plans}
+                departamentos={departamentos}
             />
 
             <TenantSuspendDialog
@@ -303,6 +347,27 @@ export default function Index({
             />
         </>
     );
+}
+
+function ExpiryBadge({ tenant }: { tenant: PlataformaTenant }) {
+    const sub = tenant.subscriptions?.[0];
+    const iso = sub?.proximo_cobro_at ?? sub?.current_period_end ?? tenant.trial_ends_at;
+
+    if (!iso) {
+        return <span className="text-xs text-muted-foreground">Sin fecha</span>;
+    }
+
+    const target = new Date(iso);
+    const days = Math.round((target.setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86_400_000);
+    const tone =
+        days < 0
+            ? 'bg-rose-100 text-rose-800'
+            : days <= 7
+              ? 'bg-amber-100 text-amber-900'
+              : 'bg-emerald-100 text-emerald-800';
+    const label = days < 0 ? `Vencido (${Math.abs(days)} días)` : days === 0 ? 'Vence hoy' : `Al día (${days} días)`;
+
+    return <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${tone}`}>{label}</span>;
 }
 
 Index.layout = {

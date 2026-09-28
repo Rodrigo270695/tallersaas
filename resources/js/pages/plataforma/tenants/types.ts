@@ -25,7 +25,28 @@ export type TenantPlanRef = {
 export type TenantSubscriptionRef = {
     id: string;
     estado: string;
+    ciclo?: string | null;
+    trial_ends_at?: string | null;
+    current_period_end?: string | null;
+    proximo_cobro_at?: string | null;
     plan?: TenantPlanRef | null;
+};
+
+export type TenantSedeRef = {
+    id: string;
+    direccion: string | null;
+    distrito: string | null;
+    provincia: string | null;
+    departamento: string | null;
+    distrito_id: number | null;
+    distrito_model?: {
+        id: number;
+        provincia_id: number;
+        provincia?: {
+            id: number;
+            departamento_id: number;
+        } | null;
+    } | null;
 };
 
 export type PlataformaTenant = {
@@ -37,10 +58,13 @@ export type PlataformaTenant = {
     email_admin: string;
     telefono: string | null;
     direccion: string | null;
+    timezone: string | null;
+    locale: string | null;
     estado: TenantEstado;
     trial_ends_at: string | null;
     created_at: string;
     subscriptions?: TenantSubscriptionRef[];
+    sedes?: TenantSedeRef[];
 };
 
 export type TenantFilters = {

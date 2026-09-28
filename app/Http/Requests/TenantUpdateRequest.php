@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\ExistsDistritoId;
 use Illuminate\Foundation\Http\FormRequest;
 
 class TenantUpdateRequest extends FormRequest
@@ -20,6 +21,9 @@ class TenantUpdateRequest extends FormRequest
             'email_admin' => ['required', 'email', 'max:150'],
             'telefono' => ['nullable', 'string', 'max:20'],
             'direccion' => ['nullable', 'string', 'max:255'],
+            'distrito_id' => ['nullable', 'integer', new ExistsDistritoId],
+            'timezone' => ['nullable', 'string', 'max:64'],
+            'locale' => ['nullable', 'string', 'max:10'],
         ];
     }
 
@@ -32,6 +36,9 @@ class TenantUpdateRequest extends FormRequest
             'email_admin' => 'correo del administrador',
             'telefono' => 'teléfono',
             'direccion' => 'dirección',
+            'distrito_id' => 'distrito',
+            'timezone' => 'zona horaria',
+            'locale' => 'idioma',
         ];
     }
 }
