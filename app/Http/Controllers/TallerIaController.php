@@ -71,6 +71,47 @@ class TallerIaController extends Controller
         ));
     }
 
+    public function odometro(Request $request, TallerIaService $ia): JsonResponse
+    {
+        abort_if(tenant_id() === null || tenant_id() === '', 403);
+
+        $request->validate([
+            'foto' => ['required', 'image', 'mimes:jpeg,jpg,png,webp', 'max:4096'],
+        ]);
+
+        $foto = $request->file('foto');
+        $bytes = $foto !== null ? file_get_contents($foto->getRealPath()) : false;
+        if ($bytes === false || $foto === null) {
+            return response()->json(['message' => 'No se pudo leer la foto.'], 422);
+        }
+
+        $url = 'data:'.($foto->getMimeType() ?: 'image/jpeg').';base64,'.base64_encode($bytes);
+
+        return $this->responder(fn (): array => $ia->odometro([$url]));
+    }
+
+    public function notaMecanico(Request $request, TallerIaService $ia): JsonResponse
+    {
+        abort_if(tenant_id() === null || tenant_id() === '', 403);
+
+        $data = $request->validate([
+            'texto' => ['nullable', 'string', 'max:4000'],
+            'audio' => ['nullable', 'file', 'max:10240'],
+            'auto' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $audio = $request->file('audio');
+        if ($audio !== null && ! $this->audioPermitido($audio->getMimeType())) {
+            return response()->json(['message' => 'El audio tiene que ser una grabación de voz.'], 422);
+        }
+
+        return $this->responder(fn (): array => $ia->notaMecanico(
+            (string) ($data['texto'] ?? ''),
+            $audio,
+            (string) ($data['auto'] ?? 'el auto'),
+        ));
+    }
+
     public function siniestro(Request $request, TallerIaService $ia): JsonResponse
     {
         abort_if(tenant_id() === null || tenant_id() === '', 403);

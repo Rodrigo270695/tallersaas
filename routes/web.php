@@ -35,6 +35,7 @@ use App\Http\Controllers\SiniestroController;
 use App\Http\Controllers\StockInventarioController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\SuscripcionTallerController;
+use App\Http\Controllers\TallerIaCentroController;
 use App\Http\Controllers\TallerIaController;
 use App\Http\Controllers\TallerSettingController;
 use App\Http\Controllers\TenantController;
@@ -289,6 +290,34 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
         Route::middleware('permission:ventas.create')
             ->post('ordenes-trabajo/{orden_trabajo}/cobrar', [OrdenTrabajoController::class, 'cobrar'])
             ->name('ordenes-trabajo.cobrar');
+
+        Route::middleware('permission:ordenes-trabajo.view')
+            ->get('ia', [TallerIaCentroController::class, 'index'])
+            ->name('ia.index');
+        Route::middleware(['permission:ordenes-trabajo.update', 'throttle:20,1'])
+            ->post('ia/mantenimiento', [TallerIaCentroController::class, 'avisar'])
+            ->name('ia.mantenimiento');
+        Route::middleware(['permission:cotizaciones.update', 'throttle:20,1'])
+            ->post('ia/seguimiento', [TallerIaCentroController::class, 'seguimiento'])
+            ->name('ia.seguimiento');
+        Route::middleware(['permission:ordenes-trabajo.view', 'throttle:20,1'])
+            ->post('ia/compras-resumen', [TallerIaCentroController::class, 'comprasResumen'])
+            ->name('ia.compras-resumen');
+        Route::middleware(['permission:ordenes-trabajo.view', 'throttle:20,1'])
+            ->post('ia/campana', [TallerIaCentroController::class, 'campana'])
+            ->name('ia.campana');
+        Route::middleware(['permission:ordenes-trabajo.update', 'throttle:10,1'])
+            ->post('ia/campana-enviar', [TallerIaCentroController::class, 'campanaEnviar'])
+            ->name('ia.campana-enviar');
+        Route::middleware(['permission:ordenes-trabajo.update|cotizaciones.update', 'throttle:30,1'])
+            ->post('ia/enviar', [TallerIaCentroController::class, 'enviar'])
+            ->name('ia.enviar');
+        Route::middleware(['permission:ordenes-trabajo.create|ordenes-trabajo.update', 'throttle:20,1'])
+            ->post('ia/odometro', [TallerIaController::class, 'odometro'])
+            ->name('ia.odometro');
+        Route::middleware(['permission:ordenes-trabajo.create|ordenes-trabajo.update', 'throttle:20,1'])
+            ->post('ia/nota-mecanico', [TallerIaController::class, 'notaMecanico'])
+            ->name('ia.nota-mecanico');
 
         Route::middleware(['permission:cotizaciones.create|cotizaciones.update', 'throttle:20,1'])
             ->post('ia/presupuesto', [TallerIaController::class, 'presupuesto'])

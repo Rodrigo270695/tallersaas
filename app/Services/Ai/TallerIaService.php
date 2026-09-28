@@ -169,6 +169,155 @@ class TallerIaService
     }
 
     /**
+     * @param  list<string>  $imagenes
+     * @return array{km: int}
+     */
+    public function odometro(array $imagenes): array
+    {
+        if ($imagenes === []) {
+            throw new OpenAiException('Sube una foto del tablero.', 422);
+        }
+
+        $decoded = $this->client->json(
+            'Lees el kilometraje del tablero de un auto en una foto. Devuelve solo el número entero de kilómetros que se ve. Si no se lee, km = -1.',
+            $this->conImagenes('Foto del tablero. Extrae el odómetro en kilómetros.', $imagenes),
+            [
+                'type' => 'object',
+                'additionalProperties' => false,
+                'properties' => [
+                    'km' => ['type' => 'integer'],
+                ],
+                'required' => ['km'],
+            ],
+            'odometro_taller',
+        );
+
+        $km = (int) ($decoded['km'] ?? -1);
+        if ($km < 0 || $km > 9999999) {
+            throw new OpenAiException('No se pudo leer el kilometraje. Prueba con otra foto, más de cerca.', 422);
+        }
+
+        return ['km' => $km];
+    }
+
+    /**
+     * @return array{nota_interna: string, mensaje_cliente: string}
+     */
+    public function notaMecanico(string $texto, ?UploadedFile $audio, string $auto): array
+    {
+        $transcripcion = $audio !== null ? $this->client->transcribe($audio) : '';
+        $pedido = trim($texto."\n".$transcripcion);
+        if ($pedido === '') {
+            throw new OpenAiException('Graba o escribe lo que dijo el mecánico.', 422);
+        }
+
+        $decoded = $this->client->json(
+            'Eres el taller. El mecánico dictó el avance. Devuelve una nota interna breve para la orden y un mensaje de WhatsApp que el cliente entienda, sin jerga. No inventes repuestos ni precios.',
+            "Auto: {$auto}\nDictado: {$pedido}",
+            [
+                'type' => 'object',
+                'additionalProperties' => false,
+                'properties' => [
+                    'nota_interna' => ['type' => 'string'],
+                    'mensaje_cliente' => ['type' => 'string'],
+                ],
+                'required' => ['nota_interna', 'mensaje_cliente'],
+            ],
+            'nota_mecanico',
+        );
+
+        return [
+            'nota_interna' => mb_substr(trim((string) ($decoded['nota_interna'] ?? '')), 0, 2000),
+            'mensaje_cliente' => mb_substr(trim((string) ($decoded['mensaje_cliente'] ?? '')), 0, 800),
+        ];
+    }
+
+    public function seguimientoPresupuesto(string $cliente, string $auto, array $items): string
+    {
+        if ($items === []) {
+            throw new OpenAiException('El presupuesto no tiene líneas.', 422);
+        }
+
+        $decoded = $this->client->json(
+            'Escribes un WhatsApp corto de un taller en Perú. El cliente no respondió el presupuesto. Separas en una frase lo urgente y lo que puede esperar. Sin precios inventados. Máximo 500 caracteres. Tutea.',
+            "Cliente: {$cliente}\nAuto: {$auto}\nLíneas:\n- ".implode("\n- ", $items),
+            $this->schemaMensaje(),
+            'seguimiento_presupuesto',
+        );
+
+        return $this->mensaje($decoded);
+    }
+
+    /**
+     * @param  list<array{nombre: string, demanda: string, stock: string, falta: string}>  $filas
+     */
+    public function resumenCompras(array $filas): string
+    {
+        if ($filas === []) {
+            return 'Esta semana no falta stock para lo que suelen pedir los autos con cita.';
+        }
+
+        $lineas = array_map(
+            fn (array $fila): string => "{$fila['nombre']}: piden {$fila['demanda']}, hay {$fila['stock']}, faltan {$fila['falta']}",
+            $filas,
+        );
+
+        $decoded = $this->client->json(
+            'Resumes en un párrafo, para el dueño del taller, qué repuestos comprar antes de las citas de la semana. Solo usa los números que te pasan.',
+            implode("\n", $lineas),
+            $this->schemaMensaje(),
+            'compras_semana',
+        );
+
+        return $this->mensaje($decoded);
+    }
+
+    public function campanaPlumillas(string $taller, int $total): string
+    {
+        $decoded = $this->client->json(
+            'Escribes un solo WhatsApp de un taller en Perú para avisar que toca revisar plumillas antes de la lluvia. Incluye el placeholder {nombre}. Tutea. Máximo 400 caracteres. No inventes descuentos.',
+            "Taller: {$taller}. Autos a avisar: {$total}.",
+            $this->schemaMensaje(),
+            'campana_plumillas',
+        );
+
+        $mensaje = $this->mensaje($decoded);
+        if (! str_contains($mensaje, '{nombre}')) {
+            $mensaje = 'Hola {nombre}. '.$mensaje;
+        }
+
+        return $mensaje;
+    }
+
+    /**
+     * @param  array<string, mixed>  $decoded
+     */
+    private function mensaje(array $decoded): string
+    {
+        $mensaje = trim((string) ($decoded['mensaje'] ?? ''));
+        if ($mensaje === '') {
+            throw new OpenAiException('La IA no redactó el mensaje.');
+        }
+
+        return mb_substr($mensaje, 0, 800);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function schemaMensaje(): array
+    {
+        return [
+            'type' => 'object',
+            'additionalProperties' => false,
+            'properties' => [
+                'mensaje' => ['type' => 'string'],
+            ],
+            'required' => ['mensaje'],
+        ];
+    }
+
+    /**
      * @return array<string, array{nombre: string, precio: string}>
      */
     private function servicios(string $texto): array

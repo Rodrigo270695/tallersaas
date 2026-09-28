@@ -3,6 +3,7 @@ import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef  } from 'react';
 import type {FormEvent} from 'react';
 import { FormField, FormModal, FormSection } from '@/components/forms';
+import { OdometroButton } from '@/components/taller-ia/odometro-button';
 import { OrdenIaBox } from '@/components/taller-ia/orden-ia-box';
 import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
@@ -479,6 +480,7 @@ export function OrdenFormModal({
                             value={data.km_ingreso}
                             onChange={(e) => setData('km_ingreso', e.target.value)}
                         />
+                        <OdometroButton onKm={(km) => setData('km_ingreso', String(km))} />
                     </FormField>
 
                     {isEdit && (
@@ -518,6 +520,8 @@ export function OrdenFormModal({
                         vehiculoId={data.vehiculo_id}
                         sedeId={data.sede_id}
                         sintoma={data.solicitud_cliente}
+                        clienteId={data.cliente_id}
+                        auto={vehiculos.find((item) => item.id === data.vehiculo_id)?.label ?? 'el auto'}
                         onRecepcion={(result) => {
                             const solicitud = result.solicitud_cliente || data.solicitud_cliente;
                             setData({
@@ -526,6 +530,12 @@ export function OrdenFormModal({
                                     ? solicitud
                                     : [solicitud, result.diagnostico].filter(Boolean).join('\n\n'),
                                 diagnostico: result.diagnostico || data.diagnostico,
+                            });
+                        }}
+                        onNota={(nota) => {
+                            setData({
+                                ...data,
+                                notas_internas: nota,
                             });
                         }}
                         onRepuestos={(lineas) => {

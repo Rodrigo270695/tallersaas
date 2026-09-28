@@ -26,6 +26,7 @@ import {
     ShieldAlert,
     ShieldCheck,
     ShoppingCart,
+    Sparkles,
     Tags,
     Truck,
     UserCog,
@@ -141,6 +142,12 @@ function useNavConfig(): { singles: NavItem[]; groups: NavGroup[] } {
                             href: presupuestos.index(),
                             icon: FileText,
                             permission: 'cotizaciones.view',
+                        },
+                        {
+                            title: 'Asistente',
+                            href: '/taller/ia',
+                            icon: Sparkles,
+                            permission: 'ordenes-trabajo.view',
                         },
                         {
                             title: 'Car wash',
