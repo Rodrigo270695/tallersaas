@@ -9,6 +9,7 @@ use App\Models\Plan;
 use App\Models\Sede;
 use App\Models\Tenant;
 use App\Services\Tenancy\TenantProvisioner;
+use App\Support\Tenancy\TenantSubdomainUrl;
 use App\Tenancy\TenantManager;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -157,6 +158,13 @@ class TenantController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Taller actualizado correctamente.']);
 
         return back();
+    }
+
+    public function open(Request $request, Tenant $tenant): \Symfony\Component\HttpFoundation\Response
+    {
+        $request->session()->forget('tenant_impersonation');
+
+        return Inertia::location(TenantSubdomainUrl::login($tenant));
     }
 
     public function suspend(Request $request, Tenant $tenant, TenantManager $manager): RedirectResponse

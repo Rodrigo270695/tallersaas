@@ -40,6 +40,12 @@ class MatchUserTenant
                 && (string) $imp['tenant_id'] === (string) $hostTenantId) {
                 return $next($request);
             }
+
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login');
         }
 
         if ($hostTenantId === $userTenantId) {

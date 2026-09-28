@@ -26,6 +26,3 @@ export function tenantHost(slug: string, tenancy: TenancyShared): string {
     return `${slug}.${tenancy.root_domain}`;
 }
 
-export function tenantWorkshopUrl(slug: string, tenancy: TenancyShared): string {
-    return `${tenancy.scheme}://${tenantHost(slug, tenancy)}/`;
-}

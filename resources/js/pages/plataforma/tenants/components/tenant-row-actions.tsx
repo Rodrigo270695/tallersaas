@@ -9,7 +9,6 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toastManager } from '@/lib/toast';
-import { tenantWorkshopUrl, useTenancy } from '@/lib/tenancy-url';
 import tenants from '@/routes/plataforma/tenants';
 import type { PlataformaTenant } from '../types';
 
@@ -30,7 +29,6 @@ export function TenantRowActions({
     canResume: boolean;
     canImpersonate: boolean;
 }) {
-    const tenancy = useTenancy();
     const canEnter =
         canImpersonate && tenant.estado !== 'cancelled' && tenant.estado !== 'suspended';
     const canStop = canSuspend && tenant.estado !== 'suspended' && tenant.estado !== 'cancelled';
@@ -66,7 +64,7 @@ export function TenantRowActions({
                 <DropdownMenuItem
                     className="cursor-pointer gap-2"
                     onSelect={() => {
-                        window.location.assign(tenantWorkshopUrl(tenant.slug, tenancy));
+                        window.location.assign(`/plataforma/tenants/${tenant.id}/abrir`);
                     }}
                 >
                     <ExternalLink className="size-4" strokeWidth={2.25} />
