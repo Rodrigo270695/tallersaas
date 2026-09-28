@@ -84,7 +84,10 @@ class UnidadMedidaController extends Controller
 
     public function store(UnidadMedidaRequest $request): RedirectResponse
     {
-        UnidadMedida::create($request->validated());
+        $data = $request->validated();
+        $data['orden'] = ((int) UnidadMedida::query()->max('orden')) + 10;
+
+        UnidadMedida::create($data);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Unidad creada correctamente.']);
 
@@ -94,6 +97,7 @@ class UnidadMedidaController extends Controller
     public function update(UnidadMedidaRequest $request, UnidadMedida $unidadMedida): RedirectResponse
     {
         $data = $request->validated();
+        unset($data['orden']);
 
         if ($unidadMedida->codigo !== $data['codigo']) {
             throw ValidationException::withMessages([

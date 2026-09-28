@@ -179,7 +179,7 @@ export default function Index({
             <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
                 <PageHeader
                     title="Planes"
-                    description="Catálogo comercial y límites que se asignan a cada taller."
+                    description="Catálogo comercial y features que incluye cada plan."
                     stats={[
                         { label: 'Total', value: stats.total, variant: 'info', icon: Layers },
                         { label: 'Activos', value: stats.activos, variant: 'primary', icon: Layers },

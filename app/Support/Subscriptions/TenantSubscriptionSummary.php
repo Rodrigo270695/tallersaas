@@ -209,7 +209,7 @@ final class TenantSubscriptionSummary
             ->count();
 
         return [
-            'enabled' => $limit > 0,
+            'enabled' => $limit !== 0,
             'used' => $used,
             'limit' => $limit,
             'period_label' => $start->locale('es')->isoFormat('D MMM YYYY').' – '.$end->locale('es')->isoFormat('D MMM YYYY'),

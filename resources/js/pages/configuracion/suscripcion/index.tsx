@@ -152,7 +152,11 @@ function InfoRow({ label, value, valueClassName }: { label: string; value: strin
 }
 
 function semaphore(used: number, limit: number): 'ok' | 'warning' | 'over' {
-    if (limit <= 0) {
+    if (limit < 0) {
+        return 'ok';
+    }
+
+    if (limit === 0) {
         return used > 0 ? 'over' : 'ok';
     }
 
@@ -342,7 +346,9 @@ export default function Index({ subscription }: { subscription: Subscription | n
                                 </span>
                             </div>
                             <p className="text-sm">
-                                Has emitido {subscription.comprobantes.used} de {subscription.comprobantes.limit} comprobantes
+                                {subscription.comprobantes.limit < 0
+                                    ? `Has emitido ${subscription.comprobantes.used} comprobantes · Ilimitado`
+                                    : `Has emitido ${subscription.comprobantes.used} de ${subscription.comprobantes.limit} comprobantes`}
                             </p>
                             <p className="mt-1 text-xs text-muted-foreground">{subscription.comprobantes.period_label}</p>
                             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
@@ -352,7 +358,16 @@ export default function Index({ subscription }: { subscription: Subscription | n
                                         SEMAPHORE[semaphore(subscription.comprobantes.used, subscription.comprobantes.limit)].bar,
                                     )}
                                     style={{
-                                        width: `${Math.min(100, (subscription.comprobantes.used / Math.max(subscription.comprobantes.limit, 1)) * 100)}%`,
+                                        width: `${
+                                            subscription.comprobantes.limit < 0
+                                                ? 8
+                                                : Math.min(
+                                                      100,
+                                                      (subscription.comprobantes.used /
+                                                          Math.max(subscription.comprobantes.limit, 1)) *
+                                                          100,
+                                                  )
+                                        }%`,
                                     }}
                                 />
                             </div>
@@ -362,12 +377,13 @@ export default function Index({ subscription }: { subscription: Subscription | n
 
                 <section>
                     <h2 className="text-sm font-semibold">Uso de tu plan</h2>
-                    <p className="mt-0.5 text-xs text-muted-foreground">Consumo actual frente a los límites del plan.</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Consumo actual frente a los features del plan.</p>
                     <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                         {(subscription?.usage ?? []).map((item) => {
                             const level = semaphore(item.used, item.limit);
                             const tone = SEMAPHORE[level];
                             const Icon = ICONS[item.key] ?? Package;
+                            const unlimited = item.limit < 0;
                             const ratio = item.limit > 0 ? Math.min(100, Math.round((item.used / item.limit) * 100)) : 0;
 
                             return (
@@ -382,13 +398,13 @@ export default function Index({ subscription }: { subscription: Subscription | n
                                         </span>
                                     </div>
                                     <p className="mt-3 text-sm tabular-nums">
-                                        {item.used} de {item.limit}
+                                        {unlimited ? `${item.used} · Ilimitado` : `${item.used} de ${item.limit}`}
                                     </p>
                                     <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
                                         <div className={cn('h-full', tone.bar)} style={{ width: `${ratio}%` }} />
                                     </div>
                                     <p className="mt-1 text-xs text-muted-foreground">
-                                        {ratio}% · Quedan {Math.max(item.limit - item.used, 0)}
+                                        {unlimited ? 'Sin tope' : `${ratio}% · Quedan ${Math.max(item.limit - item.used, 0)}`}
                                     </p>
                                 </article>
                             );

@@ -20,7 +20,6 @@ type FormData = {
     precio_mensual: string;
     precio_anual: string;
     trial_days: string;
-    orden: string;
     es_publico: boolean;
     activo: boolean;
 };
@@ -34,7 +33,6 @@ const emptyForm: FormData = {
     precio_mensual: '0.00',
     precio_anual: '',
     trial_days: '14',
-    orden: '0',
     es_publico: true,
     activo: true,
 };
@@ -55,7 +53,6 @@ function initialData(plan: Plan | null): FormData {
         precio_mensual: String(plan.precio_mensual),
         precio_anual: plan.precio_anual ? String(plan.precio_anual) : '',
         trial_days: String(plan.trial_days),
-        orden: String(plan.orden),
         es_publico: plan.es_publico,
         activo: plan.activo,
     };
@@ -289,15 +286,6 @@ export function PlanFormModal({
                                 max="365"
                                 value={data.trial_days}
                                 onChange={(e) => setData('trial_days', e.target.value)}
-                            />
-                        </FormField>
-                        <FormField id="p-orden" label="Orden" required hint="Menor número aparece primero." error={errors.orden}>
-                            <Input
-                                id="p-orden"
-                                type="number"
-                                min="0"
-                                value={data.orden}
-                                onChange={(e) => setData('orden', e.target.value)}
                             />
                         </FormField>
                     </div>

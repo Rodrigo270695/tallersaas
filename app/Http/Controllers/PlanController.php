@@ -91,7 +91,10 @@ class PlanController extends Controller
 
     public function store(PlanRequest $request): RedirectResponse
     {
-        Plan::create($request->validated());
+        $data = $request->validated();
+        $data['orden'] = ((int) Plan::query()->max('orden')) + 1;
+
+        Plan::create($data);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Plan creado correctamente.']);
 
@@ -101,6 +104,7 @@ class PlanController extends Controller
     public function update(PlanRequest $request, Plan $plan): RedirectResponse
     {
         $data = $request->validated();
+        unset($data['orden']);
 
         if ($plan->codigo !== $data['codigo']) {
             throw ValidationException::withMessages([
@@ -198,10 +202,10 @@ class PlanController extends Controller
 
         $count = count($toUpsert);
         $message = $count === 0
-            ? 'Se removieron todas las funcionalidades del plan.'
+            ? 'Se quitaron todos los features del plan.'
             : ($count === 1
-                ? '1 funcionalidad configurada en el plan.'
-                : "{$count} funcionalidades configuradas en el plan.");
+                ? '1 feature configurado en el plan.'
+                : "{$count} features configurados en el plan.");
 
         Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
 

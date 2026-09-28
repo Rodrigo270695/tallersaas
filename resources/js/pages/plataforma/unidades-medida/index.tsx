@@ -80,14 +80,6 @@ export default function Index({
                 cell: (row) => <span className="font-medium">{row.nombre}</span>,
             },
             {
-                key: 'orden',
-                header: 'Orden',
-                sortable: true,
-                cell: (row) => (
-                    <span className="tabular-nums text-sm text-muted-foreground">{row.orden}</span>
-                ),
-            },
-            {
                 key: 'activo',
                 header: 'Estado',
                 sortable: true,

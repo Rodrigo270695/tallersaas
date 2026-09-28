@@ -41,7 +41,6 @@ class PlanRequest extends FormRequest
             'precio_mensual' => ['required', 'numeric', 'min:0', 'max:9999999.99'],
             'precio_anual' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
             'trial_days' => ['required', 'integer', 'min:0', 'max:365'],
-            'orden' => ['required', 'integer', 'min:0', 'max:1000'],
             'es_publico' => ['required', 'boolean'],
             'activo' => ['required', 'boolean'],
         ];
@@ -58,7 +57,6 @@ class PlanRequest extends FormRequest
             'precio_mensual' => 'precio mensual',
             'precio_anual' => 'precio anual',
             'trial_days' => 'días de prueba',
-            'orden' => 'orden',
             'es_publico' => 'visible públicamente',
             'activo' => 'plan activo',
         ];

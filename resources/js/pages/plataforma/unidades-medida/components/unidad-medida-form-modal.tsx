@@ -12,7 +12,6 @@ import type { UnidadMedida } from '../types';
 type FormData = {
     codigo: string;
     nombre: string;
-    orden: string;
     activo: boolean;
 };
 
@@ -33,7 +32,6 @@ export function UnidadMedidaFormModal({
         useForm<FormData>({
             codigo: '',
             nombre: '',
-            orden: '0',
             activo: true,
         });
     const { remember, requestClose } = useUnsavedFormGuard(data, onOpenChange);
@@ -49,7 +47,6 @@ export function UnidadMedidaFormModal({
         const initial = {
             codigo: unidad?.codigo ?? '',
             nombre: unidad?.nombre ?? '',
-            orden: unidad ? String(unidad.orden) : '0',
             activo: unidad?.activo ?? true,
         };
         remember(initial);
@@ -119,22 +116,11 @@ export function UnidadMedidaFormModal({
                         autoFocus={!isEdit}
                     />
                 </FormField>
-                <FormField id="um-orden" label="Orden" error={errors.orden}>
-                    <Input
-                        id="um-orden"
-                        type="number"
-                        min="0"
-                        value={data.orden}
-                        onChange={(e) => setData('orden', e.target.value)}
-                        disabled={processing}
-                    />
-                </FormField>
                 <FormField
                     id="um-nombre"
                     label="Nombre"
                     required
                     error={errors.nombre}
-                    className="sm:col-span-2"
                 >
                     <Input
                         id="um-nombre"

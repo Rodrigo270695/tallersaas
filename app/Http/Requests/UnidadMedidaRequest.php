@@ -29,7 +29,6 @@ class UnidadMedidaRequest extends FormRequest
                 Rule::unique('unidades_medida', 'codigo')->ignore($unidadId),
             ],
             'nombre' => ['required', 'string', 'max:80'],
-            'orden' => ['nullable', 'integer', 'min:0', 'max:99999'],
             'activo' => ['required', 'boolean'],
         ];
     }
@@ -39,7 +38,6 @@ class UnidadMedidaRequest extends FormRequest
         return [
             'codigo' => 'código',
             'nombre' => 'nombre',
-            'orden' => 'orden',
             'activo' => 'activo',
         ];
     }
@@ -60,9 +58,6 @@ class UnidadMedidaRequest extends FormRequest
             'codigo' => $codigo === '' ? null : $codigo,
             'nombre' => $nombre === '' ? null : $nombre,
             'activo' => $this->boolean('activo'),
-            'orden' => $this->input('orden') === '' || $this->input('orden') === null
-                ? 0
-                : (int) $this->input('orden'),
         ]);
     }
 }
