@@ -2,6 +2,7 @@ import { useForm } from '@inertiajs/react';
 import { Loader2 } from 'lucide-react';
 import { useEffect, type FormEvent } from 'react';
 import { FormField, FormModal, FormSection } from '@/components/forms';
+import { planColor } from '@/components/tenant-plan-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -268,7 +269,13 @@ export function TenantFormModal({
                             <SelectContent>
                                 {plans.map((plan) => (
                                     <SelectItem key={plan.id} value={plan.codigo}>
-                                        {plan.nombre}
+                                        <span className="inline-flex items-center gap-2">
+                                            <span
+                                                className="size-2.5 rounded-full"
+                                                style={{ backgroundColor: planColor(plan.codigo, plan.color_hex) }}
+                                            />
+                                            {plan.nombre}
+                                        </span>
                                     </SelectItem>
                                 ))}
                             </SelectContent>

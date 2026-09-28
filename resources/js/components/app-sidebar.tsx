@@ -39,6 +39,7 @@ import { useMemo } from 'react';
 import AppLogo from '@/components/app-logo';
 import { NavMainCollapsible } from '@/components/nav-main-collapsible';
 import { NavUser } from '@/components/nav-user';
+import { TenantPlanBadge } from '@/components/tenant-plan-badge';
 import {
     Sidebar,
     SidebarContent,
@@ -318,6 +319,13 @@ function useNavConfig(): { singles: NavItem[]; groups: NavGroup[] } {
                     context: 'both',
                     items: [
                         {
+                            title: 'Mi suscripción',
+                            href: '/configuracion/suscripcion',
+                            icon: CreditCard,
+                            permission: 'dashboard.view',
+                            context: 'tenant',
+                        },
+                        {
                             title: 'General',
                             href: general.show(),
                             icon: Settings2,
@@ -366,6 +374,7 @@ export function AppSidebar() {
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
+                <TenantPlanBadge />
             </SidebarHeader>
 
             <SidebarContent>

@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { Filter, Layers, Plus, ScreenShare } from 'lucide-react';
+import { Filter, Layers, Plus, ScreenShare, Sparkles } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { Can } from '@/components/can';
 import {
@@ -11,6 +11,7 @@ import {
     PageHeader,
 } from '@/components/data-page';
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
+import { planColor } from '@/components/tenant-plan-badge';
 import { Button } from '@/components/ui/button';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
@@ -71,21 +72,55 @@ export default function Index({
                 key: 'nombre',
                 header: 'Plan',
                 sortable: true,
-                cell: (plan) => (
-                    <div className="flex flex-col leading-tight">
-                        <span className="font-medium">{plan.nombre}</span>
-                        <span className="font-mono text-[11px] text-muted-foreground">
-                            {plan.codigo}
-                        </span>
-                    </div>
-                ),
+                cell: (plan) => {
+                    const hex = planColor(plan.codigo, plan.color_hex);
+
+                    return (
+                        <div className="flex items-center gap-2">
+                            <span
+                                className="flex size-8 shrink-0 items-center justify-center rounded-full"
+                                style={{ backgroundColor: `${hex}1A`, color: hex }}
+                            >
+                                <Sparkles className="size-4" strokeWidth={2.5} />
+                            </span>
+                            <div className="flex min-w-0 flex-col leading-tight">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="truncate text-sm font-semibold">{plan.nombre}</span>
+                                    {plan.badge ? (
+                                        <span
+                                            className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
+                                            style={{ color: hex, backgroundColor: `${hex}1A` }}
+                                        >
+                                            {plan.badge}
+                                        </span>
+                                    ) : null}
+                                </div>
+                                <span className="truncate font-mono text-[11px] text-muted-foreground">
+                                    {plan.codigo}
+                                </span>
+                            </div>
+                        </div>
+                    );
+                },
             },
             {
                 key: 'precio_mensual',
-                header: 'Mensual',
+                header: 'Precios',
                 sortable: true,
                 cell: (plan) => (
-                    <span className="font-mono tabular-nums">{money(plan.precio_mensual)}</span>
+                    <div className="flex flex-col text-xs leading-tight">
+                        <span className="font-mono font-semibold tabular-nums">
+                            {money(plan.precio_mensual)}
+                            <span className="text-[10px] font-normal text-muted-foreground"> /mes</span>
+                        </span>
+                        {plan.precio_anual ? (
+                            <span className="font-mono text-muted-foreground tabular-nums">
+                                {money(plan.precio_anual)} /año
+                            </span>
+                        ) : (
+                            <span className="text-muted-foreground italic">Sin precio anual</span>
+                        )}
+                    </div>
                 ),
             },
             {

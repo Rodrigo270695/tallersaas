@@ -34,6 +34,7 @@ use App\Http\Controllers\ServicioController;
 use App\Http\Controllers\SiniestroController;
 use App\Http\Controllers\StockInventarioController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\SuscripcionTallerController;
 use App\Http\Controllers\TallerSettingController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\TenantImpersonationController;
@@ -519,6 +520,9 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
     ->prefix('configuracion')
     ->name('configuracion.')
     ->group(function () {
+        Route::middleware('permission:dashboard.view')
+            ->get('suscripcion', [SuscripcionTallerController::class, 'show'])
+            ->name('suscripcion.show');
         Route::middleware('permission:config-general.view')
             ->get('general', [TallerSettingController::class, 'show'])
             ->name('general.show');

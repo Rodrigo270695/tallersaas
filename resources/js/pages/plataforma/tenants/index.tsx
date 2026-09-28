@@ -16,6 +16,7 @@ import {
     PageHeader,
 } from '@/components/data-page';
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
+import { planColor } from '@/components/tenant-plan-badge';
 import { Button } from '@/components/ui/button';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
@@ -114,10 +115,30 @@ export default function Index({
             {
                 key: 'plan',
                 header: 'Plan',
-                cell: (tenant) =>
-                    tenant.subscriptions?.[0]?.plan?.nombre ?? (
-                        <span className="text-xs text-muted-foreground">Sin plan</span>
-                    ),
+                cell: (tenant) => {
+                    const plan = tenant.subscriptions?.[0]?.plan;
+
+                    if (!plan) {
+                        return <span className="text-xs text-muted-foreground">Sin plan</span>;
+                    }
+
+                    const hex = planColor(plan.codigo, plan.color_hex);
+
+                    return (
+                        <span className="inline-flex items-center gap-1.5">
+                            <span className="size-2.5 rounded-full" style={{ backgroundColor: hex }} />
+                            <span className="text-sm font-medium">{plan.nombre}</span>
+                            {plan.badge ? (
+                                <span
+                                    className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+                                    style={{ color: hex, backgroundColor: `${hex}1A` }}
+                                >
+                                    {plan.badge}
+                                </span>
+                            ) : null}
+                        </span>
+                    );
+                },
             },
             {
                 key: 'estado',

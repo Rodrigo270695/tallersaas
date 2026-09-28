@@ -3,7 +3,9 @@
 namespace App\Http\Middleware;
 
 use App\Models\TallerSetting;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Support\Subscriptions\TenantSubscriptionSummary;
 use App\Support\Taller\TallerBrandingUrls;
 use App\Tenancy\TenantManager;
 use Illuminate\Http\Request;
@@ -71,9 +73,26 @@ class HandleInertiaRequests extends Middleware
             // se pintan con la identidad de CADA taller, no con el naranja
             // por defecto de TallerSaaS.
             'taller_branding' => $tenantContext === null ? null : $this->resolveTallerBranding(),
+            'tenant_plan' => $this->resolveTenantPlan($tenant),
             'tenant_impersonation' => $this->resolveImpersonation($request),
             'is_demo' => is_public_demo_tenant(),
         ];
+    }
+
+    /**
+     * @return array{nombre: string, codigo: string, badge: ?string, color_hex: ?string, estado: string, ciclo: ?string}|null
+     */
+    private function resolveTenantPlan(mixed $tenant): ?array
+    {
+        if (! $tenant instanceof Tenant) {
+            return null;
+        }
+
+        try {
+            return TenantSubscriptionSummary::chip($tenant);
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     /**

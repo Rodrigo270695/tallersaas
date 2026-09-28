@@ -17,6 +17,8 @@ class PlansAndFeaturesSeeder extends Seeder
             [
                 'codigo' => 'free',
                 'nombre' => 'Gratis',
+                'badge' => 'Gratis',
+                'color_hex' => '#78716c',
                 'descripcion' => 'Para talleres pequeños que recién comienzan a digitalizarse.',
                 'precio_mensual' => 0,
                 'precio_anual' => 0,
@@ -39,6 +41,8 @@ class PlansAndFeaturesSeeder extends Seeder
             [
                 'codigo' => 'basico',
                 'nombre' => 'Básico',
+                'badge' => 'Básico',
+                'color_hex' => '#0369a1',
                 'descripcion' => 'Para talleres con una sede que necesitan facturación electrónica.',
                 'precio_mensual' => 59.90,
                 'precio_anual' => 599.00,
@@ -61,6 +65,8 @@ class PlansAndFeaturesSeeder extends Seeder
             [
                 'codigo' => 'pro',
                 'nombre' => 'Pro',
+                'badge' => 'Pro',
+                'color_hex' => '#1e3a5f',
                 'descripcion' => 'Para talleres con múltiples sedes y alto volumen de comprobantes.',
                 'precio_mensual' => 129.90,
                 'precio_anual' => 1299.00,
