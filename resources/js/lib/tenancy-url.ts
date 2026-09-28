@@ -26,8 +26,6 @@ export function tenantHost(slug: string, tenancy: TenancyShared): string {
     return `${slug}.${tenancy.root_domain}`;
 }
 
-export function tenantLoginUrl(slug: string, tenancy: TenancyShared): string {
-    const path = tenancy.login_path.startsWith('/') ? tenancy.login_path : `/${tenancy.login_path}`;
-
-    return `${tenancy.scheme}://${tenantHost(slug, tenancy)}${path}`;
+export function tenantWorkshopUrl(slug: string, tenancy: TenancyShared): string {
+    return `${tenancy.scheme}://${tenantHost(slug, tenancy)}/`;
 }

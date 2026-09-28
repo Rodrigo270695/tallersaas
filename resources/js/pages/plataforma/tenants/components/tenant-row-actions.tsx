@@ -9,7 +9,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toastManager } from '@/lib/toast';
-import { tenantLoginUrl, useTenancy } from '@/lib/tenancy-url';
+import { tenantWorkshopUrl, useTenancy } from '@/lib/tenancy-url';
 import tenants from '@/routes/plataforma/tenants';
 import type { PlataformaTenant } from '../types';
 
@@ -63,11 +63,14 @@ export function TenantRowActions({
                     <Copy className="size-4" strokeWidth={2.25} />
                     Copiar slug
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild className="cursor-pointer gap-2">
-                    <a href={tenantLoginUrl(tenant.slug, tenancy)} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="size-4" strokeWidth={2.25} />
-                        Abrir subdominio
-                    </a>
+                <DropdownMenuItem
+                    className="cursor-pointer gap-2"
+                    onSelect={() => {
+                        window.location.assign(tenantWorkshopUrl(tenant.slug, tenancy));
+                    }}
+                >
+                    <ExternalLink className="size-4" strokeWidth={2.25} />
+                    Abrir subdominio
                 </DropdownMenuItem>
                 {canEnter ? (
                     <>
