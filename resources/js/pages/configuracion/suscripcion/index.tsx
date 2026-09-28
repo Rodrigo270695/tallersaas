@@ -46,6 +46,7 @@ type Subscription = {
     days_until_renewal: number | null;
     urgency: 'ok' | 'yellow' | 'amber' | 'red' | 'danger' | 'muted';
     renewal_url: string | null;
+    nunca_vence?: boolean;
     usage: UsageItem[];
     comprobantes: {
         enabled: boolean;
@@ -196,7 +197,7 @@ export default function Index({ subscription }: { subscription: Subscription | n
                     description="Plan contratado, estado del servicio y fechas de renovación."
                 />
 
-                {subscription && urgency !== 'ok' ? (
+                {subscription && urgency !== 'ok' && !subscription.nunca_vence ? (
                     <Alert className="border-amber-500/40 bg-amber-500/5 py-2.5 text-amber-900">
                         <AlertCircle className="size-4" />
                         <AlertDescription className="text-sm">
@@ -244,7 +245,9 @@ export default function Index({ subscription }: { subscription: Subscription | n
                             </div>
                             <div className="flex shrink-0 flex-wrap items-center gap-3">
                                 <div className="rounded-lg bg-black/15 px-3 py-2 text-center ring-1 ring-white/15">
-                                    {days !== null && days >= 0 ? (
+                                    {subscription.nunca_vence ? (
+                                        <p className="text-sm font-semibold">No vence</p>
+                                    ) : days !== null && days >= 0 ? (
                                         <>
                                             <p className="text-2xl leading-none font-bold tabular-nums">{days}</p>
                                             <p className="mt-0.5 text-[11px] text-white/80">
@@ -254,7 +257,9 @@ export default function Index({ subscription }: { subscription: Subscription | n
                                     ) : (
                                         <p className="text-sm font-semibold">{when(subscription.renewal_anchor_at)}</p>
                                     )}
-                                    <p className="text-[11px] text-white/65">{when(subscription.proximo_cobro_at)}</p>
+                                    {subscription.nunca_vence ? null : (
+                                        <p className="text-[11px] text-white/65">{when(subscription.proximo_cobro_at)}</p>
+                                    )}
                                 </div>
                                 {subscription.renewal_url ? (
                                     <Button asChild size="sm" className="bg-white hover:bg-white/90" style={{ color }}>

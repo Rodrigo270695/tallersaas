@@ -350,6 +350,14 @@ export default function Index({
 }
 
 function ExpiryBadge({ tenant }: { tenant: PlataformaTenant }) {
+    if (tenant.slug === 'demo') {
+        return (
+            <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+                No vence
+            </span>
+        );
+    }
+
     const sub = tenant.subscriptions?.[0];
     const iso = sub?.proximo_cobro_at ?? sub?.current_period_end ?? tenant.trial_ends_at;
 

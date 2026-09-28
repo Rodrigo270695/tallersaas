@@ -140,6 +140,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('tallersaas:reminders-scan')->everyFifteenMinutes();
         $schedule->command('tallersaas:notifications-dispatch')->everyFiveMinutes();
         $schedule->command('tallersaas:whatsapp-sync-sessions')->everyFiveMinutes();
-        // Resetea datos del tenant demo (borra lo que probaron y deja sede prueba).
-        $schedule->command('tallersaas:reset-demo')->dailyAt('02:00');
+        // Cada noche borra lo que probaron en la demo y deja la suscripción vigente.
+        $schedule->command('tallersaas:reset-demo')
+            ->dailyAt('02:00')
+            ->timezone('America/Lima');
     })->create();

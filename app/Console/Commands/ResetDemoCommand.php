@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\Sede;
+use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Tenancy\TenantSchemaMigrator;
@@ -87,6 +88,8 @@ final class ResetDemoCommand extends Command
 
         $this->resyncRbac($tenant);
         $this->restoreDemoAdmin($tenant);
+        $this->dropExtraUsers($tenant);
+        $this->keepSubscriptionAlive($tenant);
 
         // Vaciar tablas tenant que apuntan a sedes (ON DELETE RESTRICT)
         // antes de borrar sedes que no sean CHI-01.
@@ -161,6 +164,56 @@ final class ResetDemoCommand extends Command
         } finally {
             setPermissionsTeamId($previousTeam);
         }
+    }
+
+    private function dropExtraUsers(Tenant $tenant): void
+    {
+        $extras = User::withTrashed()
+            ->where('tenant_id', $tenant->id)
+            ->where('email', '!=', self::DEMO_EMAIL)
+            ->get();
+
+        foreach ($extras as $extra) {
+            $extra->syncRoles([]);
+            $extra->forceDelete();
+        }
+
+        if ($extras->isNotEmpty()) {
+            $this->line('  → Usuarios creados en la demo eliminados: '.$extras->count().'.');
+        }
+    }
+
+    private function keepSubscriptionAlive(Tenant $tenant): void
+    {
+        $until = now('America/Lima')->addYears(10);
+
+        $tenant->forceFill([
+            'estado' => 'active',
+            'trial_ends_at' => null,
+        ])->save();
+
+        $subscription = Subscription::query()
+            ->where('tenant_id', $tenant->id)
+            ->orderByDesc('created_at')
+            ->first();
+
+        if ($subscription === null) {
+            $this->line('  → Demo sin suscripción. El acceso igual no vence.');
+
+            return;
+        }
+
+        $subscription->forceFill([
+            'estado' => 'active',
+            'trial_ends_at' => null,
+            'current_period_start' => now('America/Lima'),
+            'current_period_end' => $until,
+            'proximo_cobro_at' => $until,
+            'grace_ends_at' => null,
+            'cancelled_at' => null,
+        ])->save();
+
+        $this->line('  → Suscripción de la demo renovada. No vence.');
     }
 
     private function ensureDemoSede(Tenant $tenant): void

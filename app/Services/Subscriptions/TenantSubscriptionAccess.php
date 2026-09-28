@@ -30,6 +30,10 @@ final class TenantSubscriptionAccess
      */
     public function resolveDenial(Tenant $tenant): ?string
     {
+        if ($tenant->slug === 'demo') {
+            return null;
+        }
+
         if ($tenant->estado === 'cancelled') {
             return self::DENIAL_CANCELLED;
         }

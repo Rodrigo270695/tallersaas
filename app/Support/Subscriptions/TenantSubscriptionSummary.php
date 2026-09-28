@@ -61,7 +61,7 @@ final class TenantSubscriptionSummary
         $days = self::daysUntil($anchor);
         $plan = $subscription->plan;
 
-        return [
+        $payload = [
             'has_subscription' => true,
             'plan' => $plan === null ? null : [
                 'nombre' => $plan->nombre,
@@ -87,6 +87,8 @@ final class TenantSubscriptionSummary
             'usage' => self::usage($tenant, $subscription),
             'comprobantes' => self::comprobantes($subscription),
         ];
+
+        return self::asDemoIfNeeded($tenant, $payload);
     }
 
     /**
@@ -97,7 +99,7 @@ final class TenantSubscriptionSummary
         $trialEnd = self::toCarbon($tenant->trial_ends_at);
         $days = self::daysUntil($trialEnd);
 
-        return [
+        $payload = [
             'has_subscription' => false,
             'plan' => null,
             'estado' => $tenant->estado === 'trial' ? 'trial' : 'unknown',
@@ -115,6 +117,29 @@ final class TenantSubscriptionSummary
             'usage' => [],
             'comprobantes' => ['enabled' => false, 'used' => 0, 'limit' => 0, 'period_label' => null],
         ];
+
+        return self::asDemoIfNeeded($tenant, $payload);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private static function asDemoIfNeeded(Tenant $tenant, array $payload): array
+    {
+        if ($tenant->slug !== 'demo') {
+            $payload['nunca_vence'] = false;
+
+            return $payload;
+        }
+
+        $payload['estado'] = 'active';
+        $payload['urgency'] = 'ok';
+        $payload['days_until_renewal'] = null;
+        $payload['renewal_url'] = null;
+        $payload['nunca_vence'] = true;
+
+        return $payload;
     }
 
     private static function anchor(Subscription $subscription, Tenant $tenant): ?Carbon
