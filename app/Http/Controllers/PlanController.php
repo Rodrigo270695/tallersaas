@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\PlanRequest;
 use App\Models\Plan;
 use App\Models\PlanFeature;
+use App\Services\Orvae\OrvaeMarketingNotifier;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,6 +27,8 @@ class PlanController extends Controller
     ];
 
     private const ESTADO_OPTIONS = ['todos', 'activos', 'inactivos', 'publicos', 'privados'];
+
+    public function __construct(private readonly OrvaeMarketingNotifier $orvae) {}
 
     public function index(Request $request): Response
     {
@@ -95,6 +98,7 @@ class PlanController extends Controller
         $data['orden'] = ((int) Plan::query()->max('orden')) + 1;
 
         Plan::create($data);
+        $this->orvae->plansChanged();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Plan creado correctamente.']);
 
@@ -113,6 +117,7 @@ class PlanController extends Controller
         }
 
         $plan->update($data);
+        $this->orvae->plansChanged();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Plan actualizado correctamente.']);
 
@@ -200,6 +205,8 @@ class PlanController extends Controller
             );
         }
 
+        $this->orvae->plansChanged();
+
         $count = count($toUpsert);
         $message = $count === 0
             ? 'Se quitaron todos los features del plan.'
@@ -221,6 +228,7 @@ class PlanController extends Controller
         }
 
         $plan->delete();
+        $this->orvae->plansChanged();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Plan eliminado correctamente.']);
 

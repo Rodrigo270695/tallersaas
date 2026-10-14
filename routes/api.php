@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Internal\SaasProvisionController;
+use App\Http\Controllers\Api\PublicMarketing\PlansController;
 use App\Http\Middleware\VerifyOrvaeProvisionSignature;
 use Illuminate\Support\Facades\Route;
 
@@ -26,3 +27,8 @@ Route::prefix('internal/saas')
         Route::get('tenants/{slug}', [SaasProvisionController::class, 'status'])
             ->name('api.internal.saas.status');
     });
+
+// Lectura pública (sin datos sensibles) para la landing de Orvae.
+Route::get('public/tallersaas/plans', PlansController::class)
+    ->middleware('throttle:60,1')
+    ->name('api.public.tallersaas.plans');

@@ -17,6 +17,14 @@ return [
     |
     */
 
+    /*
+    | Al cambiar planes/features se avisa a Orvae (firmado con el mismo hmac_secret)
+    | para que refresque la tabla de planes de su landing.
+    */
+    'marketing' => [
+        'refresh_url' => env('ORVAE_MARKETING_REFRESH_URL'),
+    ],
+
     'provision' => [
         'hmac_secret' => env('ORVAE_PROVISION_HMAC_SECRET'),
         'max_skew_seconds' => (int) env('ORVAE_PROVISION_MAX_SKEW_SECONDS', 300),
