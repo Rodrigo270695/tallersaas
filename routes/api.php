@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Internal\SaasProvisionController;
+use App\Http\Controllers\Api\Internal\SalesKnowledgeController;
 use App\Http\Controllers\Api\PublicMarketing\PlansController;
 use App\Http\Middleware\VerifyOrvaeProvisionSignature;
 use Illuminate\Support\Facades\Route;
@@ -26,6 +27,9 @@ Route::prefix('internal/saas')
 
         Route::get('tenants/{slug}', [SaasProvisionController::class, 'status'])
             ->name('api.internal.saas.status');
+
+        Route::get('salesbot-knowledge', SalesKnowledgeController::class)
+            ->name('api.internal.saas.salesbot-knowledge');
     });
 
 // Lectura pública (sin datos sensibles) para la landing de Orvae.
