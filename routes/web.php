@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AseguradoraController;
+use App\Http\Controllers\Auth\BootstrapLoginController;
+use App\Http\Controllers\Auth\ChangePasswordController;
 use App\Http\Controllers\CajaEgresoController;
 use App\Http\Controllers\CajaSesionController;
 use App\Http\Controllers\CategoriaInventarioController;
@@ -87,12 +89,29 @@ Route::get('/', function () {
         : redirect()->route('login');
 })->name('home');
 
+Route::middleware(['tenant.required', 'throttle:20,1'])->group(function (): void {
+    Route::get('auth/bienvenida/{token}', [BootstrapLoginController::class, 'show'])
+        ->where('token', '[A-Za-z0-9]{40,128}')
+        ->name('tenant.auth.bootstrap.web');
+
+    Route::post('auth/bienvenida/{token}', [BootstrapLoginController::class, 'store'])
+        ->where('token', '[A-Za-z0-9]{40,128}')
+        ->name('tenant.auth.bootstrap.store.web');
+});
+
+Route::middleware(['auth', 'tenant.match-user'])->group(function (): void {
+    Route::get('cuenta/cambiar-password', [ChangePasswordController::class, 'show'])
+        ->name('password.change.form');
+    Route::post('cuenta/cambiar-password', [ChangePasswordController::class, 'update'])
+        ->name('password.change.update');
+});
+
 // `tenant.match-user` valida que, si el host resolvió un tenant, el
 // usuario autenticado pertenezca a ese taller (o sea el superadmin
 // central si el host es el dominio central). Así el MISMO nombre de
 // ruta `dashboard` sirve para el panel central y para cada taller sin
 // duplicar rutas ni middlewares.
-Route::middleware(['auth', 'verified', 'tenant.match-user'])->group(function () {
+Route::middleware(['auth', 'tenant.match-user', 'force-password-change', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 });
 
@@ -100,7 +119,7 @@ Route::middleware(['auth', 'verified', 'tenant.match-user'])->group(function () 
 // Solo tienen sentido dentro del subdominio de un tenant, de ahí
 // `tenant.required`. Cada acción exige el permiso Spatie correspondiente
 // (ver `PermissionsSeeder`).
-Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
+Route::middleware(['auth', 'tenant.match-user', 'force-password-change', 'verified', 'tenant.required'])
     ->prefix('taller')
     ->name('taller.')
     ->group(function () {
@@ -361,7 +380,7 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
             ->name('ordenes-trabajo.presupuesto');
     });
 
-Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
+Route::middleware(['auth', 'tenant.match-user', 'force-password-change', 'verified', 'tenant.required'])
     ->prefix('caja')
     ->name('caja.')
     ->group(function () {
@@ -405,7 +424,7 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
             ->name('ventas.ticket');
     });
 
-Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
+Route::middleware(['auth', 'tenant.match-user', 'force-password-change', 'verified', 'tenant.required'])
     ->prefix('facturacion')
     ->name('facturacion.')
     ->group(function () {
@@ -433,7 +452,7 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
             ->name('series.destroy');
     });
 
-Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
+Route::middleware(['auth', 'tenant.match-user', 'force-password-change', 'verified', 'tenant.required'])
     ->prefix('reportes')
     ->name('reportes.')
     ->group(function () {
@@ -445,7 +464,7 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
             ->name('ordenes.index');
     });
 
-Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
+Route::middleware(['auth', 'tenant.match-user', 'force-password-change', 'verified', 'tenant.required'])
     ->prefix('comunicaciones')
     ->name('comunicaciones.')
     ->group(function () {
@@ -475,7 +494,7 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
             ->name('whatsapp.test');
     });
 
-Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
+Route::middleware(['auth', 'tenant.match-user', 'force-password-change', 'verified', 'tenant.required'])
     ->prefix('inventario')
     ->name('inventario.')
     ->group(function () {
@@ -547,7 +566,7 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
     });
 
 // Catálogo geográfico (departamento → provincia → distrito).
-Route::middleware(['auth', 'verified'])
+Route::middleware(['auth', 'force-password-change', 'verified'])
     ->prefix('geo')
     ->name('geo.')
     ->group(function () {
@@ -559,7 +578,7 @@ Route::middleware(['auth', 'verified'])
 // Configuración (roles / usuarios): mismas URLs en el subdominio del
 // taller y en el panel central. El alcance lo decide TallerAdminScope
 // según `tenant_id()` (roles del tenant vs roles de plataforma).
-Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
+Route::middleware(['auth', 'tenant.match-user', 'force-password-change', 'verified', 'tenant.required'])
     ->prefix('configuracion')
     ->name('configuracion.')
     ->group(function () {
@@ -590,7 +609,7 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.required'])
             ->name('sedes.bulk-destroy');
     });
 
-Route::middleware(['auth', 'verified', 'tenant.match-user'])
+Route::middleware(['auth', 'tenant.match-user', 'force-password-change', 'verified'])
     ->prefix('configuracion')
     ->name('configuracion.')
     ->group(function () {
@@ -630,7 +649,7 @@ Route::middleware(['auth', 'verified', 'tenant.match-user'])
             ->name('usuarios.destroy');
     });
 
-Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.none'])
+Route::middleware(['auth', 'tenant.match-user', 'force-password-change', 'verified', 'tenant.none'])
     ->prefix('plataforma')
     ->name('plataforma.')
     ->group(function () {
@@ -690,7 +709,7 @@ Route::middleware(['auth', 'verified', 'tenant.match-user', 'tenant.none'])
             ->name('suscripciones.update');
     });
 
-Route::middleware(['auth', 'verified', 'tenant.match-user'])
+Route::middleware(['auth', 'tenant.match-user', 'force-password-change', 'verified'])
     ->post('impersonate/leave', [TenantImpersonationController::class, 'leave'])
     ->name('impersonate.leave');
 

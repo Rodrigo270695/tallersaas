@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureNoTenant;
+use App\Http\Middleware\EnsurePasswordIsChanged;
 use App\Http\Middleware\EnsureTenant;
 use App\Http\Middleware\ExternalTenantVisit;
 use App\Http\Middleware\HandleAppearance;
@@ -13,6 +14,7 @@ use App\Http\Middleware\SetPermissionsTeam;
 use App\Http\Middleware\VerifyOrvaeProvisionSignature;
 use App\Tenancy\Exceptions\TenantNotFoundException;
 use App\Tenancy\Exceptions\TenantSuspendedException;
+use Illuminate\Auth\Middleware\EnsureEmailIsVerified;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
@@ -69,6 +71,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant.match-user' => MatchUserTenant::class,
             'tenant.permissions-team' => SetPermissionsTeam::class,
             'orvae.signature' => VerifyOrvaeProvisionSignature::class,
+            'force-password-change' => EnsurePasswordIsChanged::class,
         ]);
 
         // `ResolveTenant` se aplica a TODO el grupo web. Es inocuo en el
@@ -92,6 +95,10 @@ return Application::configure(basePath: dirname(__DIR__))
         );
         $middleware->prependToPriorityList(before: AuthenticatesRequests::class, prepend: ResolveTenant::class);
         $middleware->prependToPriorityList(before: AuthenticatesRequests::class, prepend: EnsureNoTenant::class);
+        $middleware->prependToPriorityList(
+            before: EnsureEmailIsVerified::class,
+            prepend: EnsurePasswordIsChanged::class,
+        );
 
         $middleware->web(append: [
             ExternalTenantVisit::class,
