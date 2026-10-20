@@ -662,6 +662,9 @@ Route::middleware(['auth', 'tenant.match-user', 'force-password-change', 'verifi
         Route::middleware('permission:plataforma-tenants.update')
             ->match(['put', 'patch'], 'tenants/{tenant}', [TenantController::class, 'update'])
             ->name('tenants.update');
+        Route::middleware('permission:plataforma-tenants.update')
+            ->post('tenants/{tenant}/recover-admin-access', [TenantController::class, 'recoverAdminAccess'])
+            ->name('tenants.recover-admin-access');
         Route::middleware('permission:plataforma-tenants.suspend')
             ->post('tenants/{tenant}/suspend', [TenantController::class, 'suspend'])
             ->name('tenants.suspend');

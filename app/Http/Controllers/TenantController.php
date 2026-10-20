@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\RecoverTenantAdminAccessRequest;
 use App\Http\Requests\TenantStoreRequest;
 use App\Http\Requests\TenantUpdateRequest;
 use App\Models\Departamento;
 use App\Models\Plan;
 use App\Models\Sede;
 use App\Models\Tenant;
+use App\Services\Tenancy\TenantAdminAccessNotifier;
+use App\Services\Tenancy\TenantAdminAccessRecoverer;
 use App\Services\Tenancy\TenantProvisioner;
 use App\Tenancy\TenantManager;
 use Illuminate\Database\Eloquent\Builder;
@@ -200,6 +203,61 @@ class TenantController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Taller suspendido correctamente.']);
 
         return back();
+    }
+
+    public function recoverAdminAccess(
+        RecoverTenantAdminAccessRequest $request,
+        Tenant $tenant,
+        TenantAdminAccessRecoverer $recoverer,
+        TenantProvisioner $provisioner,
+        TenantAdminAccessNotifier $notifier,
+    ): RedirectResponse {
+        if ($tenant->estado === 'cancelled') {
+            throw ValidationException::withMessages([
+                'email' => 'No se puede recuperar el acceso de un taller cancelado.',
+            ]);
+        }
+
+        $data = $request->validated();
+        $mustChange = (bool) ($data['must_change_password'] ?? true);
+        $notifyClient = (bool) ($data['notify_client'] ?? true);
+
+        $result = $recoverer->recover(
+            $tenant,
+            (string) $data['email'],
+            (string) $data['password'],
+            $mustChange,
+        );
+
+        $bootstrapUrl = $provisioner->issueBootstrapLoginUrl($tenant, $result['user']);
+
+        $message = ($result['created'] ?? false)
+            ? sprintf(
+                'Usuario admin_taller creado: %s. Copia el enlace o revisa el envío al cliente.',
+                $result['user']->email,
+            )
+            : sprintf(
+                'Acceso del admin actualizado: %s. Copia el enlace o revisa el envío al cliente.',
+                $result['user']->email,
+            );
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
+
+        $redirect = back()
+            ->with('success', $message)
+            ->with('copy_url', $bootstrapUrl)
+            ->with('copy_label', 'Enlace de bienvenida (~48h)');
+
+        if ($notifyClient) {
+            $delivery = $notifier->notify($tenant, (string) $result['user']->email, $bootstrapUrl);
+            if ($delivery['warnings'] !== []) {
+                $redirect->with('warning', implode(' ', $delivery['warnings']));
+            } elseif ($delivery['email_sent']) {
+                $redirect->with('info', 'Enviado al cliente por correo.');
+            }
+        }
+
+        return $redirect;
     }
 
     public function resume(Tenant $tenant, TenantManager $manager): RedirectResponse

@@ -18,13 +18,14 @@ import {
 import type { DataTableColumn, FilterChip } from '@/components/data-page';
 import type { GeoOption } from '@/components/geo/geo-cascade-fields';
 import { planColor } from '@/components/tenant-plan-badge';
-import { tenantHost, useTenancy } from '@/lib/tenancy-url';
 import { Button } from '@/components/ui/button';
 import { useDataTablePage } from '@/hooks/use-data-table-page';
 import { usePermission } from '@/hooks/use-permission';
+import { tenantHost, useTenancy } from '@/lib/tenancy-url';
 import tenants from '@/routes/plataforma/tenants';
 import type { Paginated } from '@/types';
 import { TenantFormModal } from './components/tenant-form-modal';
+import { TenantRecoverAdminDialog } from './components/tenant-recover-admin-dialog';
 import { TenantRowActions } from './components/tenant-row-actions';
 import { TenantSuspendDialog } from './components/tenant-suspend-dialog';
 import type {
@@ -47,7 +48,8 @@ type ModalState =
     | { type: 'idle' }
     | { type: 'create' }
     | { type: 'edit'; tenant: PlataformaTenant }
-    | { type: 'suspend'; tenant: PlataformaTenant };
+    | { type: 'suspend'; tenant: PlataformaTenant }
+    | { type: 'recover-admin'; tenant: PlataformaTenant };
 
 const DEFAULT_PER_PAGE = 10;
 
@@ -207,6 +209,7 @@ export default function Index({
                     <TenantRowActions
                         tenant={tenant}
                         onEdit={(item) => setModal({ type: 'edit', tenant: item })}
+                        onRecoverAdmin={(item) => setModal({ type: 'recover-admin', tenant: item })}
                         onSuspend={(item) => setModal({ type: 'suspend', tenant: item })}
                         canUpdate={canUpdate}
                         canSuspend={canSuspend}
@@ -344,6 +347,16 @@ export default function Index({
                     }
                 }}
                 tenant={modal.type === 'suspend' ? modal.tenant : null}
+            />
+
+            <TenantRecoverAdminDialog
+                open={modal.type === 'recover-admin'}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        closeModal();
+                    }
+                }}
+                tenant={modal.type === 'recover-admin' ? modal.tenant : null}
             />
         </>
     );

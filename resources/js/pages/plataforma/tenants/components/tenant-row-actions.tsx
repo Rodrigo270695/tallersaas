@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { Copy, ExternalLink, LogIn, MoreHorizontal, PauseCircle, Pencil, PlayCircle } from 'lucide-react';
+import { Copy, ExternalLink, KeyRound, LogIn, MoreHorizontal, PauseCircle, Pencil, PlayCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -8,14 +8,15 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { toastManager } from '@/lib/toast';
 import { tenantExternalUrl, useTenancy } from '@/lib/tenancy-url';
+import { toastManager } from '@/lib/toast';
 import tenants from '@/routes/plataforma/tenants';
 import type { PlataformaTenant } from '../types';
 
 export function TenantRowActions({
     tenant,
     onEdit,
+    onRecoverAdmin,
     onSuspend,
     canUpdate,
     canSuspend,
@@ -24,6 +25,7 @@ export function TenantRowActions({
 }: {
     tenant: PlataformaTenant;
     onEdit: (tenant: PlataformaTenant) => void;
+    onRecoverAdmin?: (tenant: PlataformaTenant) => void;
     onSuspend: (tenant: PlataformaTenant) => void;
     canUpdate: boolean;
     canSuspend: boolean;
@@ -35,6 +37,10 @@ export function TenantRowActions({
         canImpersonate && tenant.estado !== 'cancelled' && tenant.estado !== 'suspended';
     const canStop = canSuspend && tenant.estado !== 'suspended' && tenant.estado !== 'cancelled';
     const canPlay = canResume && tenant.estado === 'suspended';
+    const showRecoverAdmin =
+        canUpdate &&
+        typeof onRecoverAdmin === 'function' &&
+        tenant.estado !== 'cancelled';
 
     const copySlug = async () => {
         try {
@@ -93,7 +99,16 @@ export function TenantRowActions({
                         </DropdownMenuItem>
                     </>
                 ) : null}
-                {canUpdate || canStop || canPlay ? <DropdownMenuSeparator /> : null}
+                {showRecoverAdmin || canUpdate || canStop || canPlay ? <DropdownMenuSeparator /> : null}
+                {showRecoverAdmin ? (
+                    <DropdownMenuItem
+                        onSelect={() => onRecoverAdmin?.(tenant)}
+                        className="cursor-pointer gap-2"
+                    >
+                        <KeyRound className="size-4" strokeWidth={2.25} />
+                        Actualizar contraseña admin
+                    </DropdownMenuItem>
+                ) : null}
                 {canUpdate ? (
                     <DropdownMenuItem onSelect={() => onEdit(tenant)} className="cursor-pointer gap-2">
                         <Pencil className="size-4" strokeWidth={2.25} />

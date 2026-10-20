@@ -81,7 +81,34 @@ class HandleInertiaRequests extends Middleware
                 'scheme' => (string) config('orvae.tenant.scheme', 'https'),
                 'login_path' => (string) config('orvae.tenant.login_path', '/login'),
             ],
+            'flash' => fn () => $this->resolveFlashPayload($request),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function resolveFlashPayload(Request $request): ?array
+    {
+        $session = $request->session();
+        $payload = [
+            'success' => $session->get('success'),
+            'error' => $session->get('error'),
+            'info' => $session->get('info'),
+            'warning' => $session->get('warning'),
+            'copy_url' => $session->get('copy_url'),
+            'copy_label' => $session->get('copy_label'),
+        ];
+
+        $hasMessage = collect($payload)
+            ->filter(fn ($value) => is_string($value) && $value !== '')
+            ->isNotEmpty();
+
+        if (! $hasMessage) {
+            return null;
+        }
+
+        return $payload;
     }
 
     /**
