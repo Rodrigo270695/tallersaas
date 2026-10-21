@@ -118,8 +118,11 @@ export default function Show({ lavado, mi_sesion_abierta, igv, fel_ready, servic
                         </p>
                         <div className="flex flex-col gap-3">
                             {form.data.lineas.map((linea, index) => (
-                                <div key={index} className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_7rem_7rem_auto]">
-                                    <FormField id={`cw-srv-${index}`} label="Servicio">
+                                <div key={index} className="grid gap-2 rounded-lg border p-3">
+                                    <FormField
+                                        id={`cw-srv-${index}`}
+                                        label={index === 0 ? 'Servicio' : ''}
+                                    >
                                         <Select
                                             value={linea.servicio_id || '__libre__'}
                                             onValueChange={(value) => {
@@ -134,7 +137,10 @@ export default function Show({ lavado, mi_sesion_abierta, igv, fel_ready, servic
                                             }}
                                             disabled={!abierto}
                                         >
-                                            <SelectTrigger id={`cw-srv-${index}`} className="h-9 w-full">
+                                            <SelectTrigger
+                                                id={`cw-srv-${index}`}
+                                                className="min-h-11 w-full"
+                                            >
                                                 <SelectValue placeholder="Texto libre" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -147,36 +153,63 @@ export default function Show({ lavado, mi_sesion_abierta, igv, fel_ready, servic
                                             </SelectContent>
                                         </Select>
                                     </FormField>
-                                    <Input
-                                        value={linea.descripcion}
-                                        placeholder="Descripción"
-                                        disabled={!abierto}
-                                        onChange={(event) => setLinea(index, { descripcion: event.target.value })}
-                                    />
-                                    <Input
-                                        type="number"
-                                        min="0.001"
-                                        step="0.001"
-                                        value={linea.cantidad}
-                                        disabled={!abierto}
-                                        onChange={(event) => setLinea(index, { cantidad: event.target.value })}
-                                    />
-                                    <div className="flex gap-2">
-                                        <Input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={linea.precio_unitario}
-                                            disabled={!abierto}
-                                            onChange={(event) =>
-                                                setLinea(index, { precio_unitario: event.target.value })
-                                            }
-                                        />
+                                    <div className="grid gap-2 sm:grid-cols-[1fr_5rem_7rem_auto]">
+                                        <FormField
+                                            id={`cw-desc-${index}`}
+                                            label={index === 0 ? 'Descripción' : ''}
+                                        >
+                                            <Input
+                                                id={`cw-desc-${index}`}
+                                                className="min-h-11"
+                                                value={linea.descripcion}
+                                                placeholder="Descripción"
+                                                disabled={!abierto}
+                                                onChange={(event) =>
+                                                    setLinea(index, { descripcion: event.target.value })
+                                                }
+                                            />
+                                        </FormField>
+                                        <FormField
+                                            id={`cw-qty-${index}`}
+                                            label={index === 0 ? 'Cant.' : ''}
+                                        >
+                                            <Input
+                                                id={`cw-qty-${index}`}
+                                                type="number"
+                                                min="0.001"
+                                                step="0.001"
+                                                className="min-h-11"
+                                                value={linea.cantidad}
+                                                disabled={!abierto}
+                                                onChange={(event) =>
+                                                    setLinea(index, { cantidad: event.target.value })
+                                                }
+                                            />
+                                        </FormField>
+                                        <FormField
+                                            id={`cw-pu-${index}`}
+                                            label={index === 0 ? 'P. unitario' : ''}
+                                        >
+                                            <Input
+                                                id={`cw-pu-${index}`}
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                className="min-h-11"
+                                                value={linea.precio_unitario}
+                                                disabled={!abierto}
+                                                onChange={(event) =>
+                                                    setLinea(index, { precio_unitario: event.target.value })
+                                                }
+                                            />
+                                        </FormField>
                                         {abierto ? (
                                             <Button
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
+                                                className={`size-11 cursor-pointer ${index === 0 ? 'sm:mt-6' : ''}`}
+                                                aria-label="Quitar cargo"
                                                 onClick={() =>
                                                     form.setData(
                                                         'lineas',
